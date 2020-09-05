@@ -2,7 +2,14 @@ use crate::openxr_caddy::{load_openxr, OpenXr};
 use crate::{DrawType, Engine, FramePacket, Material, Mesh, Vertex};
 use anyhow::Result;
 
-pub struct OpenXrBackend;
+pub struct OpenXrBackend {
+/*
+    frame_wait: Option<xr::FrameWaiter>,
+    frame_stream: Option<xr::FrameStream<xr::Vulkan>>,
+    stage: Option<xr::Space>,
+    swapchain: Option<Swapchain>,
+*/
+}
 
 impl OpenXrBackend {
     pub fn new(application_name: &str) -> Result<(Self, OpenXr)> {

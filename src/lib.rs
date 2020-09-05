@@ -6,6 +6,8 @@ mod openxr_backend;
 mod openxr_caddy;
 mod vertex;
 mod winit_backend;
+mod core;
+mod handle;
 use anyhow::Result;
 use nalgebra::{Matrix4, Point3, UnitQuaternion};
 pub use openxr_backend::OpenXrBackend;
@@ -38,11 +40,11 @@ pub struct Object {
 
 /// Handle for a Material (Draw commands)
 #[derive(Copy, Clone)]
-pub struct Material;
+pub struct Material(pub(crate) handle::Id);
 
 /// Handle for a Mesh (Draw content)
 #[derive(Copy, Clone)]
-pub struct Mesh;
+pub struct Mesh(pub(crate) handle::Id);
 
 /// How to draw a mesh given indices and vertices
 pub enum DrawType {

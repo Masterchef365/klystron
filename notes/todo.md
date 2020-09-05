@@ -9,3 +9,4 @@
     * Log whenever a mesh is loaded/unloaded and its handle (vertex/index count)
     * OpenXR state transitions
     * Swapchain rebuilds
+* Implement core, then start adding the backends
