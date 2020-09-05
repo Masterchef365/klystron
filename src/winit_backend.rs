@@ -1,6 +1,6 @@
+use crate::core::{Core, VkPrelude};
 use crate::hardware_query::HardwareSelection;
 use crate::{DrawType, Engine, FramePacket, Material, Mesh, Vertex};
-use crate::core::VkPrelude;
 use anyhow::Result;
 use erupt::{
     cstr,
@@ -9,6 +9,7 @@ use erupt::{
     vk1_0 as vk, DeviceLoader, EntryLoader, InstanceLoader,
 };
 use std::ffi::CString;
+use std::sync::Arc;
 use winit::window::Window;
 
 /// Windowed mode Winit engine backend
@@ -72,14 +73,16 @@ impl WinitBackend {
         let device = DeviceLoader::new(&instance, hardware.physical_device, &create_info, None)?;
         let queue = unsafe { device.get_device_queue(hardware.queue_family, 0, None) };
 
-        let _ = VkPrelude {
+        let prelude = Arc::new(VkPrelude {
             queue,
             queue_family_index: hardware.queue_family,
             physical_device: hardware.physical_device,
             device,
             instance,
             entry,
-        };
+        });
+
+        let core = Core::new(prelude)?;
 
         todo!()
     }

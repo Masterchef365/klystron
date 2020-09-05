@@ -27,7 +27,6 @@ pub struct Mesh;
 pub struct Material;
 
 pub struct Core {
-    pub prelude: Arc<VkPrelude>,
     pub allocator: Allocator,
     pub materials: HandleMap<Material>,
     pub objects: HandleMap<Mesh>,
@@ -38,6 +37,7 @@ pub struct Core {
     pub descriptor_set_layout: vk::DescriptorSetLayout,
     pub descriptor_sets: Vec<vk::DescriptorSet>,
     pub camera_ubos: Vec<AllocatedBuffer<CameraUbo>>,
+    pub prelude: Arc<VkPrelude>,
 }
 
 impl Core {
@@ -143,5 +143,30 @@ impl Core {
             materials: Default::default(),
             objects: Default::default(),
         })
+    }
+}
+
+impl Drop for Core {
+    fn drop(&mut self) {
+        unsafe {
+            // TODO: Drop materials and meshes
+            for ubo in &mut self.camera_ubos {
+                ubo.free(&self.prelude.device, &mut self.allocator).unwrap();
+            }
+            self.frame_sync.free(&self.prelude.device);
+            self.prelude.device.destroy_descriptor_set_layout(Some(self.descriptor_set_layout), None);
+            self.prelude.device.destroy_descriptor_pool(Some(self.descriptor_pool), None);
+            self.prelude.device.free_command_buffers(self.command_pool, &self.command_buffers);
+            self.prelude.device.destroy_command_pool(Some(self.command_pool), None);
+        }
+    }
+}
+
+impl Drop for VkPrelude {
+    fn drop(&mut self) {
+        unsafe {
+            self.device.destroy_device(None);
+            self.instance.destroy_instance(None);
+        }
     }
 }

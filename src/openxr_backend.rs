@@ -7,6 +7,7 @@ use erupt::{
 };
 use log::info;
 use std::ffi::CString;
+use std::sync::Arc;
 
 /// VR Capable OpenXR engine backend
 pub struct OpenXrBackend {
@@ -164,16 +165,6 @@ impl OpenXrBackend {
         let vk_device = DeviceLoader::new(&vk_instance, vk_physical_device, &create_info, None)?;
         let queue = unsafe { vk_device.get_device_queue(queue_family_index, 0, None) };
 
-        let _ = VkPrelude {
-            queue,
-            queue_family_index,
-            device: vk_device,
-            physical_device: vk_physical_device,
-            instance: vk_instance,
-            entry: vk_entry,
-        };
-
-        /*
         let (session, frame_wait, frame_stream) = unsafe {
             xr_instance.create_session::<xr::Vulkan>(
                 system,
@@ -190,7 +181,17 @@ impl OpenXrBackend {
         let stage = session
             .create_reference_space(xr::ReferenceSpaceType::STAGE, xr::Posef::IDENTITY)
             .unwrap();
-        */
+
+        let prelude = Arc::new(VkPrelude {
+            queue,
+            queue_family_index,
+            device: vk_device,
+            physical_device: vk_physical_device,
+            instance: vk_instance,
+            entry: vk_entry,
+        });
+
+        let core = Core::new(prelude)?;
 
         todo!()
     }
