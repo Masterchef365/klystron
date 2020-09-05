@@ -30,7 +30,7 @@ impl App for MyApp {
             DrawType::Triangles,
         )?;
 
-        let mut vertices = [
+        let vertices = [
             Vertex {
                 pos: [-1.0, -1.0, -1.0],
                 color: [0.0, 1.0, 1.0],
@@ -79,19 +79,19 @@ impl App for MyApp {
         })
     }
 
-    fn next_frame(&mut self, engine: &mut dyn Engine) -> Result<FramePacket> {
+    fn next_frame(&mut self, _engine: &mut dyn Engine) -> Result<FramePacket> {
         let transform = Matrix4::from_euler_angles(self.time, 0.0, self.time);
         let object = Object {
             material: self.material,
             mesh: self.mesh,
             transform,
+            anim: self.time,
         };
         self.time += 1.0;
         Ok(FramePacket {
             objects: vec![object],
-            time: self.time,
-            camera_origin: Point3::origin(),
-            camera_rotation: UnitQuaternion::from_euler_angles(0.0, 0.0, 0.0),
+            stage_origin: Point3::origin(),
+            stage_rotation: UnitQuaternion::from_euler_angles(0.0, 0.0, 0.0),
         })
     }
 }
@@ -112,7 +112,7 @@ fn windowed_backend<A: App + 'static>() -> Result<()> {
 
     let mut app = A::new(&mut engine)?;
 
-    eventloop.run(move |event, _, control_flow| {
+    eventloop.run(move |_event, _, _control_flow| {
         let packet = app.next_frame(&mut engine).unwrap();
         engine.next_frame(&packet).unwrap();
     });

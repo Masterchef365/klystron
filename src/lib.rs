@@ -10,36 +10,56 @@ use anyhow::Result;
 pub use openxr_backend::OpenXrBackend;
 pub use winit_backend::WinitBackend;
 
-/// All information necessary to define a frame of video (besides camera, which is passed in in
-/// winit and implicit in OpenXR)
+/// All information necessary to define a frame of video (besides camera, which is passed in a
+/// special camera for windowed mode and implicitly in OpenXR)
 pub struct FramePacket {
+    /// The entire scene's worth of objects
     pub objects: Vec<Object>,
-    pub time: f32,
-    pub camera_origin: Point3<f32>,
-    pub camera_rotation: UnitQuaternion<f32>,
+    /// Move the entire stage here
+    pub stage_origin: Point3<f32>,
+    /// Rotate the stage by this much
+    pub stage_rotation: UnitQuaternion<f32>,
 }
 
 /// A single object in the scene
 pub struct Object {
+   /// How to draw this object
    pub material: Material, 
+   /// Vertex and Index data for the object
    pub mesh: Mesh, 
+   /// Transformation applied to each vertex of this Object
    pub transform: Matrix4<f32>,
+   /// An additional time uniform passed to the vertex and fragment shaders
+   pub anim: f32,
 }
 
+/// Handle for a Material (Draw commands)
 #[derive(Copy, Clone)]
 pub struct Material;
+
+/// Handle for a Mesh (Draw content)
 #[derive(Copy, Clone)]
 pub struct Mesh;
 
+/// How to draw a mesh given indices and vertices
 pub enum DrawType {
+    /// Lines in between each pair of indices
     Lines,
+    /// Pointcloud
     Points,
+    /// Normal triangular rendering
     Triangles,
 }
 
+/// Traits all engines must implement; next_frame() not included because all engines have different
+/// per-frame requirements.
 pub trait Engine {
+    /// Add a material, given SPIR-V bytecode
     fn add_material(&mut self, vertex: &[u8], fragment: &[u8], draw_type: DrawType) -> Result<Material>;
+    /// Add a mesh, given vertices and indices
     fn add_mesh(&mut self, vertices: &[Vertex], indices: &[u16]) -> Result<Mesh>;
+    /// Remove the given material
     fn remove_material(&mut self, material: Material);
+    /// Remove the given mesh
     fn remove_mesh(&mut self, mesh: Mesh);
 }
