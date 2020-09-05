@@ -1,6 +1,7 @@
+use crate::hardware_query::HardwareSelection;
 use crate::{DrawType, Engine, FramePacket, Material, Mesh, Vertex};
+use crate::core::VkPrelude;
 use anyhow::Result;
-use winit::window::Window;
 use erupt::{
     cstr,
     extensions::{ext_debug_utils, khr_swapchain},
@@ -8,6 +9,7 @@ use erupt::{
     vk1_0 as vk, DeviceLoader, EntryLoader, InstanceLoader,
 };
 use std::ffi::CString;
+use winit::window::Window;
 
 /// Windowed mode Winit engine backend
 pub struct WinitBackend;
@@ -28,6 +30,7 @@ impl WinitBackend {
             .engine_version(crate::engine_version())
             .api_version(vk::make_version(1, 0, 0));
 
+        // Instance and device layers and extensions
         let mut instance_layers = Vec::new();
         let mut instance_extensions = surface::enumerate_required_extensions(window).result()?;
         let mut device_layers = Vec::new();
@@ -40,6 +43,7 @@ impl WinitBackend {
             &mut device_extensions,
         );
 
+        // Instance creation
         let create_info = vk::InstanceCreateInfoBuilder::new()
             .application_info(&app_info)
             .enabled_extension_names(&instance_extensions)
@@ -47,6 +51,33 @@ impl WinitBackend {
 
         let mut instance = InstanceLoader::new(&entry, &create_info, None)?;
 
+        // Surface
+        let surface = unsafe { surface::create_surface(&mut instance, window, None) }.result()?;
+
+        // Hardware selection
+        let hardware = HardwareSelection::query(&instance, surface, &device_extensions)?;
+
+        // Create logical device and queues
+        let create_info = [vk::DeviceQueueCreateInfoBuilder::new()
+            .queue_family_index(hardware.queue_family)
+            .queue_priorities(&[1.0])];
+
+        let physical_device_features = vk::PhysicalDeviceFeaturesBuilder::new();
+        let create_info = vk::DeviceCreateInfoBuilder::new()
+            .queue_create_infos(&create_info)
+            .enabled_features(&physical_device_features)
+            .enabled_extension_names(&device_extensions)
+            .enabled_layer_names(&device_layers);
+
+        let device = DeviceLoader::new(&instance, hardware.physical_device, &create_info, None)?;
+        let queue = unsafe { device.get_device_queue(hardware.queue_family, 0, None) };
+
+        let _ = VkPrelude {
+            queue,
+            device,
+            instance,
+            entry,
+        };
 
         todo!()
     }

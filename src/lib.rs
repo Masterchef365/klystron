@@ -9,6 +9,7 @@ mod openxr_caddy;
 mod vertex;
 mod winit_backend;
 mod extensions;
+mod hardware_query;
 use anyhow::Result;
 use nalgebra::{Matrix4, Point3, UnitQuaternion};
 pub use openxr_backend::OpenXrBackend;
