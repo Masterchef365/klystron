@@ -1,10 +1,14 @@
+extern crate openxr as xr;
 mod vertex;
 mod openxr_caddy;
+mod openxr_backend;
+mod winit_backend;
 pub use openxr_caddy::OpenXr;
 use nalgebra::{Matrix4, Point3, UnitQuaternion};
 pub use vertex::Vertex;
 use anyhow::Result;
-use winit::window::Window;
+pub use openxr_backend::OpenXrBackend;
+pub use winit_backend::WinitBackend;
 
 /// All information necessary to define a frame of video (besides camera, which is passed in in
 /// winit and implicit in OpenXR)
@@ -22,7 +26,9 @@ pub struct Object {
    pub transform: Matrix4<f32>,
 }
 
+#[derive(Copy, Clone)]
 pub struct Material;
+#[derive(Copy, Clone)]
 pub struct Mesh;
 
 pub enum DrawType {
@@ -37,20 +43,3 @@ pub trait Engine {
     fn remove_material(&mut self, material: Material);
     fn remove_mesh(&mut self, mesh: Mesh);
 }
-
-pub struct WinitBackend;
-
-impl WinitBackend {
-    pub fn new(window: &Window) -> Result<Self> { todo!() }
-    // Might need an amendment; camera position should be driven by something external 
-    // Winit keypresses used to move camera.
-    pub fn next_frame(&mut self, packet: &FramePacket) -> Result<()> { todo!() }
-}
-
-pub struct OpenXrBackend;
-
-impl OpenXrBackend {
-    pub fn new(openxr: &OpenXr) -> Result<Self> { todo!() }
-    pub fn next_frame(&mut self, openxr: &OpenXr, packet: &FramePacket) -> Result<()> { todo!() }
-}
-

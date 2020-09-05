@@ -6,12 +6,12 @@ use klystron::{
 use nalgebra::{Matrix4, Point3, UnitQuaternion};
 use std::fs;
 use winit::event_loop::{ControlFlow, EventLoop};
-use winit::window::Window;
+use winit::window::WindowBuilder;
 
-trait App {
-    fn new(engine: &dyn Engine) -> Result<Self>;
-    fn next_frame(&mut self) -> FramePacket;
-    fn name() -> &'static str;
+trait App: Sized {
+    const NAME: &'static str;
+    fn new(engine: &mut dyn Engine) -> Result<Self>;
+    fn next_frame(&mut self, engine: &mut dyn Engine) -> Result<FramePacket>;
 }
 
 struct MyApp {
@@ -20,12 +20,14 @@ struct MyApp {
     time: f32,
 }
 
-impl MyApp {
-    pub fn new(engine: &mut Engine) -> Result<Self> {
+impl App for MyApp {
+    const NAME: &'static str = "MyApp";
+
+    fn new(engine: &mut dyn Engine) -> Result<Self> {
         let material = engine.add_material(
             &fs::read("./shaders/unlit.vert.spv")?,
             &fs::read("./shaders/unlit.frag.spv")?,
-            DrawType::Vertices,
+            DrawType::Triangles,
         )?;
 
         let mut vertices = [
@@ -68,7 +70,7 @@ impl MyApp {
             6, 4, 5, 0, 0, 5, 1,
         ];
 
-        let mesh = engine.add_mesh(vertices, indices)?;
+        let mesh = engine.add_mesh(&vertices, &indices)?;
 
         Ok(Self {
             mesh,
@@ -77,7 +79,7 @@ impl MyApp {
         })
     }
 
-    pub fn next_frame(&mut self, engine: &mut Engine) -> FramePacket {
+    fn next_frame(&mut self, engine: &mut dyn Engine) -> Result<FramePacket> {
         let transform = Matrix4::from_euler_angles(self.time, 0.0, self.time);
         let object = Object {
             material: self.material,
@@ -85,12 +87,12 @@ impl MyApp {
             transform,
         };
         self.time += 1.0;
-        FramePacket {
+        Ok(FramePacket {
             objects: vec![object],
             time: self.time,
             camera_origin: Point3::origin(),
             camera_rotation: UnitQuaternion::from_euler_angles(0.0, 0.0, 0.0),
-        }
+        })
     }
 }
 
@@ -103,27 +105,24 @@ fn main() -> Result<()> {
     }
 }
 
-fn windowed_backend<A: App>() -> Result<()> {
-    let eventloop = EventLoop::new()?;
-    let window = Window::new(A::name())?;
-    let engine = WinitBackend::new(&window);
+fn windowed_backend<A: App + 'static>() -> Result<()> {
+    let eventloop = EventLoop::new();
+    let window = WindowBuilder::new().with_title(A::NAME).build(&eventloop)?;
+    let mut engine = WinitBackend::new(&window)?;
 
-    let app = A::new(&engine);
+    let mut app = A::new(&mut engine)?;
 
-    eventloop.run(move |control_flow| {
-        let packet = app.next_frame(&mut engine)?;
-        if !engine.next_frame(&window, &packet)? {
-            *control_flow = ControlFlow::Exit;
-        }
+    eventloop.run(move |event, _, control_flow| {
+        let packet = app.next_frame(&mut engine).unwrap();
+        engine.next_frame(&packet).unwrap();
     });
-    Ok(())
 }
 
 fn vr_backend<A: App>() -> Result<()> {
-    let openxr = OpenXr::new();
-    let engine = OpenXrBackend::new(&openxr);
+    let openxr = OpenXr::new(A::NAME)?;
+    let mut engine = OpenXrBackend::new(&openxr)?;
 
-    let app = A::new(&engine);
+    let mut app = A::new(&mut engine)?;
 
     loop {
         let packet = app.next_frame(&mut engine)?;
