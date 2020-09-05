@@ -69,10 +69,7 @@ impl OpenXrBackend {
             );
         }
 
-        // Vulkan layers and extensions
-        const LAYER_KHRONOS_VALIDATION: *const i8 = cstr!("VK_LAYER_KHRONOS_validation");
-
-        // Vulkan vk_instance extensions required by OpenXR
+        // Vulkan instance extensions required by OpenXR
         let vk_instance_exts = xr_instance
             .vulkan_instance_extensions(system)
             .unwrap()
@@ -85,17 +82,9 @@ impl OpenXrBackend {
             .map(|x| x.as_ptr())
             .collect::<Vec<_>>();
 
-        if cfg!(debug_assertions) {
-            vk_instance_ext_ptrs
-                .push(erupt::extensions::ext_debug_utils::EXT_DEBUG_UTILS_EXTENSION_NAME);
-        }
+        let mut vk_instance_layers_ptrs = Vec::new();
 
-        let mut instance_layers = Vec::new();
-        if cfg!(debug_assertions) {
-            instance_layers.push(LAYER_KHRONOS_VALIDATION);
-        }
-
-        // Vulkan vk_device extensions required by OpenXR
+        // Vulkan device extensions required by OpenXR
         let vk_device_exts = xr_instance
             .vulkan_device_extensions(system)
             .unwrap()
@@ -108,10 +97,14 @@ impl OpenXrBackend {
             .map(|x| x.as_ptr())
             .collect::<Vec<_>>();
 
-        let mut device_layers = Vec::new();
-        if cfg!(debug_assertions) {
-            device_layers.push(LAYER_KHRONOS_VALIDATION);
-        }
+        let mut vk_device_layers_ptrs = Vec::new();
+
+        crate::extensions::extensions_and_layers(
+            &mut vk_instance_layers_ptrs,
+            &mut vk_instance_ext_ptrs,
+            &mut vk_device_layers_ptrs,
+            &mut vk_device_ext_ptrs,
+        );
 
         // Vulkan Instance
         let application_name = CString::new(application_name)?;
@@ -120,12 +113,12 @@ impl OpenXrBackend {
             .application_name(&application_name)
             .application_version(vk::make_version(1, 0, 0))
             .engine_name(&engine_name)
-            .engine_version(vk::make_version(1, 0, 0))
+            .engine_version(crate::engine_version())
             .api_version(vk::make_version(1, 1, 0));
 
         let create_info = vk::InstanceCreateInfoBuilder::new()
             .application_info(&app_info)
-            .enabled_layer_names(&instance_layers)
+            .enabled_layer_names(&vk_instance_layers_ptrs)
             .enabled_extension_names(&vk_instance_ext_ptrs);
 
         let vk_instance = InstanceLoader::new(&vk_entry, &create_info, None)?;
@@ -157,7 +150,7 @@ impl OpenXrBackend {
             .queue_create_infos(&[vk::DeviceQueueCreateInfoBuilder::new()
                 .queue_family_index(queue_family_index)
                 .queue_priorities(&[1.0])])
-            .enabled_layer_names(&device_layers)
+            .enabled_layer_names(&vk_device_layers_ptrs)
             .enabled_extension_names(&vk_device_ext_ptrs)
             .build();
 

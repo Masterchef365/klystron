@@ -109,7 +109,7 @@ fn main() -> Result<()> {
 fn windowed_backend<A: App + 'static>() -> Result<()> {
     let eventloop = EventLoop::new();
     let window = WindowBuilder::new().with_title(A::NAME).build(&eventloop)?;
-    let mut engine = WinitBackend::new(&window)?;
+    let mut engine = WinitBackend::new(&window, A::NAME)?;
 
     let mut app = A::new(&mut engine)?;
 

@@ -1,4 +1,5 @@
 # Todo
+* Shared behaviour for extensions, layers
 * Caddy
     * Creation, destruction
 * Core
