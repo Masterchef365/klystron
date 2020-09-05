@@ -11,8 +11,8 @@
     * Write Command buffers
 * Winit backend
 * OpenXR backend
-* Dynamic loader env var (for wandoze)
 * Use the `log` crate; here are some logging ideas:
+    * OpenXR loader path  
     * OpenXR version
     * Vulkan version
     * Number of swapchain frames

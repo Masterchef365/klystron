@@ -97,6 +97,7 @@ impl App for MyApp {
 }
 
 fn main() -> Result<()> {
+    env_logger::init();
     let vr = std::env::args().skip(1).next().is_some();
     if vr {
         vr_backend::<MyApp>()

@@ -1,6 +1,7 @@
-use anyhow::Result;
+use anyhow::{Result, Context};
 use openxr::Entry;
 use std::path::Path;
+use log::info;
 
 /// A container for several commonly-used OpenXR constants.
 pub struct OpenXr {
@@ -15,7 +16,10 @@ pub fn load_openxr() -> Result<xr::Entry> {
     let path = std::env::var("OPENXR_LOADER");
     use std::env::VarError;
     Ok(match path {
-        Ok(path) => Entry::load_from(Path::new(&path))?,
+        Ok(path) => {
+            info!("Loading OpenXR loader from {}", path);
+            Entry::load_from(Path::new(&path))?
+        },
         Err(VarError::NotPresent) => Entry::load()?,
         Err(e) => Err(e)?,
     })

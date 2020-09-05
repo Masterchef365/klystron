@@ -73,3 +73,5 @@ pub trait Engine {
     /// Remove the given mesh
     fn remove_mesh(&mut self, mesh: Mesh);
 }
+
+pub(crate) const ENGINE_NAME: &'static str = "Klystron";
