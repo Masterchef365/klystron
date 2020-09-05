@@ -1,0 +1,13 @@
+[package]
+name = "klystron"
+version = "0.1.0"
+authors = ["Masterchef365 <duncan.freeman1@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+erupt = "0.13.0"
+winit = "0.22"
+openxr = "0.13"
+nalgebra = "0.22"
+bytemuck = "1.3.1"
+anyhow = "1"
