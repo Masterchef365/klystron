@@ -166,10 +166,31 @@ impl OpenXrBackend {
 
         let _ = VkPrelude {
             queue,
+            queue_family_index,
             device: vk_device,
+            physical_device: vk_physical_device,
             instance: vk_instance,
             entry: vk_entry,
         };
+
+        /*
+        let (session, frame_wait, frame_stream) = unsafe {
+            xr_instance.create_session::<xr::Vulkan>(
+                system,
+                &xr::vulkan::SessionCreateInfo {
+                    instance: vk_instance.handle.0 as _,
+                    physical_device: vk_physical_device.0 as _,
+                    device: vk_device.handle.0 as _,
+                    queue_family_index,
+                    queue_index: 0,
+                },
+            )
+        }?;
+
+        let stage = session
+            .create_reference_space(xr::ReferenceSpaceType::STAGE, xr::Posef::IDENTITY)
+            .unwrap();
+        */
 
         todo!()
     }

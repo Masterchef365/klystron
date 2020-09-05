@@ -34,3 +34,9 @@ impl<T> HandleMap<T> {
         }
     }
 }
+
+impl<T> Default for HandleMap<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}

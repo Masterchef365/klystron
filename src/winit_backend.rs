@@ -74,6 +74,8 @@ impl WinitBackend {
 
         let _ = VkPrelude {
             queue,
+            queue_family_index: hardware.queue_family,
+            physical_device: hardware.physical_device,
             device,
             instance,
             entry,

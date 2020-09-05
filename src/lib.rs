@@ -10,6 +10,8 @@ mod vertex;
 mod winit_backend;
 mod extensions;
 mod hardware_query;
+mod allocated_buffer;
+mod frame_sync;
 use anyhow::Result;
 use nalgebra::{Matrix4, Point3, UnitQuaternion};
 pub use openxr_backend::OpenXrBackend;
