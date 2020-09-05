@@ -46,7 +46,7 @@ pub struct Material(pub(crate) handle::Id);
 #[derive(Copy, Clone)]
 pub struct Mesh(pub(crate) handle::Id);
 
-/// How to draw a mesh given indices and vertices
+/// Material rasterization method
 pub enum DrawType {
     /// Lines in between each pair of indices
     Lines,

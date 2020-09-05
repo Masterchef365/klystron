@@ -1,5 +1,16 @@
 # Todo
-* Separate features for VR and Windowed modes. You may use both if you enable both.
+* Caddy
+    * Creation, destruction
+* Core
+    * Setup
+    * Destruction
+    * Allocator/AllocatedBuffer
+        * Maybe just use different types for GPU-only index/vertex buffers and UBOs. K.I.S.S.
+    * Materials
+    * Camera UBOs
+    * Write Command buffers
+* Winit backend
+* OpenXR backend
 * Dynamic loader env var (for wandoze)
 * Use the `log` crate; here are some logging ideas:
     * OpenXR version
@@ -9,4 +20,5 @@
     * Log whenever a mesh is loaded/unloaded and its handle (vertex/index count)
     * OpenXR state transitions
     * Swapchain rebuilds
-* Implement core, then start adding the backends
+    * Make sure its 
+* Separate features for VR and Windowed modes. You may use both if you enable both.

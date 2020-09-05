@@ -3,6 +3,7 @@ use crate::{DrawType, Engine, FramePacket, Material, Mesh, Vertex};
 use crate::core::Core;
 use anyhow::Result;
 
+/// VR Capable OpenXR engine backend
 pub struct OpenXrBackend {
     core: Core,
     /*
@@ -14,6 +15,7 @@ pub struct OpenXrBackend {
 }
 
 impl OpenXrBackend {
+    /// Create a new engine instance. Returns the OpenXr caddy for use with input handling.
     pub fn new(application_name: &str) -> Result<(Self, OpenXr)> {
         let entry = load_openxr()?;
 
@@ -44,6 +46,8 @@ impl OpenXrBackend {
         */
         todo!()
     }
+
+    /// Render a frame of video.
     /// Returns false when the loop should break
     pub fn next_frame(&mut self, openxr: &OpenXr, packet: &FramePacket) -> Result<bool> {
         todo!()

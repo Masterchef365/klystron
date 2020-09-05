@@ -2,6 +2,7 @@ use bytemuck::offset_of;
 use erupt::vk1_0 as vk;
 use nalgebra::Point3;
 
+/// Vertex suitable for use from vertex shaders
 #[repr(C)]
 #[derive(Default, Copy, Clone)]
 pub struct Vertex {

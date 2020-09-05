@@ -2,13 +2,16 @@ use crate::{DrawType, Engine, FramePacket, Material, Mesh, Vertex};
 use anyhow::Result;
 use winit::window::Window;
 
+/// Windowed mode Winit engine backend
 pub struct WinitBackend;
 
 impl WinitBackend {
+    /// Create a new engine instance.
     pub fn new(window: &Window) -> Result<Self> {
         todo!()
     }
-    // Might need an amendment; camera position should be driven by something external
+
+    // TODO: camera position should be driven by something external
     // Winit keypresses used to move camera.
     pub fn next_frame(&mut self, packet: &FramePacket) -> Result<()> {
         todo!()
