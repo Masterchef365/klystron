@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::Result;
 use openxr::Entry;
 use std::path::Path;
 

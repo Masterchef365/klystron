@@ -5,7 +5,8 @@ use std::collections::HashMap;
 pub type Id = u64;
 
 pub struct HandleMap<T> {
-    inner: HashMap<Id, T>,
+    // TODO: Use a more appropriate data structure?
+    inner: HashMap<Id, T>, 
     next_id: Id,
 }
 
