@@ -119,8 +119,7 @@ fn windowed_backend<A: App + 'static>() -> Result<()> {
 }
 
 fn vr_backend<A: App>() -> Result<()> {
-    let openxr = OpenXr::new(A::NAME)?;
-    let mut engine = OpenXrBackend::new(&openxr)?;
+    let (mut engine, openxr) = OpenXrBackend::new(A::NAME)?;
 
     let mut app = A::new(&mut engine)?;
 

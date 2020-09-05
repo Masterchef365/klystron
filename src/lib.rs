@@ -1,13 +1,16 @@
+//! Klystron rendering engine. Duncan's personal rendering engine project. Made primarily to render
+//! simple, unlit scenes with dynamically placed objects. VR capable through the OpenXR
+//! interface, and hopefully easily modifiable.
 extern crate openxr as xr;
-mod vertex;
-mod openxr_caddy;
 mod openxr_backend;
+mod openxr_caddy;
+mod vertex;
 mod winit_backend;
-pub use openxr_caddy::OpenXr;
-use nalgebra::{Matrix4, Point3, UnitQuaternion};
-pub use vertex::Vertex;
 use anyhow::Result;
+use nalgebra::{Matrix4, Point3, UnitQuaternion};
 pub use openxr_backend::OpenXrBackend;
+pub use openxr_caddy::OpenXr;
+pub use vertex::Vertex;
 pub use winit_backend::WinitBackend;
 
 /// All information necessary to define a frame of video (besides camera, which is passed in a
@@ -23,14 +26,14 @@ pub struct FramePacket {
 
 /// A single object in the scene
 pub struct Object {
-   /// How to draw this object
-   pub material: Material, 
-   /// Vertex and Index data for the object
-   pub mesh: Mesh, 
-   /// Transformation applied to each vertex of this Object
-   pub transform: Matrix4<f32>,
-   /// An additional time uniform passed to the vertex and fragment shaders
-   pub anim: f32,
+    /// How to draw this object
+    pub material: Material,
+    /// Vertex and Index data for the object
+    pub mesh: Mesh,
+    /// Transformation applied to each vertex of this Object
+    pub transform: Matrix4<f32>,
+    /// An additional time uniform passed to the vertex and fragment shaders
+    pub anim: f32,
 }
 
 /// Handle for a Material (Draw commands)
@@ -55,7 +58,12 @@ pub enum DrawType {
 /// per-frame requirements.
 pub trait Engine {
     /// Add a material, given SPIR-V bytecode
-    fn add_material(&mut self, vertex: &[u8], fragment: &[u8], draw_type: DrawType) -> Result<Material>;
+    fn add_material(
+        &mut self,
+        vertex: &[u8],
+        fragment: &[u8],
+        draw_type: DrawType,
+    ) -> Result<Material>;
     /// Add a mesh, given vertices and indices
     fn add_mesh(&mut self, vertices: &[Vertex], indices: &[u16]) -> Result<Mesh>;
     /// Remove the given material
