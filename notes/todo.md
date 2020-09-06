@@ -1,4 +1,5 @@
 # Todo
+* Switch from free() to drop()
 * Materials
 * Meshes
 * Each backend has a recreate\_swapchain() function that populates the swapchain\_images field in Core.
@@ -22,3 +23,4 @@
     * Make sure its 
 * Improve AllocatedBuffer! (see source)
 * Separate features for VR and Windowed modes. You may use both if you enable both.
+* Experiment by moving `Mutex<Allocator>` into `VkPrelude`, with

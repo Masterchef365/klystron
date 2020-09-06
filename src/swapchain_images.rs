@@ -1,3 +1,5 @@
+use std::sync::Arc;
+use crate::core::VkPrelude;
 use crate::frame_sync::Frame;
 use anyhow::Result;
 use erupt::{
@@ -5,6 +7,7 @@ use erupt::{
     vk1_0 as vk, DeviceLoader,
 };
 use std::collections::HashMap;
+use drop_bomb::DropBomb;
 
 pub const VIEW_COUNT: u32 = 2;
 
@@ -14,7 +17,8 @@ pub struct SwapchainImages {
     pub depth_image_mem: Option<Allocation<vk::Image>>,
     pub depth_image_view: vk::ImageView,
     images: Vec<SwapChainImage>,
-    freed: bool,
+    prelude: Arc<VkPrelude>,
+    bomb: DropBomb,
 }
 
 pub struct SwapChainImage {
@@ -22,14 +26,12 @@ pub struct SwapChainImage {
     pub image_view: vk::ImageView,
     /// Whether or not the frame which this swapchain image is dependent on is in flight or not
     pub in_flight: vk::Fence,
-    freed: bool,
 }
 
 impl SwapchainImages {
     /// Returns None if the swapchain is out of date
     pub fn next_image(
         &mut self,
-        device: &DeviceLoader,
         image_index: u32,
         frame: &Frame,
     ) -> Result<&mut SwapChainImage> {
@@ -38,7 +40,7 @@ impl SwapchainImages {
         // Wait until the frame associated with this swapchain image is finisehd rendering, if any
         // May be null if no frames have flowed just yet
         if !image.in_flight.is_null() {
-            unsafe { device.wait_for_fences(&[image.in_flight], true, u64::MAX) }.result()?;
+            unsafe { self.prelude.device.wait_for_fences(&[image.in_flight], true, u64::MAX) }.result()?;
         }
 
         // Associate this swapchain image with the given frame. When the frame is finished, this
@@ -49,7 +51,7 @@ impl SwapchainImages {
     }
 
     pub fn new(
-        device: &DeviceLoader,
+        prelude: Arc<VkPrelude>,
         allocator: &mut Allocator,
         extent: vk::Extent2D,
         render_pass: vk::RenderPass,
@@ -73,9 +75,9 @@ impl SwapchainImages {
             .usage(vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT)
             .samples(vk::SampleCountFlagBits::_1)
             .sharing_mode(vk::SharingMode::EXCLUSIVE);
-        let depth_image = unsafe { device.create_image(&create_info, None, None) }.result()?;
+        let depth_image = unsafe { prelude.device.create_image(&create_info, None, None) }.result()?;
 
-        let depth_image_mem = allocator.allocate(device, depth_image, MemoryTypeFinder::gpu_only()).result()?;
+        let depth_image_mem = allocator.allocate(&prelude.device, depth_image, MemoryTypeFinder::gpu_only()).result()?;
 
         let create_info = vk::ImageViewCreateInfoBuilder::new()
             .image(depth_image)
@@ -91,14 +93,14 @@ impl SwapchainImages {
                     .build(),
             );
         let depth_image_view =
-            unsafe { device.create_image_view(&create_info, None, None) }.result()?;
+            unsafe { prelude.device.create_image_view(&create_info, None, None) }.result()?;
 
         // Build swapchain image views and buffers
         let images = swapchain_images
             .iter()
             .map(|&image| {
                 SwapChainImage::new(
-                    &device,
+                    &prelude.device,
                     render_pass,
                     image,
                     extent,
@@ -113,23 +115,24 @@ impl SwapchainImages {
             depth_image,
             depth_image_mem: Some(depth_image_mem),
             depth_image_view,
-            freed: false,
+            prelude,
+            bomb: DropBomb::new("SwapchainImages dropped before fred"),
         })
     }
 
     pub fn free(&mut self, device: &DeviceLoader, allocator: &mut Allocator) -> Result<()> {
         unsafe {
             device.device_wait_idle().result()?;
+            for image in self.images.drain(..) {
+                device.destroy_framebuffer(Some(image.framebuffer), None);
+                device.destroy_image_view(Some(image.image_view), None);
+            }
             device.destroy_image_view(Some(self.depth_image_view), None);
         }
 
         allocator.free(device, self.depth_image_mem.take().unwrap());
 
-        for mut image in self.images.drain(..) {
-            image.free(device);
-        }
-
-        self.freed = true;
+        self.bomb.defuse();
         Ok(())
     }
 }
@@ -184,31 +187,6 @@ impl SwapChainImage {
             framebuffer,
             image_view,
             in_flight,
-            freed: false,
         })
-    }
-
-    pub fn free(&mut self, device: &DeviceLoader) {
-        unsafe {
-            device.destroy_framebuffer(Some(self.framebuffer), None);
-            device.destroy_image_view(Some(self.image_view), None);
-        }
-        self.freed = true;
-    }
-}
-
-impl Drop for SwapChainImage {
-    fn drop(&mut self) {
-        if !self.freed {
-            panic!("Swapchain image dropped before it was freed");
-        }
-    }
-}
-
-impl Drop for SwapchainImages {
-    fn drop(&mut self) {
-        if !self.freed {
-            panic!("Swapchain dropped before it was freed");
-        }
     }
 }
