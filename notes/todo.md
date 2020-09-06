@@ -1,11 +1,10 @@
 # Todo
-* Organize backends into their own folders 
-* Core
-    * Write Command buffers
 * Winit backend
     * Swapchain
 * OpenXR backend
     * Swapchain
+* Core
+    * Write Command buffers
 * Use the `log` crate; here are some logging ideas:
     * OpenXR loader path  
     * OpenXR version
@@ -16,4 +15,5 @@
     * OpenXR state transitions
     * Swapchain rebuilds
     * Make sure its 
+* Improve AllocatedBuffer!
 * Separate features for VR and Windowed modes. You may use both if you enable both.

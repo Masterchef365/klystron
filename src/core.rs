@@ -9,6 +9,7 @@ use erupt::{
         allocator::{self, Allocator},
     },
     vk1_0 as vk, DeviceLoader, InstanceLoader,
+    vk1_1,
 };
 
 pub struct VkPrelude {
@@ -21,6 +22,8 @@ pub struct VkPrelude {
 }
 
 const FRAMES_IN_FLIGHT: usize = 2;
+pub(crate) const COLOR_FORMAT: vk::Format = vk::Format::B8G8R8A8_SRGB;
+pub(crate) const DEPTH_FORMAT: vk::Format = vk::Format::D32_SFLOAT;
 
 pub type CameraUbo = [f32; 32];
 pub struct Mesh;
@@ -29,7 +32,8 @@ pub struct Material;
 pub struct Core {
     pub allocator: Allocator,
     pub materials: HandleMap<Material>,
-    pub objects: HandleMap<Mesh>,
+    pub meshes: HandleMap<Mesh>,
+    pub render_pass: vk::RenderPass,
     pub frame_sync: FrameSync,
     pub command_pool: vk::CommandPool,
     pub command_buffers: Vec<vk::CommandBuffer>,
@@ -130,6 +134,67 @@ impl Core {
         // Frame synchronization
         let frame_sync = FrameSync::new(&prelude.device, FRAMES_IN_FLIGHT)?;
 
+        // Render pass
+        let color_attachment = vk::AttachmentDescriptionBuilder::new()
+            .format(COLOR_FORMAT)
+            .samples(vk::SampleCountFlagBits::_1)
+            .load_op(vk::AttachmentLoadOp::CLEAR)
+            .store_op(vk::AttachmentStoreOp::STORE)
+            .stencil_load_op(vk::AttachmentLoadOp::DONT_CARE)
+            .stencil_store_op(vk::AttachmentStoreOp::DONT_CARE)
+            .initial_layout(vk::ImageLayout::UNDEFINED)
+            .final_layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL);
+
+        let depth_attachment = vk::AttachmentDescriptionBuilder::new()
+            .format(DEPTH_FORMAT)
+            .samples(vk::SampleCountFlagBits::_1)
+            .load_op(vk::AttachmentLoadOp::CLEAR)
+            .store_op(vk::AttachmentStoreOp::DONT_CARE)
+            .stencil_load_op(vk::AttachmentLoadOp::DONT_CARE)
+            .stencil_store_op(vk::AttachmentStoreOp::DONT_CARE)
+            .initial_layout(vk::ImageLayout::UNDEFINED)
+            .final_layout(vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+
+        let attachments = [color_attachment, depth_attachment];
+
+        let color_attachment_refs = [vk::AttachmentReferenceBuilder::new()
+            .attachment(0)
+            .layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)];
+
+        let depth_attachment_ref = vk::AttachmentReferenceBuilder::new()
+            .attachment(1)
+            .layout(vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
+            .build();
+
+        let subpasses = [vk::SubpassDescriptionBuilder::new()
+            .pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS)
+            .color_attachments(&color_attachment_refs)
+            .depth_stencil_attachment(&depth_attachment_ref)];
+
+        let dependencies = [vk::SubpassDependencyBuilder::new()
+            .src_subpass(vk::SUBPASS_EXTERNAL)
+            .dst_subpass(0)
+            .src_stage_mask(vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT)
+            .src_access_mask(vk::AccessFlags::empty())
+            .dst_stage_mask(vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT)
+            .dst_access_mask(vk::AccessFlags::COLOR_ATTACHMENT_WRITE)];
+
+        let mut create_info = vk::RenderPassCreateInfoBuilder::new()
+            .attachments(&attachments)
+            .subpasses(&subpasses)
+            .dependencies(&dependencies);
+
+        let view_mask = [!(!0 << 2)];
+        let mut multiview = vk1_1::RenderPassMultiviewCreateInfoBuilder::new()
+            .view_masks(&view_mask)
+            .correlation_masks(&view_mask)
+            .build();
+
+        create_info.p_next = &mut multiview as *mut _ as _;
+
+        let render_pass =
+            unsafe { prelude.device.create_render_pass(&create_info, None, None) }.result()?;
+
         Ok(Self {
             prelude,
             camera_ubos,
@@ -140,8 +205,9 @@ impl Core {
             frame_sync,
             allocator,
             command_buffers,
+            render_pass,
             materials: Default::default(),
-            objects: Default::default(),
+            meshes: Default::default(),
         })
     }
 }
@@ -154,6 +220,7 @@ impl Drop for Core {
                 ubo.free(&self.prelude.device, &mut self.allocator).unwrap();
             }
             self.frame_sync.free(&self.prelude.device);
+            self.prelude.device.destroy_render_pass(Some(self.render_pass), None);
             self.prelude.device.destroy_descriptor_set_layout(Some(self.descriptor_set_layout), None);
             self.prelude.device.destroy_descriptor_pool(Some(self.descriptor_pool), None);
             self.prelude.device.free_command_buffers(self.command_pool, &self.command_buffers);

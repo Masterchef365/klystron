@@ -11,6 +11,7 @@ mod extensions;
 mod hardware_query;
 mod allocated_buffer;
 mod frame_sync;
+mod swapchain_images;
 use anyhow::Result;
 use nalgebra::{Matrix4, Point3, UnitQuaternion};
 pub use vr::{xr_prelude::XrPrelude, OpenXrBackend};

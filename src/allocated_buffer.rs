@@ -6,6 +6,10 @@ use erupt::{
 };
 use std::marker::PhantomData;
 
+// TODO:
+// * Map on construction and only map once!
+// * GPU-only memory
+
 /// A buffer and its associated allocation on device.
 pub struct AllocatedBuffer<T> {
     pub buffer: vk::Buffer,
@@ -37,7 +41,6 @@ impl<T: Sized + bytemuck::Pod> AllocatedBuffer<T> {
         })
     }
 
-    // TODO: Never unmap until destruction!
     pub fn map(&self, device: &DeviceLoader, data: &[T]) -> Result<()> {
         let mut map = self
             .allocation
