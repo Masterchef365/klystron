@@ -1,6 +1,4 @@
 # Todo
-* Switch from free() to drop()
-* Materials
 * Meshes
 * Each backend has a `recreate_swapchain()` function that populates the `swapchain_images` field in Core.
 * Winit backend
@@ -11,7 +9,7 @@
     * `Swapchain`
 * Core
     * Write Command buffers
-    * NOTE: MUST WRITE `vkCmdSetViewport` AND 
+    * NOTE: MUST WRITE `vkCmdSetViewport` AND `vkCmdSetScissor`
 * logging ideas:
     * OpenXR loader path  
     * OpenXR version
@@ -21,7 +19,6 @@
     * Log whenever a mesh is loaded/unloaded and its handle (vertex/index count)
     * OpenXR state transitions
     * Swapchain rebuilds
-    * Make sure its 
 
 ## Design experiments
 * Improve `AllocatedBuffer`! (see source)

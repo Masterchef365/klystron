@@ -27,6 +27,10 @@ impl<T> HandleMap<T> {
         id
     }
 
+    pub fn get(&self, id: &Id) -> Option<&T> {
+        self.get(id)
+    }
+
     pub fn remove(&mut self, id: &Id) {
         let _ = self.inner.remove(id);
         if *id >= self.next_id {
