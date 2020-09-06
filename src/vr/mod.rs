@@ -218,7 +218,7 @@ impl OpenXrBackend {
 
     /// Render a frame of video.
     /// Returns false when the loop should break
-    pub fn next_frame(&mut self, packet: &FramePacket) -> Result<bool> {
+    pub fn next_frame(&mut self, packet: &FramePacket) -> Result<()> {
         // Wait for OpenXR to signal it has a frame ready
         let xr_frame_state = self.frame_wait.wait()?;
         self.frame_stream.begin()?;
@@ -229,7 +229,7 @@ impl OpenXrBackend {
                 xr::EnvironmentBlendMode::OPAQUE,
                 &[],
             )?;
-            return Ok(true);
+            return Ok(());
         }
 
         if self.swapchain.is_none() {
@@ -239,17 +239,70 @@ impl OpenXrBackend {
         let (frame_idx, frame) = self.core.frame_sync.next_frame()?;
 
         let swapchain = self.swapchain.as_mut().unwrap();
+        let swapchain_images = self.core.swapchain_images.as_mut().unwrap();
+
         let image_index = swapchain.acquire_image()?;
         swapchain.wait_image(xr::Duration::INFINITE)?;
+        let image = swapchain_images.next_image(image_index, &frame)?;
 
-        let image = self
-            .core
-            .swapchain_images
-            .as_mut()
-            .unwrap()
-            .next_image(image_index, &frame)?;
+        // TODO: COMMAND BUFFERS GO HERE
 
-        todo!("Next frame")
+        // Get views
+        let (_, views) = self.openxr.session.locate_views(
+            xr::ViewConfigurationType::PRIMARY_STEREO,
+            xr_frame_state.predicted_display_time,
+            &self.stage,
+        )?;
+
+        // Upload camera matrix TODO: Only map once, never unmap!
+        let left = matrix_from_view(&views[0], swapchain_images.extent);
+        let right = matrix_from_view(&views[1], swapchain_images.extent);
+        let both = left.iter().chain(right.iter()).copied().collect::<Vec<_>>();
+        let mut data = [0.0; 32];
+        data.copy_from_slice(&both);
+        self.core.camera_ubos[frame_idx].map(&self.prelude.device, &[data])?;
+
+        // TODO: QUEUE SUBMIT GOES HERE
+
+        // Present to swapchain
+        swapchain.release_image()?;
+
+        // Tell OpenXR what to present for this frame
+        let rect = xr::Rect2Di {
+            offset: xr::Offset2Di { x: 0, y: 0 },
+            extent: xr::Extent2Di {
+                width: swapchain_images.extent.width as _,
+                height: swapchain_images.extent.height as _,
+            },
+        };
+        self.frame_stream.end(
+            xr_frame_state.predicted_display_time,
+            xr::EnvironmentBlendMode::OPAQUE,
+            &[&xr::CompositionLayerProjection::new()
+                .space(&self.stage)
+                .views(&[
+                    xr::CompositionLayerProjectionView::new()
+                        .pose(views[0].pose)
+                        .fov(views[0].fov)
+                        .sub_image(
+                            xr::SwapchainSubImage::new()
+                                .swapchain(&swapchain)
+                                .image_array_index(0)
+                                .image_rect(rect),
+                        ),
+                    xr::CompositionLayerProjectionView::new()
+                        .pose(views[1].pose)
+                        .fov(views[1].fov)
+                        .sub_image(
+                            xr::SwapchainSubImage::new()
+                                .swapchain(&swapchain)
+                                .image_array_index(1)
+                                .image_rect(rect),
+                        ),
+                ])],
+        )?;
+
+        return Ok(());
     }
 
     fn recreate_swapchain(&mut self) -> Result<()> {
@@ -328,4 +381,51 @@ impl Engine for OpenXrBackend {
     fn remove_mesh(&mut self, mesh: Mesh) {
         todo!()
     }
+}
+
+use nalgebra::{Matrix4, Quaternion, Unit, Vector3};
+fn matrix_from_view(view: &xr::View, extent: vk::Extent2D) -> Matrix4<f32> {
+    let proj = projection_from_fov(&view.fov, 0.01, 1000.0);
+    let view = view_from_pose(&view.pose);
+    proj * view
+}
+
+// Ported from:
+// https://gitlab.freedesktop.org/monado/demos/xrgears/-/blob/master/src/main.cpp
+fn view_from_pose(pose: &xr::Posef) -> Matrix4<f32> {
+    let quat = pose.orientation;
+    let quat = nalgebra::Quaternion::new(quat.w, quat.x, quat.y, quat.z);
+    let quat = Unit::try_new(quat, 0.0).expect("Not a unit quaternion");
+    let rotation = quat.to_homogeneous();
+
+    let position = pose.position;
+    let position = Vector3::new(position.x, position.y, position.z);
+    let translation = Matrix4::new_translation(&position);
+
+    let view = translation * rotation;
+    let inv = view.try_inverse().expect("Matrix didn't invert");
+    inv
+}
+
+fn projection_from_fov(fov: &xr::Fovf, near: f32, far: f32) -> Matrix4<f32> {
+    let tan_left = fov.angle_left.tan();
+    let tan_right = fov.angle_right.tan();
+
+    let tan_up = fov.angle_up.tan();
+    let tan_down = fov.angle_down.tan();
+
+    let tan_width = tan_right - tan_left;
+    let tan_height = tan_down - tan_up;
+
+    let a11 = 2.0 / tan_width;
+    let a22 = 2.0 / tan_height;
+
+    let a31 = (tan_right + tan_left) / tan_width;
+    let a32 = (tan_up + tan_down) / tan_height;
+    let a33 = -far / (far - near);
+
+    let a43 = -(far * near) / (far - near);
+    Matrix4::new(
+        a11, 0.0, a31, 0.0, 0.0, a22, a32, 0.0, 0.0, 0.0, a33, a43, 0.0, 0.0, -1.0, 0.0,
+    )
 }

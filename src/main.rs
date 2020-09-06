@@ -124,10 +124,9 @@ fn vr_backend<A: App>() -> Result<()> {
 
     let mut app = A::new(&mut engine)?;
 
+    // TODO: STATE TRANSITIONS
     loop {
         let packet = app.next_frame(&mut engine)?;
-        if !engine.next_frame(&packet)? {
-            break Ok(());
-        }
+        engine.next_frame(&packet)?;
     }
 }
