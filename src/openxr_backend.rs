@@ -11,16 +11,17 @@ use std::sync::Arc;
 
 /// VR Capable OpenXR engine backend
 pub struct OpenXrBackend {
-    core: Core,
     frame_wait: xr::FrameWaiter,
     frame_stream: xr::FrameStream<xr::Vulkan>,
     stage: xr::Space,
+    openxr: Arc<OpenXr>,
+    core: Core,
     //swapchain: Swapchain,
 }
 
 impl OpenXrBackend {
     /// Create a new engine instance. Returns the OpenXr caddy for use with input handling.
-    pub fn new(application_name: &str) -> Result<(Self, OpenXr)> {
+    pub fn new(application_name: &str) -> Result<(Self, Arc<OpenXr>)> {
         // Load OpenXR runtime
         let xr_entry = load_openxr()?;
 
@@ -193,13 +194,27 @@ impl OpenXrBackend {
 
         let core = Core::new(prelude)?;
 
-        todo!()
+        let openxr = Arc::new(OpenXr {
+            instance: xr_instance,
+            session,
+            system,
+        });
+
+        let instance = Self {
+            frame_wait,
+            frame_stream,
+            stage,
+            openxr: openxr.clone(),
+            core,
+        };
+
+        Ok((instance, openxr))
     }
 
     /// Render a frame of video.
     /// Returns false when the loop should break
     pub fn next_frame(&mut self, openxr: &OpenXr, packet: &FramePacket) -> Result<bool> {
-        todo!()
+        todo!("Next frame")
     }
 }
 

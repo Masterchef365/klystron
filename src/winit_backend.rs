@@ -4,7 +4,7 @@ use crate::{DrawType, Engine, FramePacket, Material, Mesh, Vertex};
 use anyhow::Result;
 use erupt::{
     cstr,
-    extensions::{ext_debug_utils, khr_swapchain},
+    extensions::{khr_surface, ext_debug_utils, khr_swapchain},
     utils::{allocator, surface},
     vk1_0 as vk, DeviceLoader, EntryLoader, InstanceLoader,
 };
@@ -13,7 +13,12 @@ use std::sync::Arc;
 use winit::window::Window;
 
 /// Windowed mode Winit engine backend
-pub struct WinitBackend;
+pub struct WinitBackend {
+    //swapchain: Swapchain,
+    surface: khr_surface::SurfaceKHR,
+    prelude: Arc<VkPrelude>,
+    core: Core,
+}
 
 impl WinitBackend {
     /// Create a new engine instance.
@@ -82,15 +87,19 @@ impl WinitBackend {
             entry,
         });
 
-        let core = Core::new(prelude)?;
+        let core = Core::new(prelude.clone())?;
 
-        todo!()
+        Ok(Self {
+            surface,
+            prelude,
+            core,
+        })
     }
 
     // TODO: camera position should be driven by something external
     // Winit keypresses used to move camera.
     pub fn next_frame(&mut self, packet: &FramePacket) -> Result<()> {
-        todo!()
+        todo!("Next frame")
     }
 }
 
@@ -111,5 +120,13 @@ impl Engine for WinitBackend {
     }
     fn remove_mesh(&mut self, mesh: Mesh) {
         todo!()
+    }
+}
+
+impl Drop for WinitBackend {
+    fn drop(&mut self) {
+        unsafe {
+            self.prelude.instance.destroy_surface_khr(Some(self.surface), None);
+        }
     }
 }
