@@ -134,7 +134,7 @@ impl Core {
         }
 
         // Frame synchronization
-        let frame_sync = FrameSync::new(&prelude.device, FRAMES_IN_FLIGHT)?;
+        let frame_sync = FrameSync::new(prelude.clone(), FRAMES_IN_FLIGHT)?;
 
         // Render pass
         let color_attachment = vk::AttachmentDescriptionBuilder::new()
@@ -222,7 +222,6 @@ impl Drop for Core {
             for ubo in &mut self.camera_ubos {
                 ubo.free(&self.prelude.device, &mut self.allocator).unwrap();
             }
-            self.frame_sync.free(&self.prelude.device);
             self.prelude.device.destroy_render_pass(Some(self.render_pass), None);
             self.prelude.device.destroy_descriptor_set_layout(Some(self.descriptor_set_layout), None);
             self.prelude.device.destroy_descriptor_pool(Some(self.descriptor_pool), None);

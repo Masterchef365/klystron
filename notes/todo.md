@@ -1,4 +1,5 @@
 # Todo
+* Add `Engine` methods to Core. Consider just exposing it to the user.
 * Meshes
 * Each backend has a `recreate_swapchain()` function that populates the `swapchain_images` field in Core.
 * Winit backend

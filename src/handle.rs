@@ -28,7 +28,7 @@ impl<T> HandleMap<T> {
     }
 
     pub fn get(&self, id: &Id) -> Option<&T> {
-        self.get(id)
+        self.inner.get(id)
     }
 
     pub fn remove(&mut self, id: &Id) {

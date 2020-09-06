@@ -1,11 +1,13 @@
+use crate::core::VkPrelude;
 use anyhow::Result;
 use erupt::{vk1_0 as vk, DeviceLoader};
+use std::sync::Arc;
 
 /// Manages fences and semaphores for every given frame
 pub struct FrameSync {
     frames: Vec<Frame>,
     frame_idx: usize,
-    freed: bool,
+    prelude: Arc<VkPrelude>,
 }
 
 pub struct Frame {
@@ -16,40 +18,44 @@ pub struct Frame {
 }
 
 impl FrameSync {
-    pub fn new(device: &DeviceLoader, frames_in_flight: usize) -> Result<Self> {
+    pub fn new(prelude: Arc<VkPrelude>, frames_in_flight: usize) -> Result<Self> {
         let frames = (0..frames_in_flight)
-            .map(|_| Frame::new(device))
+            .map(|_| Frame::new(&prelude.device))
             .collect::<Result<_>>()?;
 
         Ok(Self {
             frames,
-            freed: false,
             frame_idx: 0,
+            prelude,
         })
     }
 
-    pub fn next_frame(&mut self, device: &DeviceLoader) -> Result<(usize, &mut Frame)> {
+    pub fn next_frame(&mut self) -> Result<(usize, &mut Frame)> {
         self.frame_idx = (self.frame_idx + 1) % self.frames.len();
         let frame = &mut self.frames[self.frame_idx];
         unsafe {
-            device
-                .wait_for_fences(&[frame.in_flight_fence], true, u64::MAX).result()?;
+            self.prelude
+                .device
+                .wait_for_fences(&[frame.in_flight_fence], true, u64::MAX)
+                .result()?;
         }
         Ok((self.frame_idx, frame))
-    }
-
-    pub fn free(&mut self, device: &DeviceLoader) {
-        for frame in &mut self.frames {
-            frame.free(device);
-        }
-        self.freed = true;
     }
 }
 
 impl Drop for FrameSync {
     fn drop(&mut self) {
-        if !self.freed {
-            panic!("FrameSync dropped before its free() method was called!");
+        for frame in &mut self.frames {
+            unsafe {
+                self.prelude
+                    .device
+                    .destroy_semaphore(Some(frame.render_finished), None);
+                if !frame.in_flight_fence.is_null() {
+                    self.prelude
+                        .device
+                        .destroy_fence(Some(frame.in_flight_fence), None);
+                }
+            }
         }
     }
 }
@@ -67,15 +73,6 @@ impl Frame {
                 in_flight_fence,
                 render_finished,
             })
-        }
-    }
-
-    pub fn free(&mut self, device: &DeviceLoader) {
-        unsafe {
-            device.destroy_semaphore(Some(self.render_finished), None);
-            if !self.in_flight_fence.is_null() {
-                device.destroy_fence(Some(self.in_flight_fence), None);
-            }
         }
     }
 }

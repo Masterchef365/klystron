@@ -120,17 +120,17 @@ impl SwapchainImages {
         })
     }
 
-    pub fn free(&mut self, device: &DeviceLoader, allocator: &mut Allocator) -> Result<()> {
+    pub fn free(&mut self, allocator: &mut Allocator) -> Result<()> {
         unsafe {
-            device.device_wait_idle().result()?;
+            self.prelude.device.device_wait_idle().result()?;
             for image in self.images.drain(..) {
-                device.destroy_framebuffer(Some(image.framebuffer), None);
-                device.destroy_image_view(Some(image.image_view), None);
+                self.prelude.device.destroy_framebuffer(Some(image.framebuffer), None);
+                self.prelude.device.destroy_image_view(Some(image.image_view), None);
             }
-            device.destroy_image_view(Some(self.depth_image_view), None);
+            self.prelude.device.destroy_image_view(Some(self.depth_image_view), None);
         }
 
-        allocator.free(device, self.depth_image_mem.take().unwrap());
+        allocator.free(&self.prelude.device, self.depth_image_mem.take().unwrap());
 
         self.bomb.defuse();
         Ok(())

@@ -120,13 +120,13 @@ fn windowed_backend<A: App + 'static>() -> Result<()> {
 }
 
 fn vr_backend<A: App>() -> Result<()> {
-    let (mut engine, openxr) = OpenXrBackend::new(A::NAME)?;
+    let (mut engine, _openxr) = OpenXrBackend::new(A::NAME)?;
 
     let mut app = A::new(&mut engine)?;
 
     loop {
         let packet = app.next_frame(&mut engine)?;
-        if !engine.next_frame(&openxr, &packet)? {
+        if !engine.next_frame(&packet)? {
             break Ok(());
         }
     }

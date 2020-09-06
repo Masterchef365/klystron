@@ -1,6 +1,6 @@
 pub mod xr_prelude;
-use xr_prelude::{XrPrelude, load_openxr};
 use crate::core::{Core, VkPrelude};
+use crate::swapchain_images::SwapchainImages;
 use crate::{DrawType, Engine, FramePacket, Material, Mesh, Vertex};
 use anyhow::{bail, Result};
 use erupt::{
@@ -9,15 +9,17 @@ use erupt::{
 use log::info;
 use std::ffi::CString;
 use std::sync::Arc;
+use xr_prelude::{load_openxr, XrPrelude};
 
 /// VR Capable OpenXR engine backend
 pub struct OpenXrBackend {
     frame_wait: xr::FrameWaiter,
     frame_stream: xr::FrameStream<xr::Vulkan>,
     stage: xr::Space,
+    swapchain: Option<xr::Swapchain<xr::Vulkan>>,
     openxr: Arc<XrPrelude>,
+    prelude: Arc<VkPrelude>,
     core: Core,
-    //swapchain: Swapchain,
 }
 
 impl OpenXrBackend {
@@ -193,7 +195,7 @@ impl OpenXrBackend {
             entry: vk_entry,
         });
 
-        let core = Core::new(prelude)?;
+        let core = Core::new(prelude.clone())?;
 
         let openxr = Arc::new(XrPrelude {
             instance: xr_instance,
@@ -205,7 +207,9 @@ impl OpenXrBackend {
             frame_wait,
             frame_stream,
             stage,
+            swapchain: None,
             openxr: openxr.clone(),
+            prelude,
             core,
         };
 
@@ -214,8 +218,95 @@ impl OpenXrBackend {
 
     /// Render a frame of video.
     /// Returns false when the loop should break
-    pub fn next_frame(&mut self, openxr: &XrPrelude, packet: &FramePacket) -> Result<bool> {
+    pub fn next_frame(&mut self, packet: &FramePacket) -> Result<bool> {
+        // Wait for OpenXR to signal it has a frame ready
+        let xr_frame_state = self.frame_wait.wait()?;
+        self.frame_stream.begin()?;
+
+        if !xr_frame_state.should_render {
+            self.frame_stream.end(
+                xr_frame_state.predicted_display_time,
+                xr::EnvironmentBlendMode::OPAQUE,
+                &[],
+            )?;
+            return Ok(true);
+        }
+
+        if self.swapchain.is_none() {
+            self.recreate_swapchain();
+        }
+
+        let (frame_idx, frame) = self.core.frame_sync.next_frame()?;
+
+        let swapchain = self.swapchain.as_mut().unwrap();
+        let image_index = swapchain.acquire_image()?;
+        swapchain.wait_image(xr::Duration::INFINITE)?;
+
+        let image = self
+            .core
+            .swapchain_images
+            .as_mut()
+            .unwrap()
+            .next_image(image_index, &frame)?;
+
         todo!("Next frame")
+    }
+
+    fn recreate_swapchain(&mut self) -> Result<()> {
+        if let Some(mut images) = self.core.swapchain_images.take() {
+            images.free(&mut self.core.allocator);
+        }
+        self.swapchain = None;
+
+        let views = self
+            .openxr
+            .instance
+            .enumerate_view_configuration_views(
+                self.openxr.system,
+                xr::ViewConfigurationType::PRIMARY_STEREO,
+            )
+            .unwrap();
+
+        let extent = vk::Extent2D {
+            width: views[0].recommended_image_rect_width,
+            height: views[0].recommended_image_rect_height,
+        };
+
+        let swapchain = self
+            .openxr
+            .session
+            .create_swapchain(&xr::SwapchainCreateInfo {
+                create_flags: xr::SwapchainCreateFlags::EMPTY,
+                usage_flags: xr::SwapchainUsageFlags::COLOR_ATTACHMENT
+                    | xr::SwapchainUsageFlags::SAMPLED,
+                format: crate::core::COLOR_FORMAT.0 as _,
+                sample_count: 1,
+                width: extent.width,
+                height: extent.height,
+                face_count: 1,
+                array_size: crate::swapchain_images::VIEW_COUNT,
+                mip_count: 1,
+            })
+            .unwrap();
+
+        let swapchain_images = swapchain
+            .enumerate_images()?
+            .into_iter()
+            .map(vk::Image)
+            .collect::<Vec<_>>();
+
+        // TODO: Coagulate these two into one object?
+        self.swapchain = Some(swapchain);
+
+        self.core.swapchain_images = Some(SwapchainImages::new(
+            self.prelude.clone(),
+            &mut self.core.allocator,
+            extent,
+            self.core.render_pass,
+            swapchain_images,
+        )?);
+
+        Ok(())
     }
 }
 
