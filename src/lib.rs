@@ -2,20 +2,21 @@
 //! simple, unlit scenes with dynamically placed objects. VR capable through the OpenXR
 //! interface, and hopefully easily modifiable.
 extern crate openxr as xr;
-mod core;
-mod handle;
-mod vr;
-mod vertex;
-mod windowed;
-mod extensions;
-mod hardware_query;
 mod allocated_buffer;
+mod core;
+mod extensions;
 mod frame_sync;
+mod handle;
+mod hardware_query;
+mod material;
 mod swapchain_images;
+mod vertex;
+mod vr;
+mod windowed;
 use anyhow::Result;
 use nalgebra::{Matrix4, Point3, UnitQuaternion};
-pub use vr::{xr_prelude::XrPrelude, OpenXrBackend};
 pub use vertex::Vertex;
+pub use vr::{xr_prelude::XrPrelude, OpenXrBackend};
 pub use windowed::WinitBackend;
 
 /// All information necessary to define a frame of video (besides camera, which is passed in a

@@ -2,15 +2,16 @@
 * Switch from free() to drop()
 * Materials
 * Meshes
-* Each backend has a recreate\_swapchain() function that populates the swapchain\_images field in Core.
+* Each backend has a `recreate_swapchain()` function that populates the `swapchain_images` field in Core.
 * Winit backend
-    * next\_frame()
-    * Swapchain
+    * `next_frame()`
+    * `Swapchain`
 * OpenXR backend
-    * next\_frame()
-    * Swapchain
+    * `next_frame()`
+    * `Swapchain`
 * Core
     * Write Command buffers
+    * NOTE: MUST WRITE `vkCmdSetViewport` AND 
 * logging ideas:
     * OpenXR loader path  
     * OpenXR version
@@ -21,6 +22,10 @@
     * OpenXR state transitions
     * Swapchain rebuilds
     * Make sure its 
-* Improve AllocatedBuffer! (see source)
+
+## Design experiments
+* Improve `AllocatedBuffer`! (see source)
 * Separate features for VR and Windowed modes. You may use both if you enable both.
-* Experiment by moving `Mutex<Allocator>` into `VkPrelude`, with
+* Move `Mutex<Allocator>` into `VkPrelude`
+* Return `Arc<VkPrelude>` from `VkPrelude::new()`. Or something. I don't like having to add Arc to everything.
+* Bring Your Own Shader Uniforms (User defined data...)

@@ -4,6 +4,7 @@ use crate::allocated_buffer::AllocatedBuffer;
 use crate::frame_sync::FrameSync;
 use crate::handle::HandleMap;
 use crate::swapchain_images::SwapchainImages;
+use crate::material::Material;
 use erupt::{
     utils::{
         self,
@@ -28,7 +29,6 @@ pub(crate) const DEPTH_FORMAT: vk::Format = vk::Format::D32_SFLOAT;
 
 pub type CameraUbo = [f32; 32];
 pub struct Mesh;
-pub struct Material;
 
 pub struct Core {
     pub allocator: Allocator,
