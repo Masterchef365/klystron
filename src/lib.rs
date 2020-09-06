@@ -4,20 +4,18 @@
 extern crate openxr as xr;
 mod core;
 mod handle;
-mod openxr_backend;
-mod openxr_caddy;
+mod vr;
 mod vertex;
-mod winit_backend;
+mod windowed;
 mod extensions;
 mod hardware_query;
 mod allocated_buffer;
 mod frame_sync;
 use anyhow::Result;
 use nalgebra::{Matrix4, Point3, UnitQuaternion};
-pub use openxr_backend::OpenXrBackend;
-pub use openxr_caddy::OpenXr;
+pub use vr::{xr_prelude::XrPrelude, OpenXrBackend};
 pub use vertex::Vertex;
-pub use winit_backend::WinitBackend;
+pub use windowed::WinitBackend;
 
 /// All information necessary to define a frame of video (besides camera, which is passed in a
 /// special camera for windowed mode and implicitly in OpenXR)

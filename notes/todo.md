@@ -1,17 +1,11 @@
 # Todo
-* Shared behaviour for extensions, layers
-* Caddy
-    * Creation, destruction
+* Organize backends into their own folders 
 * Core
-    * Setup
-    * Destruction
-    * Allocator/AllocatedBuffer
-        * Maybe just use different types for GPU-only index/vertex buffers and UBOs. K.I.S.S.
-    * Materials
-    * Camera UBOs
     * Write Command buffers
 * Winit backend
+    * Swapchain
 * OpenXR backend
+    * Swapchain
 * Use the `log` crate; here are some logging ideas:
     * OpenXR loader path  
     * OpenXR version

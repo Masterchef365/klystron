@@ -1,6 +1,6 @@
 use anyhow::Result;
 use klystron::{
-    DrawType, Engine, FramePacket, Material, Mesh, Object, OpenXr, OpenXrBackend, Vertex,
+    DrawType, Engine, FramePacket, Material, Mesh, Object, XrPrelude, OpenXrBackend, Vertex,
     WinitBackend,
 };
 use nalgebra::{Matrix4, Point3, UnitQuaternion};

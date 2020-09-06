@@ -1,5 +1,6 @@
+pub mod xr_prelude;
+use xr_prelude::{XrPrelude, load_openxr};
 use crate::core::{Core, VkPrelude};
-use crate::openxr_caddy::{load_openxr, OpenXr};
 use crate::{DrawType, Engine, FramePacket, Material, Mesh, Vertex};
 use anyhow::{bail, Result};
 use erupt::{
@@ -14,14 +15,14 @@ pub struct OpenXrBackend {
     frame_wait: xr::FrameWaiter,
     frame_stream: xr::FrameStream<xr::Vulkan>,
     stage: xr::Space,
-    openxr: Arc<OpenXr>,
+    openxr: Arc<XrPrelude>,
     core: Core,
     //swapchain: Swapchain,
 }
 
 impl OpenXrBackend {
     /// Create a new engine instance. Returns the OpenXr caddy for use with input handling.
-    pub fn new(application_name: &str) -> Result<(Self, Arc<OpenXr>)> {
+    pub fn new(application_name: &str) -> Result<(Self, Arc<XrPrelude>)> {
         // Load OpenXR runtime
         let xr_entry = load_openxr()?;
 
@@ -194,7 +195,7 @@ impl OpenXrBackend {
 
         let core = Core::new(prelude)?;
 
-        let openxr = Arc::new(OpenXr {
+        let openxr = Arc::new(XrPrelude {
             instance: xr_instance,
             session,
             system,
@@ -213,7 +214,7 @@ impl OpenXrBackend {
 
     /// Render a frame of video.
     /// Returns false when the loop should break
-    pub fn next_frame(&mut self, openxr: &OpenXr, packet: &FramePacket) -> Result<bool> {
+    pub fn next_frame(&mut self, openxr: &XrPrelude, packet: &FramePacket) -> Result<bool> {
         todo!("Next frame")
     }
 }

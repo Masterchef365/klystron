@@ -4,7 +4,7 @@ use std::path::Path;
 use log::info;
 
 /// A container for several commonly-used OpenXR constants.
-pub struct OpenXr {
+pub struct XrPrelude {
     pub instance: xr::Instance,
     pub session: xr::Session<xr::Vulkan>,
     pub system: xr::SystemId,
