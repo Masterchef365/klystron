@@ -1,11 +1,16 @@
 # Todo
+* Materials
+* Meshes
+* Each backend has a recreate\_swapchain() function that populates the swapchain\_images field in Core.
 * Winit backend
+    * next\_frame()
     * Swapchain
 * OpenXR backend
+    * next\_frame()
     * Swapchain
 * Core
     * Write Command buffers
-* Use the `log` crate; here are some logging ideas:
+* logging ideas:
     * OpenXR loader path  
     * OpenXR version
     * Vulkan version
@@ -15,5 +20,5 @@
     * OpenXR state transitions
     * Swapchain rebuilds
     * Make sure its 
-* Improve AllocatedBuffer!
+* Improve AllocatedBuffer! (see source)
 * Separate features for VR and Windowed modes. You may use both if you enable both.

@@ -3,6 +3,7 @@ use anyhow::Result;
 use crate::allocated_buffer::AllocatedBuffer;
 use crate::frame_sync::FrameSync;
 use crate::handle::HandleMap;
+use crate::swapchain_images::SwapchainImages;
 use erupt::{
     utils::{
         self,
@@ -41,6 +42,7 @@ pub struct Core {
     pub descriptor_set_layout: vk::DescriptorSetLayout,
     pub descriptor_sets: Vec<vk::DescriptorSet>,
     pub camera_ubos: Vec<AllocatedBuffer<CameraUbo>>,
+    pub swapchain_images: Option<SwapchainImages>,
     pub prelude: Arc<VkPrelude>,
 }
 
@@ -206,6 +208,7 @@ impl Core {
             allocator,
             command_buffers,
             render_pass,
+            swapchain_images: None,
             materials: Default::default(),
             meshes: Default::default(),
         })
