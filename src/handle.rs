@@ -31,11 +31,8 @@ impl<T> HandleMap<T> {
         self.inner.get(id)
     }
 
-    pub fn remove(&mut self, id: &Id) {
-        let _ = self.inner.remove(id);
-        if *id >= self.next_id {
-            panic!("Id did not originate from this map")
-        }
+    pub fn remove(&mut self, id: &Id) -> Option<T> {
+        self.inner.remove(id)
     }
 }
 

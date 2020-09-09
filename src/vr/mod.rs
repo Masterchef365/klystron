@@ -363,6 +363,7 @@ impl OpenXrBackend {
     }
 }
 
+// TODO: This is stupid.
 impl Engine for OpenXrBackend {
     fn add_material(
         &mut self,
@@ -370,16 +371,16 @@ impl Engine for OpenXrBackend {
         fragment: &[u8],
         draw_type: DrawType,
     ) -> Result<Material> {
-        todo!()
+        self.core.add_material(vertex, fragment, draw_type)
     }
     fn add_mesh(&mut self, vertices: &[Vertex], indices: &[u16]) -> Result<Mesh> {
-        todo!()
+        self.core.add_mesh(vertices, indices)
     }
-    fn remove_material(&mut self, material: Material) {
-        todo!()
+    fn remove_material(&mut self, material: Material) -> Result<()> {
+        self.core.remove_material(material)
     }
-    fn remove_mesh(&mut self, mesh: Mesh) {
-        todo!()
+    fn remove_mesh(&mut self, mesh: Mesh) -> Result<()> {
+        self.core.remove_mesh(mesh)
     }
 }
 

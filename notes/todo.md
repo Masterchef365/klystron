@@ -27,3 +27,4 @@
 * Move `Mutex<Allocator>` into `VkPrelude`
 * Return `Arc<VkPrelude>` from `VkPrelude::new()`. Or something. I don't like having to add Arc to everything.
 * Bring Your Own Shader Uniforms (User defined data...)
+* Object for each backend, just pass the core in an argument to `next_frame()`

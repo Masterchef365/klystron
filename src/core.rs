@@ -13,6 +13,7 @@ use erupt::{
     vk1_0 as vk, DeviceLoader, InstanceLoader,
     vk1_1,
 };
+use crate::vertex::Vertex;
 
 pub struct VkPrelude {
     pub queue: vk::Queue,
@@ -28,7 +29,12 @@ pub(crate) const COLOR_FORMAT: vk::Format = vk::Format::B8G8R8A8_SRGB;
 pub(crate) const DEPTH_FORMAT: vk::Format = vk::Format::D32_SFLOAT;
 
 pub type CameraUbo = [f32; 32];
-pub struct Mesh;
+
+pub struct Mesh {
+    pub indices: AllocatedBuffer<u16>,
+    pub vertices: AllocatedBuffer<Vertex>,
+    pub n_indices: u32,
+}
 
 pub struct Core {
     pub allocator: Allocator,
@@ -212,6 +218,83 @@ impl Core {
             materials: Default::default(),
             meshes: Default::default(),
         })
+    }
+
+    pub fn add_material(
+        &mut self,
+        vertex: &[u8],
+        fragment: &[u8],
+        draw_type: crate::DrawType,
+    ) -> Result<crate::Material> {
+        let material = Material::new(
+            self.prelude.clone(), 
+            vertex,
+            fragment,
+            draw_type,
+            self.render_pass,
+            self.descriptor_set_layout
+        )?;
+        Ok(crate::Material(self.materials.insert(material)))
+    }
+
+    pub fn remove_material(&mut self, material: crate::Material) -> Result<()> {
+        // Figure out how not to wait?
+        unsafe {
+            self.prelude.device.device_wait_idle().result()?;
+        }
+        self.materials.remove(&material.0);
+        Ok(())
+    }
+
+    pub fn add_mesh(
+        &mut self,
+        vertices: &[Vertex],
+        indices: &[u16],
+    ) -> Result<crate::Mesh> {
+        let n_indices = indices.len() as u32;
+
+        //TODO: Use staging buffers as well!
+        let create_info = vk::BufferCreateInfoBuilder::new()
+            .usage(vk::BufferUsageFlags::VERTEX_BUFFER)
+            .sharing_mode(vk::SharingMode::EXCLUSIVE);
+        let mut vertex_buffer = AllocatedBuffer::new(
+            vertices.len(),
+            create_info,
+            &mut self.allocator,
+            &self.prelude.device,
+        )?;
+        vertex_buffer.map(&self.prelude.device, vertices)?;
+
+        let create_info = vk::BufferCreateInfoBuilder::new()
+            .usage(vk::BufferUsageFlags::INDEX_BUFFER)
+            .sharing_mode(vk::SharingMode::EXCLUSIVE);
+        let mut index_buffer = AllocatedBuffer::new(
+            indices.len(),
+            create_info,
+            &mut self.allocator,
+            &self.prelude.device,
+        )?;
+        index_buffer.map(&self.prelude.device, indices)?;
+
+        let mesh = Mesh {
+            indices: index_buffer,
+            vertices: vertex_buffer,
+            n_indices,
+        };
+
+        Ok(crate::Mesh(self.meshes.insert(mesh)))
+    }
+
+    pub fn remove_mesh(&mut self, id: crate::Mesh) -> Result<()> {
+        // Figure out how not to wait?
+        unsafe {
+            self.prelude.device.device_wait_idle().result()?;
+        }
+        if let Some(mut mesh) = self.meshes.remove(&id.0) {
+            mesh.vertices.free(&self.prelude.device, &mut self.allocator)?;
+            mesh.indices.free(&self.prelude.device, &mut self.allocator)?;
+        }
+        Ok(())
     }
 }
 

@@ -73,9 +73,9 @@ pub trait Engine {
     /// Add a mesh, given vertices and indices
     fn add_mesh(&mut self, vertices: &[Vertex], indices: &[u16]) -> Result<Mesh>;
     /// Remove the given material
-    fn remove_material(&mut self, material: Material);
+    fn remove_material(&mut self, material: Material) -> Result<()>;
     /// Remove the given mesh
-    fn remove_mesh(&mut self, mesh: Mesh);
+    fn remove_mesh(&mut self, mesh: Mesh) -> Result<()>;
 }
 
 pub(crate) const ENGINE_NAME: &'static str = "Klystron";

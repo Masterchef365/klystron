@@ -115,10 +115,10 @@ impl Engine for WinitBackend {
     fn add_mesh(&mut self, vertices: &[Vertex], indices: &[u16]) -> Result<Mesh> {
         todo!()
     }
-    fn remove_material(&mut self, material: Material) {
+    fn remove_material(&mut self, material: Material) -> Result<()> {
         todo!()
     }
-    fn remove_mesh(&mut self, mesh: Mesh) {
+    fn remove_mesh(&mut self, mesh: Mesh) -> Result<()> {
         todo!()
     }
 }
