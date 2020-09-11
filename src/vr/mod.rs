@@ -239,13 +239,22 @@ impl OpenXrBackend {
         let (frame_idx, frame) = self.core.frame_sync.next_frame()?;
 
         let swapchain = self.swapchain.as_mut().unwrap();
-        let swapchain_images = self.core.swapchain_images.as_mut().unwrap();
 
         let image_index = swapchain.acquire_image()?;
-        swapchain.wait_image(xr::Duration::INFINITE)?;
-        let image = swapchain_images.next_image(image_index, &frame)?;
 
-        // TODO: COMMAND BUFFERS GO HERE
+        swapchain.wait_image(xr::Duration::INFINITE)?;
+
+        //let image: crate::swapchain_images::SwapChainImage = todo!();
+        let image = {
+        self
+            .core
+            .swapchain_images
+            .as_mut()
+            .unwrap()
+            .next_image(image_index, &frame)?
+        };
+
+        let command_buffer = self.core.write_command_buffers(frame_idx, packet, &image)?;
 
         // Get views
         let (_, views) = self.openxr.session.locate_views(
@@ -255,14 +264,24 @@ impl OpenXrBackend {
         )?;
 
         // Upload camera matrix TODO: Only map once, never unmap!
-        let left = matrix_from_view(&views[0], swapchain_images.extent);
-        let right = matrix_from_view(&views[1], swapchain_images.extent);
+        let left = matrix_from_view(&views[0], image.extent);
+        let right = matrix_from_view(&views[1], image.extent);
         let both = left.iter().chain(right.iter()).copied().collect::<Vec<_>>();
         let mut data = [0.0; 32];
         data.copy_from_slice(&both);
         self.core.camera_ubos[frame_idx].map(&self.prelude.device, &[data])?;
 
-        // TODO: QUEUE SUBMIT GOES HERE
+        // Submit to the queue
+        let command_buffers = [command_buffer];
+        let submit_info = vk::SubmitInfoBuilder::new().command_buffers(&command_buffers);
+        unsafe {
+            self.prelude.device
+                .reset_fences(&[frame.in_flight_fence])
+                .result()?; // TODO: Move this into the swapchain next_image
+            self.prelude.device
+                .queue_submit(self.prelude.queue, &[submit_info], Some(frame.in_flight_fence))
+                .result()?;
+        }
 
         // Present to swapchain
         swapchain.release_image()?;
@@ -271,8 +290,8 @@ impl OpenXrBackend {
         let rect = xr::Rect2Di {
             offset: xr::Offset2Di { x: 0, y: 0 },
             extent: xr::Extent2Di {
-                width: swapchain_images.extent.width as _,
-                height: swapchain_images.extent.height as _,
+                width: image.extent.width as _,
+                height: image.extent.height as _,
             },
         };
         self.frame_stream.end(

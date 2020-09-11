@@ -1,4 +1,4 @@
-use crate::core::{VkPrelude, CameraUbo};
+use crate::core::{CameraUbo, VkPrelude};
 use crate::vertex::Vertex;
 use crate::DrawType;
 use anyhow::Result;
@@ -60,11 +60,13 @@ impl Material {
             .topology(draw_type)
             .primitive_restart_enable(false);
 
-        let viewport_state = vk::PipelineViewportStateCreateInfoBuilder::new();
+        let viewport_state = vk::PipelineViewportStateCreateInfoBuilder::new()
+            .viewport_count(1)
+            .scissor_count(1);
 
         let dynamic_states = [vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR];
-        let dynamic_state = vk::PipelineDynamicStateCreateInfoBuilder::new()
-            .dynamic_states(&dynamic_states);
+        let dynamic_state =
+            vk::PipelineDynamicStateCreateInfoBuilder::new().dynamic_states(&dynamic_states);
 
         let rasterizer = vk::PipelineRasterizationStateCreateInfoBuilder::new()
             .depth_clamp_enable(false)
@@ -151,12 +153,8 @@ impl Material {
         .result()?[0];
 
         unsafe {
-            prelude
-                .device
-                .destroy_shader_module(Some(fragment), None);
-            prelude
-                .device
-                .destroy_shader_module(Some(vertex), None);
+            prelude.device.destroy_shader_module(Some(fragment), None);
+            prelude.device.destroy_shader_module(Some(vertex), None);
         }
 
         Ok(Self {

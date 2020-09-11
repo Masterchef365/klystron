@@ -10,6 +10,7 @@ pub struct FrameSync {
     prelude: Arc<VkPrelude>,
 }
 
+#[derive(Copy, Clone)]
 pub struct Frame {
     /// Whether or not rendering has finished
     pub render_finished: vk::Semaphore,
@@ -30,9 +31,9 @@ impl FrameSync {
         })
     }
 
-    pub fn next_frame(&mut self) -> Result<(usize, &mut Frame)> {
+    pub fn next_frame(&mut self) -> Result<(usize, Frame)> {
         self.frame_idx = (self.frame_idx + 1) % self.frames.len();
-        let frame = &mut self.frames[self.frame_idx];
+        let frame = self.frames[self.frame_idx];
         unsafe {
             self.prelude
                 .device

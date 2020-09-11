@@ -21,10 +21,12 @@ pub struct SwapchainImages {
     bomb: DropBomb,
 }
 
+#[derive(Copy, Clone)]
 pub struct SwapChainImage {
     pub framebuffer: vk::Framebuffer,
     pub image_view: vk::ImageView,
     /// Whether or not the frame which this swapchain image is dependent on is in flight or not
+    pub extent: vk::Extent2D,
     pub in_flight: vk::Fence,
 }
 
@@ -34,7 +36,7 @@ impl SwapchainImages {
         &mut self,
         image_index: u32,
         frame: &Frame,
-    ) -> Result<&mut SwapChainImage> {
+    ) -> Result<SwapChainImage> {
         let image = &mut self.images[image_index as usize];
 
         // Wait until the frame associated with this swapchain image is finisehd rendering, if any
@@ -47,7 +49,7 @@ impl SwapchainImages {
         // swapchain image will know (see above) when this image is rendered.
         image.in_flight = frame.in_flight_fence;
 
-        Ok(image)
+        Ok(*image)
     }
 
     pub fn new(
@@ -187,6 +189,7 @@ impl SwapChainImage {
             framebuffer,
             image_view,
             in_flight,
+            extent,
         })
     }
 }

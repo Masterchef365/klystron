@@ -34,6 +34,10 @@ impl<T> HandleMap<T> {
     pub fn remove(&mut self, id: &Id) -> Option<T> {
         self.inner.remove(id)
     }
+
+    pub fn iter(&self) -> impl Iterator<Item=(&Id, &T)> {
+        self.inner.iter()
+    }
 }
 
 impl<T> Default for HandleMap<T> {
