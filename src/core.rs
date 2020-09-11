@@ -257,7 +257,7 @@ impl Core {
         let create_info = vk::BufferCreateInfoBuilder::new()
             .usage(vk::BufferUsageFlags::VERTEX_BUFFER)
             .sharing_mode(vk::SharingMode::EXCLUSIVE);
-        let mut vertex_buffer = AllocatedBuffer::new(
+        let vertex_buffer = AllocatedBuffer::new(
             vertices.len(),
             create_info,
             &mut self.allocator,
@@ -268,7 +268,7 @@ impl Core {
         let create_info = vk::BufferCreateInfoBuilder::new()
             .usage(vk::BufferUsageFlags::INDEX_BUFFER)
             .sharing_mode(vk::SharingMode::EXCLUSIVE);
-        let mut index_buffer = AllocatedBuffer::new(
+        let index_buffer = AllocatedBuffer::new(
             indices.len(),
             create_info,
             &mut self.allocator,
@@ -441,6 +441,7 @@ impl Core {
 impl Drop for Core {
     fn drop(&mut self) {
         unsafe {
+            self.prelude.device.device_wait_idle().unwrap();
             // TODO: Drop materials and meshes
             for ubo in &mut self.camera_ubos {
                 ubo.free(&self.prelude.device, &mut self.allocator).unwrap();

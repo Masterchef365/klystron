@@ -1,4 +1,3 @@
-use anyhow::{Result, Context};
 use openxr::Entry;
 use std::path::Path;
 use log::info;
@@ -12,7 +11,7 @@ pub struct XrPrelude {
 
 /// Attempt to load OpenXR dll first from OPENXR_LOADER, or the default location if no environment
 /// variable is provided.
-pub fn load_openxr() -> Result<xr::Entry> {
+pub fn load_openxr() -> anyhow::Result<xr::Entry> {
     let path = std::env::var("OPENXR_LOADER");
     use std::env::VarError;
     Ok(match path {

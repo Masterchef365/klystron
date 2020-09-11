@@ -6,7 +6,6 @@ use erupt::{
     utils::allocator::{Allocation, Allocator, MemoryTypeFinder},
     vk1_0 as vk, DeviceLoader,
 };
-use std::collections::HashMap;
 use drop_bomb::DropBomb;
 
 pub const VIEW_COUNT: u32 = 2;

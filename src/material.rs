@@ -2,7 +2,7 @@ use crate::core::{CameraUbo, VkPrelude};
 use crate::vertex::Vertex;
 use crate::DrawType;
 use anyhow::Result;
-use erupt::{utils, vk1_0 as vk, DeviceLoader};
+use erupt::{utils, vk1_0 as vk};
 use std::ffi::CString;
 use std::sync::Arc;
 

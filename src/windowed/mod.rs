@@ -1,3 +1,4 @@
+#![allow(unused)] // TODO: REMOVE ME
 use crate::core::{Core, VkPrelude};
 use crate::hardware_query::HardwareSelection;
 use crate::{DrawType, Engine, FramePacket, Material, Mesh, Vertex};

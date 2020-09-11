@@ -4,12 +4,13 @@ use crate::swapchain_images::SwapchainImages;
 use crate::{DrawType, Engine, FramePacket, Material, Mesh, Vertex};
 use anyhow::{bail, Result};
 use erupt::{
-    cstr, utils::allocator, vk1_0 as vk, vk1_1, DeviceLoader, EntryLoader, InstanceLoader,
+    vk1_0 as vk, DeviceLoader, EntryLoader, InstanceLoader,
 };
 use log::info;
 use std::ffi::CString;
 use std::sync::Arc;
 use xr_prelude::{load_openxr, XrPrelude};
+use nalgebra::{Matrix4, Unit, Vector3};
 
 /// VR Capable OpenXR engine backend
 pub struct OpenXrBackend {
@@ -233,7 +234,7 @@ impl OpenXrBackend {
         }
 
         if self.swapchain.is_none() {
-            self.recreate_swapchain();
+            self.recreate_swapchain()?;
         }
 
         let (frame_idx, frame) = self.core.frame_sync.next_frame()?;
@@ -264,8 +265,8 @@ impl OpenXrBackend {
         )?;
 
         // Upload camera matrix TODO: Only map once, never unmap!
-        let left = matrix_from_view(&views[0], image.extent);
-        let right = matrix_from_view(&views[1], image.extent);
+        let left = matrix_from_view(&views[0]);
+        let right = matrix_from_view(&views[1]);
         let both = left.iter().chain(right.iter()).copied().collect::<Vec<_>>();
         let mut data = [0.0; 32];
         data.copy_from_slice(&both);
@@ -326,7 +327,7 @@ impl OpenXrBackend {
 
     fn recreate_swapchain(&mut self) -> Result<()> {
         if let Some(mut images) = self.core.swapchain_images.take() {
-            images.free(&mut self.core.allocator);
+            images.free(&mut self.core.allocator)?;
         }
         self.swapchain = None;
 
@@ -403,8 +404,7 @@ impl Engine for OpenXrBackend {
     }
 }
 
-use nalgebra::{Matrix4, Quaternion, Unit, Vector3};
-fn matrix_from_view(view: &xr::View, extent: vk::Extent2D) -> Matrix4<f32> {
+fn matrix_from_view(view: &xr::View) -> Matrix4<f32> {
     let proj = projection_from_fov(&view.fov, 0.01, 1000.0);
     let view = view_from_pose(&view.pose);
     proj * view

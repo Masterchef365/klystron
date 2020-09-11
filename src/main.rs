@@ -1,7 +1,6 @@
 use anyhow::Result;
 use klystron::{
     DrawType, Engine, FramePacket, Material, Mesh, Object, OpenXrBackend, Vertex, WinitBackend,
-    XrPrelude,
 };
 use log::info;
 use nalgebra::{Matrix4, Point3, UnitQuaternion};
@@ -11,7 +10,8 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc,
 };
-use winit::event_loop::{ControlFlow, EventLoop};
+//use winit::event_loop::{ControlFlow, EventLoop};
+use winit::event_loop::EventLoop;
 use winit::window::WindowBuilder;
 
 trait App: Sized {
@@ -86,7 +86,7 @@ impl App for MyApp {
     }
 
     fn next_frame(&mut self, _engine: &mut dyn Engine) -> Result<FramePacket> {
-        let transform = Matrix4::from_euler_angles(0.0, self.time, 0.0);
+        let transform = Matrix4::from_euler_angles(0.0, self.time * 0.01, 0.0);
         let object = Object {
             material: self.material,
             mesh: self.mesh,
