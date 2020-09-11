@@ -1,4 +1,6 @@
 # Todo
+* Use Ctrlc handler
+* Use dropbomb instead of a boolean for some stuff like allocatedbuffer I think
 * Add `Engine` methods to Core. Consider just exposing it to the user.
 * Meshes
 * Each backend has a `recreate_swapchain()` function that populates the `swapchain_images` field in Core.

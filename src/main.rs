@@ -1,10 +1,16 @@
 use anyhow::Result;
 use klystron::{
-    DrawType, Engine, FramePacket, Material, Mesh, Object, XrPrelude, OpenXrBackend, Vertex,
-    WinitBackend,
+    DrawType, Engine, FramePacket, Material, Mesh, Object, OpenXrBackend, Vertex, WinitBackend,
+    XrPrelude,
 };
+use log::info;
 use nalgebra::{Matrix4, Point3, UnitQuaternion};
+use openxr as xr;
 use std::fs;
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::WindowBuilder;
 
@@ -80,7 +86,7 @@ impl App for MyApp {
     }
 
     fn next_frame(&mut self, _engine: &mut dyn Engine) -> Result<FramePacket> {
-        let transform = Matrix4::from_euler_angles(self.time, 0.0, self.time);
+        let transform = Matrix4::from_euler_angles(0.0, self.time, 0.0);
         let object = Object {
             material: self.material,
             mesh: self.mesh,
@@ -120,12 +126,73 @@ fn windowed_backend<A: App + 'static>() -> Result<()> {
 }
 
 fn vr_backend<A: App>() -> Result<()> {
-    let (mut engine, _openxr) = OpenXrBackend::new(A::NAME)?;
+    // Handle interrupts gracefully
+    let running = Arc::new(AtomicBool::new(true));
+    let r = running.clone();
+    ctrlc::set_handler(move || {
+        r.store(false, Ordering::Relaxed);
+    })
+    .expect("setting Ctrl-C handler");
 
+    let (mut engine, openxr) = OpenXrBackend::new(A::NAME)?;
     let mut app = A::new(&mut engine)?;
 
+    let mut event_storage = xr::EventDataBuffer::new();
+    let mut session_running = false;
+
     // TODO: STATE TRANSITIONS
-    loop {
+    'main_loop: loop {
+        if !running.load(Ordering::Relaxed) {
+            info!("Requesting exit");
+            let res = openxr.session.request_exit();
+            if let Err(xr::sys::Result::ERROR_SESSION_NOT_RUNNING) = res {
+                info!("OpenXR Exiting gracefully");
+                break Ok(());
+            }
+            res?;
+        }
+
+        while let Some(event) = openxr.instance.poll_event(&mut event_storage).unwrap() {
+            use xr::Event::*;
+            match event {
+                SessionStateChanged(e) => {
+                    info!("OpenXR entered state {:?}", e.state());
+                    match e.state() {
+                        xr::SessionState::READY => {
+                            openxr
+                                .session
+                                .begin(xr::ViewConfigurationType::PRIMARY_STEREO)
+                                .unwrap();
+                            session_running = true;
+                        }
+                        xr::SessionState::STOPPING => {
+                            openxr.session.end().unwrap();
+                            session_running = false;
+                        }
+                        xr::SessionState::EXITING | xr::SessionState::LOSS_PENDING => {
+                            info!("OpenXR Exiting");
+                            break 'main_loop Ok(());
+                        }
+                        _ => {}
+                    }
+                }
+                InstanceLossPending(_) => {
+                    info!("OpenXR Pending instance loss");
+                    break 'main_loop Ok(());
+                }
+                EventsLost(e) => {
+                    info!("OpenXR lost {} events", e.lost_event_count());
+                }
+                _ => {}
+            }
+        }
+
+        if !session_running {
+            // Don't grind up the CPU
+            std::thread::sleep(std::time::Duration::from_millis(100));
+            continue;
+        }
+
         let packet = app.next_frame(&mut engine)?;
         engine.next_frame(&packet)?;
     }
