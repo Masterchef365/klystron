@@ -7,9 +7,8 @@ use crate::{DrawType, Engine, FramePacket, Material, Mesh, Vertex};
 use anyhow::Result;
 pub use camera::Camera;
 use erupt::{
-    cstr,
-    extensions::{ext_debug_utils, khr_surface, khr_swapchain},
-    utils::{allocator, surface},
+    extensions::{khr_surface, khr_swapchain},
+    utils::surface,
     vk1_0 as vk, DeviceLoader, EntryLoader, InstanceLoader,
 };
 pub use mouse_camera::MouseCamera;
@@ -141,7 +140,7 @@ impl WinitBackend {
 
         // Early return and invalidate swapchain
         let image_index = if image_index.raw == vk::Result::ERROR_OUT_OF_DATE_KHR {
-            self.free_swapchain();
+            self.free_swapchain()?;
             return Ok(());
         } else {
             image_index.unwrap()
@@ -210,7 +209,7 @@ impl WinitBackend {
         };
 
         if queue_result.raw == vk::Result::ERROR_OUT_OF_DATE_KHR {
-            self.free_swapchain();
+            self.free_swapchain()?;
             return Ok(());
         } else {
             queue_result.result()?;
@@ -224,12 +223,10 @@ impl WinitBackend {
             images.free(&mut self.core.allocator)?;
         }
 
-        if let Some(swapchain) = self.swapchain {
-            unsafe {
-                self.prelude
-                    .device
-                    .destroy_swapchain_khr(self.swapchain.take(), None);
-            }
+        unsafe {
+            self.prelude
+                .device
+                .destroy_swapchain_khr(self.swapchain.take(), None);
         }
 
         Ok(())
@@ -287,12 +284,12 @@ impl WinitBackend {
         self.swapchain = Some(swapchain);
 
         self.core.swapchain_images = Some(SwapchainImages::new(
-            self.prelude.clone(),
-            &mut self.core.allocator,
-            surface_caps.current_extent,
-            self.core.render_pass,
-            swapchain_images,
-            false,
+                self.prelude.clone(),
+                &mut self.core.allocator,
+                surface_caps.current_extent,
+                self.core.render_pass,
+                swapchain_images,
+                false,
         )?);
 
         Ok(())
@@ -326,10 +323,10 @@ impl Drop for WinitBackend {
             for semaphore in self.image_available_semaphores.drain(..) {
                 self.prelude.device.destroy_semaphore(Some(semaphore), None);
             }
-            self.free_swapchain();
+            self.free_swapchain().unwrap();
             self.prelude
                 .instance
                 .destroy_surface_khr(Some(self.surface), None);
-        }
+            }
     }
 }

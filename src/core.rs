@@ -445,8 +445,8 @@ impl Drop for Core {
         unsafe {
             self.prelude.device.device_wait_idle().unwrap();
             for (_, mesh) in self.meshes.iter_mut() {
-                mesh.indices.free(&self.prelude.device, &mut self.allocator);
-                mesh.vertices.free(&self.prelude.device, &mut self.allocator);
+                mesh.indices.free(&self.prelude.device, &mut self.allocator).unwrap();
+                mesh.vertices.free(&self.prelude.device, &mut self.allocator).unwrap();
             }
             for ubo in &mut self.camera_ubos {
                 ubo.free(&self.prelude.device, &mut self.allocator).unwrap();

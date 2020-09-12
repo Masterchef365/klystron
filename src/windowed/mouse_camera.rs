@@ -1,6 +1,6 @@
 use super::camera::Camera;
-use nalgebra::{Matrix4, Vector3, Vector4};
-use winit::dpi::{PhysicalPosition, PhysicalSize};
+use nalgebra::Vector4;
+use winit::dpi::PhysicalPosition;
 use winit::event::{ElementState, MouseButton, MouseScrollDelta, WindowEvent};
 
 pub struct MouseCamera {

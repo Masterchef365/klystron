@@ -14,7 +14,7 @@ mod vertex;
 mod vr;
 mod windowed;
 use anyhow::Result;
-use nalgebra::{Matrix4, Point3, UnitQuaternion};
+use nalgebra::Matrix4;
 pub use vertex::Vertex;
 pub use vr::{xr_prelude::XrPrelude, OpenXrBackend};
 pub use windowed::{WinitBackend, MouseCamera, Camera};
