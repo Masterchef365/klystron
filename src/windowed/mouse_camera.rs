@@ -4,8 +4,8 @@ use winit::event::{WindowEvent, MouseButton, MouseScrollDelta, ElementState};
 use winit::dpi::{PhysicalPosition, PhysicalSize};
 
 pub struct MouseCamera {
-    pub internal: Camera,
-    pub sensitivity: f32,
+    pub(crate) internal: Camera,
+    sensitivity: f32,
     last_mouse_position: Option<(f64, f64)>,
     left_is_clicked: bool,
     right_is_clicked: bool,
@@ -75,5 +75,9 @@ impl MouseCamera {
         let view_inv = self.internal.view().try_inverse().unwrap();
         let delta = Vector4::new((delta_x as f32) * self.internal.distance, (-delta_y as f32) * self.internal.distance, 0.0, 0.0);
         self.internal.pivot += (view_inv * delta).xyz() * self.sensitivity;
+    }
+
+    pub fn camera(&self) -> &Camera {
+        &self.internal
     }
 }

@@ -42,18 +42,18 @@ pub struct Core {
     pub meshes: HandleMap<Mesh>,
     pub render_pass: vk::RenderPass,
     pub frame_sync: FrameSync,
+    pub swapchain_images: Option<SwapchainImages>,
     pub command_pool: vk::CommandPool,
     pub command_buffers: Vec<vk::CommandBuffer>,
     pub descriptor_pool: vk::DescriptorPool,
     pub descriptor_set_layout: vk::DescriptorSetLayout,
     pub descriptor_sets: Vec<vk::DescriptorSet>,
     pub camera_ubos: Vec<AllocatedBuffer<CameraUbo>>,
-    pub swapchain_images: Option<SwapchainImages>,
     pub prelude: Arc<VkPrelude>,
 }
 
 impl Core {
-    pub fn new(prelude: Arc<VkPrelude>) -> Result<Self> {
+    pub fn new(prelude: Arc<VkPrelude>, vr: bool) -> Result<Self> {
         // Command pool
         let create_info = vk::CommandPoolCreateInfoBuilder::new()
             .flags(vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER)
@@ -151,7 +151,7 @@ impl Core {
             .stencil_load_op(vk::AttachmentLoadOp::DONT_CARE)
             .stencil_store_op(vk::AttachmentStoreOp::DONT_CARE)
             .initial_layout(vk::ImageLayout::UNDEFINED)
-            .final_layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL);
+            .final_layout(if vr { vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL } else { vk::ImageLayout::PRESENT_SRC_KHR });
 
         let depth_attachment = vk::AttachmentDescriptionBuilder::new()
             .format(DEPTH_FORMAT)

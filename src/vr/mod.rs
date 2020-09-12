@@ -196,7 +196,7 @@ impl OpenXrBackend {
             entry: vk_entry,
         });
 
-        let core = Core::new(prelude.clone())?;
+        let core = Core::new(prelude.clone(), true)?;
 
         let openxr = Arc::new(XrPrelude {
             instance: xr_instance,
@@ -255,6 +255,7 @@ impl OpenXrBackend {
             .next_image(image_index, &frame)?
         };
 
+        // Write command buffers
         let command_buffer = self.core.write_command_buffers(frame_idx, packet, &image)?;
 
         // Get views
@@ -264,7 +265,6 @@ impl OpenXrBackend {
             &self.stage,
         )?;
 
-        // Upload camera matrix TODO: Only map once, never unmap!
         let left = matrix_from_view(&views[0]);
         let right = matrix_from_view(&views[1]);
         let both = left.iter().chain(right.iter()).copied().collect::<Vec<_>>();
@@ -274,7 +274,8 @@ impl OpenXrBackend {
 
         // Submit to the queue
         let command_buffers = [command_buffer];
-        let submit_info = vk::SubmitInfoBuilder::new().command_buffers(&command_buffers);
+        let submit_info = vk::SubmitInfoBuilder::new()
+            .command_buffers(&command_buffers);
         unsafe {
             self.prelude.device
                 .reset_fences(&[frame.in_flight_fence])
@@ -357,7 +358,7 @@ impl OpenXrBackend {
                 width: extent.width,
                 height: extent.height,
                 face_count: 1,
-                array_size: crate::swapchain_images::VIEW_COUNT,
+                array_size: 2,
                 mip_count: 1,
             })
             .unwrap();
@@ -377,6 +378,7 @@ impl OpenXrBackend {
             extent,
             self.core.render_pass,
             swapchain_images,
+            true,
         )?);
 
         Ok(())

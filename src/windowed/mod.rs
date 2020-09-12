@@ -1,5 +1,7 @@
 mod camera;
 mod mouse_camera;
+pub use mouse_camera::MouseCamera;
+pub use camera::Camera;
 use crate::core::{Core, VkPrelude};
 use crate::swapchain_images::SwapchainImages;
 use crate::hardware_query::HardwareSelection;
@@ -92,7 +94,7 @@ impl WinitBackend {
             entry,
         });
 
-        let core = Core::new(prelude.clone())?;
+        let core = Core::new(prelude.clone(), false)?;
 
         let image_available_semaphores = (0..crate::core::FRAMES_IN_FLIGHT).map(|_| {
             let create_info = vk::SemaphoreCreateInfoBuilder::new();
@@ -111,7 +113,7 @@ impl WinitBackend {
 
     // TODO: camera position should be driven by something external
     // Winit keypresses used to move camera.
-    pub fn next_frame(&mut self, packet: &FramePacket) -> Result<()> {
+    pub fn next_frame(&mut self, packet: &FramePacket, camera: &camera::Camera) -> Result<()> {
         if self.swapchain.is_none() {
             self.create_swapchain()?;
         }
@@ -119,11 +121,12 @@ impl WinitBackend {
 
         let (frame_idx, frame) = self.core.frame_sync.next_frame()?;
 
+        let image_available = self.image_available_semaphores[frame_idx];
         let image_index = unsafe {
             self.prelude.device.acquire_next_image_khr(
                 swapchain,
                 u64::MAX,
-                Some(self.image_available_semaphores[frame_idx]),
+                Some(image_available),
                 None,
                 None,
             )
@@ -137,7 +140,60 @@ impl WinitBackend {
             image_index.unwrap()
         };
 
-        todo!()
+        //let image: crate::swapchain_images::SwapChainImage = todo!();
+        let image = {
+        self
+            .core
+            .swapchain_images
+            .as_mut()
+            .unwrap()
+            .next_image(image_index, &frame)?
+        };
+
+        // Write command buffers
+        let command_buffer = self.core.write_command_buffers(frame_idx, packet, &image)?;
+
+        // Upload camera matrix and time
+        let mut data = [0.0; 32];
+        data.iter_mut().zip(camera.matrix().as_slice().iter()).for_each(|(o, i)| *o = *i);
+        self.core.camera_ubos[frame_idx].map(&self.prelude.device, &[data])?;
+
+        // Submit to the queue
+        let command_buffers = [command_buffer];
+        let wait_semaphores = [image_available];
+        let signal_semaphores = [frame.render_finished];
+        let submit_info = vk::SubmitInfoBuilder::new()
+            .wait_semaphores(&wait_semaphores)
+            .wait_dst_stage_mask(&[vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT])
+            .command_buffers(&command_buffers)
+            .signal_semaphores(&signal_semaphores);
+        unsafe {
+            self.prelude.device
+                .reset_fences(&[frame.in_flight_fence])
+                .result()?; // TODO: Move this into the swapchain next_image
+            self.prelude.device
+                .queue_submit(self.prelude.queue, &[submit_info], Some(frame.in_flight_fence))
+                .result()?;
+        }
+
+        // Present to swapchain
+        let swapchains = [swapchain];
+        let image_indices = [image_index];
+        let present_info = khr_swapchain::PresentInfoKHRBuilder::new()
+            .wait_semaphores(&signal_semaphores)
+            .swapchains(&swapchains)
+            .image_indices(&image_indices);
+
+        let queue_result = unsafe { self.prelude.device.queue_present_khr(self.prelude.queue, &present_info) };
+
+        if queue_result.raw == vk::Result::ERROR_OUT_OF_DATE_KHR {
+            self.free_swapchain();
+            return Ok(());
+        } else {
+            queue_result.result()?;
+        };
+
+        Ok(())
     }
 
     fn free_swapchain(&mut self) -> Result<()> {
@@ -201,6 +257,7 @@ impl WinitBackend {
             surface_caps.current_extent,
             self.core.render_pass,
             swapchain_images,
+            false,
         )?);
 
         Ok(())

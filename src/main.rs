@@ -1,9 +1,9 @@
 use anyhow::Result;
 use klystron::{
-    DrawType, Engine, FramePacket, Material, Mesh, Object, OpenXrBackend, Vertex, WinitBackend,
+    DrawType, Engine, FramePacket, Material, Mesh, Object, OpenXrBackend, Vertex, WinitBackend, MouseCamera, Camera
 };
 use log::info;
-use nalgebra::{Matrix4, Point3, UnitQuaternion};
+use nalgebra::Matrix4;
 use openxr as xr;
 use std::fs;
 use std::sync::{
@@ -89,14 +89,14 @@ impl App for MyApp {
     }
 
     fn next_frame(&mut self, _engine: &mut dyn Engine) -> Result<FramePacket> {
-        let transform = Matrix4::from_euler_angles(0.0, self.time * 0.01, 0.0);
+        let transform = Matrix4::from_euler_angles(0.0, self.time, 0.0);
         let object = Object {
             material: self.material,
             mesh: self.mesh,
             transform,
             anim: self.time,
         };
-        self.time += 1.0;
+        self.time += 0.01;
         Ok(FramePacket {
             objects: vec![object],
             //stage_origin: Point3::origin(),
@@ -122,17 +122,18 @@ fn windowed_backend<A: App + 'static>() -> Result<()> {
 
     let mut app = A::new(&mut engine)?;
 
+    let mut mouse_camera = MouseCamera::new(Camera::default(), 0.005);
     event_loop.run(move |event, _, control_flow| match event {
         Event::NewEvents(StartCause::Init) => {
             *control_flow = ControlFlow::Poll;
         }
         Event::WindowEvent { event, .. } => match event {
             WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
-            _ => (),
+            _ => mouse_camera.handle_events(&event),
         },
         Event::MainEventsCleared => {
             let packet = app.next_frame(&mut engine).unwrap();
-            engine.next_frame(&packet).unwrap();
+            engine.next_frame(&packet, mouse_camera.camera()).unwrap();
         }
         _ => (),
     })

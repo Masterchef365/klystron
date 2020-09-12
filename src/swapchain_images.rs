@@ -8,8 +8,6 @@ use erupt::{
 };
 use drop_bomb::DropBomb;
 
-pub const VIEW_COUNT: u32 = 2;
-
 pub struct SwapchainImages {
     pub extent: vk::Extent2D,
     pub depth_image: vk::Image,
@@ -57,7 +55,10 @@ impl SwapchainImages {
         extent: vk::Extent2D,
         render_pass: vk::RenderPass,
         swapchain_images: Vec<vk::Image>,
+        vr: bool,
     ) -> Result<Self> {
+        let layers = if vr { 2 } else { 1 };
+
         // Create depth image
         let create_info = vk::ImageCreateInfoBuilder::new()
             .image_type(vk::ImageType::_2D)
@@ -69,7 +70,7 @@ impl SwapchainImages {
                     .build(),
             )
             .mip_levels(1)
-            .array_layers(2)
+            .array_layers(layers)
             .format(crate::core::DEPTH_FORMAT)
             .tiling(vk::ImageTiling::OPTIMAL)
             .initial_layout(vk::ImageLayout::UNDEFINED)
@@ -90,7 +91,7 @@ impl SwapchainImages {
                     .base_mip_level(0)
                     .level_count(1)
                     .base_array_layer(0)
-                    .layer_count(2)
+                    .layer_count(layers)
                     .build(),
             );
         let depth_image_view =
@@ -106,6 +107,7 @@ impl SwapchainImages {
                     image,
                     extent,
                     depth_image_view,
+                    vr,
                 )
             })
             .collect::<Result<Vec<_>>>()?;
@@ -145,6 +147,7 @@ impl SwapChainImage {
         swapchain_image: vk::Image,
         extent: vk::Extent2D,
         depth_image_view: vk::ImageView,
+        vr: bool,
     ) -> Result<Self> {
         let in_flight = vk::Fence::null();
 
@@ -164,7 +167,7 @@ impl SwapChainImage {
                     .base_mip_level(0)
                     .level_count(1)
                     .base_array_layer(0)
-                    .layer_count(VIEW_COUNT)
+                    .layer_count(if vr { 2 } else { 1 })
                     .build(),
             );
 
