@@ -16,9 +16,9 @@ impl Camera {
     }
 
     pub fn view(&self) -> Matrix4<f32> {
-        Matrix4::look_at_lh(
-            &self.pivot,
+        Matrix4::look_at_rh(
             &(self.pivot + self.eye()),
+            &self.pivot,
             &Vector3::new(0.0, -1.0, 0.0),
         )
     }

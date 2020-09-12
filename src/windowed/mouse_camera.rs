@@ -1,7 +1,7 @@
 use super::camera::Camera;
-use nalgebra::{Vector4, Vector3, Matrix4};
-use winit::event::{WindowEvent, MouseButton, MouseScrollDelta, ElementState};
+use nalgebra::{Matrix4, Vector3, Vector4};
 use winit::dpi::{PhysicalPosition, PhysicalSize};
+use winit::event::{ElementState, MouseButton, MouseScrollDelta, WindowEvent};
 
 pub struct MouseCamera {
     pub(crate) internal: Camera,
@@ -38,34 +38,35 @@ impl MouseCamera {
                 self.last_mouse_position = Some((x, y));
             }
             WindowEvent::MouseInput { state, button, .. } => match button {
-                MouseButton::Left => {
-                    self.left_is_clicked = *state == ElementState::Pressed
-                }
-                MouseButton::Right => {
-                    self.right_is_clicked = *state == ElementState::Pressed
-                }
+                MouseButton::Left => self.left_is_clicked = *state == ElementState::Pressed,
+                MouseButton::Right => self.right_is_clicked = *state == ElementState::Pressed,
                 _ => (),
             },
-            WindowEvent::MouseWheel {delta, ..} => {
+            WindowEvent::MouseWheel { delta, .. } => {
                 if let MouseScrollDelta::LineDelta(_x, y) = delta {
-                    self.internal.distance += y * -0.05;
-                    if dbg!(self.internal.distance) <= 0.01 {
+                    self.internal.distance += y * 0.1;
+                    if self.internal.distance <= 0.01 {
                         self.internal.distance = 0.01;
                     }
                 }
-            },
+            }
             _ => (),
         }
     }
 
     fn mouse_pivot(&mut self, delta_x: f32, delta_y: f32) {
         self.internal.yaw += delta_x * self.sensitivity;
-        self.internal.pitch += delta_y * self.sensitivity;
+        self.internal.pitch -= delta_y * self.sensitivity;
     }
 
     fn mouse_pan(&mut self, delta_x: f32, delta_y: f32) {
         let view_inv = self.internal.view().try_inverse().unwrap();
-        let delta = Vector4::new((delta_x as f32) * self.internal.distance, (delta_y as f32) * self.internal.distance, 0.0, 0.0);
+        let delta = Vector4::new(
+            (delta_x as f32) * self.internal.distance,
+            (delta_y as f32) * self.internal.distance,
+            0.0,
+            0.0,
+        );
         self.internal.pivot += (view_inv * delta).xyz() * self.sensitivity;
     }
 

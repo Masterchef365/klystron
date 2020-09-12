@@ -123,7 +123,7 @@ fn windowed_backend<A: App + 'static>() -> Result<()> {
     let mut app = A::new(&mut engine)?;
 
     let target_frame_time = Duration::from_micros(1_000_000 / 60);
-    let mut mouse_camera = MouseCamera::new(Camera::default(), 0.001);
+    let mut mouse_camera = MouseCamera::new(Camera::default(), 0.002);
     event_loop.run(move |event, _, control_flow| match event {
         Event::NewEvents(StartCause::Init) => {
             *control_flow = ControlFlow::Poll;

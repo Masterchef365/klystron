@@ -109,9 +109,9 @@ impl Material {
         let descriptor_set_layouts = [descriptor_set_layout];
 
         let push_constant_ranges = [vk::PushConstantRangeBuilder::new()
-            .stage_flags(vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT)
+            .stage_flags(vk::ShaderStageFlags::VERTEX)
             .offset(0)
-            .size(std::mem::size_of::<CameraUbo>() as u32)];
+            .size(std::mem::size_of::<[f32; 16]>() as u32)];
 
         let create_info = vk::PipelineLayoutCreateInfoBuilder::new()
             .push_constant_ranges(&push_constant_ranges)

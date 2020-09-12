@@ -416,12 +416,13 @@ impl Core {
                         &[],
                     );
 
+                    // TODO: ADD ANIM
                     self.prelude.device.cmd_push_constants(
                         command_buffer,
                         material.pipeline_layout,
-                        vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
+                        vk::ShaderStageFlags::VERTEX,
                         0,
-                        std::mem::size_of::<CameraUbo>() as u32,
+                        std::mem::size_of::<[f32; 16]>() as u32,
                         object.transform.data.as_ptr() as _,
                     );
 
