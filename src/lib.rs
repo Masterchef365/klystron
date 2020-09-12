@@ -17,7 +17,7 @@ use anyhow::Result;
 use nalgebra::Matrix4;
 pub use vertex::Vertex;
 pub use vr::{xr_prelude::XrPrelude, OpenXrBackend};
-pub use windowed::{WinitBackend, MouseCamera, Camera};
+pub use windowed::{Camera, MouseCamera, WinitBackend};
 
 /// All information necessary to define a frame of video (besides camera, which is passed in a
 /// special camera for windowed mode and implicitly in OpenXR)

@@ -284,12 +284,12 @@ impl WinitBackend {
         self.swapchain = Some(swapchain);
 
         self.core.swapchain_images = Some(SwapchainImages::new(
-                self.prelude.clone(),
-                &mut self.core.allocator,
-                surface_caps.current_extent,
-                self.core.render_pass,
-                swapchain_images,
-                false,
+            self.prelude.clone(),
+            &mut self.core.allocator,
+            surface_caps.current_extent,
+            self.core.render_pass,
+            swapchain_images,
+            false,
         )?);
 
         Ok(())
@@ -327,6 +327,6 @@ impl Drop for WinitBackend {
             self.prelude
                 .instance
                 .destroy_surface_khr(Some(self.surface), None);
-            }
+        }
     }
 }

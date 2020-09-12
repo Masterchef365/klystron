@@ -1,19 +1,18 @@
-use std::sync::Arc;
-use anyhow::Result;
 use crate::allocated_buffer::AllocatedBuffer;
 use crate::frame_sync::FrameSync;
 use crate::handle::HandleMap;
-use crate::swapchain_images::{SwapchainImages, SwapChainImage};
 use crate::material::Material;
+use crate::swapchain_images::{SwapChainImage, SwapchainImages};
+use crate::vertex::Vertex;
+use anyhow::Result;
 use erupt::{
     utils::{
         self,
         allocator::{self, Allocator},
     },
-    vk1_0 as vk, DeviceLoader, InstanceLoader,
-    vk1_1,
+    vk1_0 as vk, vk1_1, DeviceLoader, InstanceLoader,
 };
-use crate::vertex::Vertex;
+use std::sync::Arc;
 
 pub struct VkPrelude {
     pub queue: vk::Queue,
@@ -89,7 +88,9 @@ impl Core {
             vk::DescriptorSetLayoutCreateInfoBuilder::new().bindings(&bindings);
 
         let descriptor_set_layout = unsafe {
-            prelude.device.create_descriptor_set_layout(&descriptor_set_layout_ci, None, None)
+            prelude
+                .device
+                .create_descriptor_set_layout(&descriptor_set_layout_ci, None, None)
         }
         .result()?;
 
@@ -100,8 +101,12 @@ impl Core {
         let create_info = vk::DescriptorPoolCreateInfoBuilder::new()
             .pool_sizes(&pool_sizes)
             .max_sets(FRAMES_IN_FLIGHT as u32);
-        let descriptor_pool =
-            unsafe { prelude.device.create_descriptor_pool(&create_info, None, None) }.result()?;
+        let descriptor_pool = unsafe {
+            prelude
+                .device
+                .create_descriptor_pool(&create_info, None, None)
+        }
+        .result()?;
 
         // Create descriptor sets
         let layouts = vec![descriptor_set_layout; FRAMES_IN_FLIGHT];
@@ -151,7 +156,11 @@ impl Core {
             .stencil_load_op(vk::AttachmentLoadOp::DONT_CARE)
             .stencil_store_op(vk::AttachmentStoreOp::DONT_CARE)
             .initial_layout(vk::ImageLayout::UNDEFINED)
-            .final_layout(if vr { vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL } else { vk::ImageLayout::PRESENT_SRC_KHR });
+            .final_layout(if vr {
+                vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL
+            } else {
+                vk::ImageLayout::PRESENT_SRC_KHR
+            });
 
         let depth_attachment = vk::AttachmentDescriptionBuilder::new()
             .format(DEPTH_FORMAT)
@@ -228,12 +237,12 @@ impl Core {
         draw_type: crate::DrawType,
     ) -> Result<crate::Material> {
         let material = Material::new(
-            self.prelude.clone(), 
+            self.prelude.clone(),
             vertex,
             fragment,
             draw_type,
             self.render_pass,
-            self.descriptor_set_layout
+            self.descriptor_set_layout,
         )?;
         Ok(crate::Material(self.materials.insert(material)))
     }
@@ -247,11 +256,7 @@ impl Core {
         Ok(())
     }
 
-    pub fn add_mesh(
-        &mut self,
-        vertices: &[Vertex],
-        indices: &[u16],
-    ) -> Result<crate::Mesh> {
+    pub fn add_mesh(&mut self, vertices: &[Vertex], indices: &[u16]) -> Result<crate::Mesh> {
         let n_indices = indices.len() as u32;
 
         //TODO: Use staging buffers as well!
@@ -292,39 +297,49 @@ impl Core {
             self.prelude.device.device_wait_idle().result()?;
         }
         if let Some(mut mesh) = self.meshes.remove(&id.0) {
-            mesh.vertices.free(&self.prelude.device, &mut self.allocator)?;
-            mesh.indices.free(&self.prelude.device, &mut self.allocator)?;
+            mesh.vertices
+                .free(&self.prelude.device, &mut self.allocator)?;
+            mesh.indices
+                .free(&self.prelude.device, &mut self.allocator)?;
         }
         Ok(())
     }
 
-    pub fn write_command_buffers(&self, frame_idx: usize, packet: &crate::FramePacket, image: &SwapChainImage) -> Result<vk::CommandBuffer> {
+    pub fn write_command_buffers(
+        &self,
+        frame_idx: usize,
+        packet: &crate::FramePacket,
+        image: &SwapChainImage,
+    ) -> Result<vk::CommandBuffer> {
         // Reset and write command buffers for this frame
         let command_buffer = self.command_buffers[frame_idx];
         let descriptor_set = self.descriptor_sets[frame_idx];
         unsafe {
-            self.prelude.device
+            self.prelude
+                .device
                 .reset_command_buffer(command_buffer, None)
                 .result()?;
 
             let begin_info = vk::CommandBufferBeginInfoBuilder::new();
-            self.prelude.device
+            self.prelude
+                .device
                 .begin_command_buffer(command_buffer, &begin_info)
                 .result()?;
 
             // Set render pass
             let clear_values = [
-            vk::ClearValue {
-                color: vk::ClearColorValue {
-                    float32: [0.0, 0.0, 0.0, 1.0],
+                vk::ClearValue {
+                    color: vk::ClearColorValue {
+                        float32: [0.0, 0.0, 0.0, 1.0],
+                    },
                 },
-            },
-            vk::ClearValue {
-                depth_stencil: vk::ClearDepthStencilValue {
-                    depth: 1.0,
-                    stencil: 0,
-                }
-            }];
+                vk::ClearValue {
+                    depth_stencil: vk::ClearDepthStencilValue {
+                        depth: 1.0,
+                        stencil: 0,
+                    },
+                },
+            ];
 
             let begin_info = vk::RenderPassBeginInfoBuilder::new()
                 .framebuffer(image.framebuffer)
@@ -360,17 +375,13 @@ impl Core {
                     material.pipeline,
                 );
 
-                self.prelude.device.cmd_set_viewport(
-                    command_buffer,
-                    0,
-                    &viewports,
-                );
+                self.prelude
+                    .device
+                    .cmd_set_viewport(command_buffer, 0, &viewports);
 
-                self.prelude.device.cmd_set_scissor(
-                    command_buffer,
-                    0,
-                    &scissors,
-                );
+                self.prelude
+                    .device
+                    .cmd_set_scissor(command_buffer, 0, &scissors);
 
                 self.prelude.device.cmd_bind_descriptor_sets(
                     command_buffer,
@@ -381,7 +392,8 @@ impl Core {
                     &[],
                 );
 
-                for object in packet.objects
+                for object in packet
+                    .objects
                     .iter()
                     .filter(|o| o.material.0 == *material_id)
                 {
@@ -389,8 +401,8 @@ impl Core {
                         Some(m) => m,
                         None => {
                             log::error!("Object references a mesh that no exists");
-                            continue
-                        },
+                            continue;
+                        }
                     };
                     self.prelude.device.cmd_bind_vertex_buffers(
                         command_buffer,
@@ -426,14 +438,23 @@ impl Core {
                         object.transform.data.as_ptr() as _,
                     );
 
-                    self.prelude.device
-                        .cmd_draw_indexed(command_buffer, mesh.n_indices, 1, 0, 0, 0);
+                    self.prelude.device.cmd_draw_indexed(
+                        command_buffer,
+                        mesh.n_indices,
+                        1,
+                        0,
+                        0,
+                        0,
+                    );
                 }
             }
 
             self.prelude.device.cmd_end_render_pass(command_buffer);
 
-            self.prelude.device.end_command_buffer(command_buffer).result()?;
+            self.prelude
+                .device
+                .end_command_buffer(command_buffer)
+                .result()?;
         }
 
         Ok(command_buffer)
@@ -445,17 +466,31 @@ impl Drop for Core {
         unsafe {
             self.prelude.device.device_wait_idle().unwrap();
             for (_, mesh) in self.meshes.iter_mut() {
-                mesh.indices.free(&self.prelude.device, &mut self.allocator).unwrap();
-                mesh.vertices.free(&self.prelude.device, &mut self.allocator).unwrap();
+                mesh.indices
+                    .free(&self.prelude.device, &mut self.allocator)
+                    .unwrap();
+                mesh.vertices
+                    .free(&self.prelude.device, &mut self.allocator)
+                    .unwrap();
             }
             for ubo in &mut self.camera_ubos {
                 ubo.free(&self.prelude.device, &mut self.allocator).unwrap();
             }
-            self.prelude.device.destroy_render_pass(Some(self.render_pass), None);
-            self.prelude.device.destroy_descriptor_set_layout(Some(self.descriptor_set_layout), None);
-            self.prelude.device.destroy_descriptor_pool(Some(self.descriptor_pool), None);
-            self.prelude.device.free_command_buffers(self.command_pool, &self.command_buffers);
-            self.prelude.device.destroy_command_pool(Some(self.command_pool), None);
+            self.prelude
+                .device
+                .destroy_render_pass(Some(self.render_pass), None);
+            self.prelude
+                .device
+                .destroy_descriptor_set_layout(Some(self.descriptor_set_layout), None);
+            self.prelude
+                .device
+                .destroy_descriptor_pool(Some(self.descriptor_pool), None);
+            self.prelude
+                .device
+                .free_command_buffers(self.command_pool, &self.command_buffers);
+            self.prelude
+                .device
+                .destroy_command_pool(Some(self.command_pool), None);
         }
     }
 }

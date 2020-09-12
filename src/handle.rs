@@ -6,7 +6,7 @@ pub type Id = u64;
 
 pub struct HandleMap<T> {
     // TODO: Use a more appropriate data structure?
-    inner: HashMap<Id, T>, 
+    inner: HashMap<Id, T>,
     next_id: Id,
 }
 
@@ -35,11 +35,11 @@ impl<T> HandleMap<T> {
         self.inner.remove(id)
     }
 
-    pub fn iter(&self) -> impl Iterator<Item=(&Id, &T)> {
+    pub fn iter(&self) -> impl Iterator<Item = (&Id, &T)> {
         self.inner.iter()
     }
 
-    pub fn iter_mut(&mut self) -> impl Iterator<Item=(&Id, &mut T)> {
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = (&Id, &mut T)> {
         self.inner.iter_mut()
     }
 }

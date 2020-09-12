@@ -3,14 +3,12 @@ use crate::core::{Core, VkPrelude};
 use crate::swapchain_images::SwapchainImages;
 use crate::{DrawType, Engine, FramePacket, Material, Mesh, Vertex};
 use anyhow::{bail, Result};
-use erupt::{
-    vk1_0 as vk, DeviceLoader, EntryLoader, InstanceLoader,
-};
+use erupt::{vk1_0 as vk, DeviceLoader, EntryLoader, InstanceLoader};
 use log::info;
+use nalgebra::{Matrix4, Unit, Vector3};
 use std::ffi::CString;
 use std::sync::Arc;
 use xr_prelude::{load_openxr, XrPrelude};
-use nalgebra::{Matrix4, Unit, Vector3};
 
 /// VR Capable OpenXR engine backend
 pub struct OpenXrBackend {
@@ -247,12 +245,11 @@ impl OpenXrBackend {
 
         //let image: crate::swapchain_images::SwapChainImage = todo!();
         let image = {
-        self
-            .core
-            .swapchain_images
-            .as_mut()
-            .unwrap()
-            .next_image(image_index, &frame)?
+            self.core
+                .swapchain_images
+                .as_mut()
+                .unwrap()
+                .next_image(image_index, &frame)?
         };
 
         // Write command buffers
@@ -274,14 +271,19 @@ impl OpenXrBackend {
 
         // Submit to the queue
         let command_buffers = [command_buffer];
-        let submit_info = vk::SubmitInfoBuilder::new()
-            .command_buffers(&command_buffers);
+        let submit_info = vk::SubmitInfoBuilder::new().command_buffers(&command_buffers);
         unsafe {
-            self.prelude.device
+            self.prelude
+                .device
                 .reset_fences(&[frame.in_flight_fence])
                 .result()?; // TODO: Move this into the swapchain next_image
-            self.prelude.device
-                .queue_submit(self.prelude.queue, &[submit_info], Some(frame.in_flight_fence))
+            self.prelude
+                .device
+                .queue_submit(
+                    self.prelude.queue,
+                    &[submit_info],
+                    Some(frame.in_flight_fence),
+                )
                 .result()?;
         }
 

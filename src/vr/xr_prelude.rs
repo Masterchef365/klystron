@@ -1,6 +1,6 @@
+use log::info;
 use openxr::Entry;
 use std::path::Path;
-use log::info;
 
 /// A container for several commonly-used OpenXR constants.
 pub struct XrPrelude {
@@ -18,7 +18,7 @@ pub fn load_openxr() -> anyhow::Result<xr::Entry> {
         Ok(path) => {
             info!("Loading OpenXR loader from {}", path);
             Entry::load_from(Path::new(&path))?
-        },
+        }
         Err(VarError::NotPresent) => Entry::load()?,
         Err(e) => Err(e)?,
     })

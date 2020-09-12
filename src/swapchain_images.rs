@@ -1,12 +1,12 @@
-use std::sync::Arc;
 use crate::core::VkPrelude;
 use crate::frame_sync::Frame;
 use anyhow::Result;
+use drop_bomb::DropBomb;
 use erupt::{
     utils::allocator::{Allocation, Allocator, MemoryTypeFinder},
     vk1_0 as vk, DeviceLoader,
 };
-use drop_bomb::DropBomb;
+use std::sync::Arc;
 
 pub struct SwapchainImages {
     pub extent: vk::Extent2D,
@@ -29,17 +29,18 @@ pub struct SwapChainImage {
 
 impl SwapchainImages {
     /// Returns None if the swapchain is out of date
-    pub fn next_image(
-        &mut self,
-        image_index: u32,
-        frame: &Frame,
-    ) -> Result<SwapChainImage> {
+    pub fn next_image(&mut self, image_index: u32, frame: &Frame) -> Result<SwapChainImage> {
         let image = &mut self.images[image_index as usize];
 
         // Wait until the frame associated with this swapchain image is finisehd rendering, if any
         // May be null if no frames have flowed just yet
         if !image.in_flight.is_null() {
-            unsafe { self.prelude.device.wait_for_fences(&[image.in_flight], true, u64::MAX) }.result()?;
+            unsafe {
+                self.prelude
+                    .device
+                    .wait_for_fences(&[image.in_flight], true, u64::MAX)
+            }
+            .result()?;
         }
 
         // Associate this swapchain image with the given frame. When the frame is finished, this
@@ -77,9 +78,12 @@ impl SwapchainImages {
             .usage(vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT)
             .samples(vk::SampleCountFlagBits::_1)
             .sharing_mode(vk::SharingMode::EXCLUSIVE);
-        let depth_image = unsafe { prelude.device.create_image(&create_info, None, None) }.result()?;
+        let depth_image =
+            unsafe { prelude.device.create_image(&create_info, None, None) }.result()?;
 
-        let depth_image_mem = allocator.allocate(&prelude.device, depth_image, MemoryTypeFinder::gpu_only()).result()?;
+        let depth_image_mem = allocator
+            .allocate(&prelude.device, depth_image, MemoryTypeFinder::gpu_only())
+            .result()?;
 
         let create_info = vk::ImageViewCreateInfoBuilder::new()
             .image(depth_image)
@@ -127,10 +131,16 @@ impl SwapchainImages {
         unsafe {
             self.prelude.device.device_wait_idle().result()?;
             for image in self.images.drain(..) {
-                self.prelude.device.destroy_framebuffer(Some(image.framebuffer), None);
-                self.prelude.device.destroy_image_view(Some(image.image_view), None);
+                self.prelude
+                    .device
+                    .destroy_framebuffer(Some(image.framebuffer), None);
+                self.prelude
+                    .device
+                    .destroy_image_view(Some(image.image_view), None);
             }
-            self.prelude.device.destroy_image_view(Some(self.depth_image_view), None);
+            self.prelude
+                .device
+                .destroy_image_view(Some(self.depth_image_view), None);
         }
 
         allocator.free(&self.prelude.device, self.depth_image_mem.take().unwrap());
@@ -173,10 +183,7 @@ impl SwapChainImage {
 
         let image_view = unsafe { device.create_image_view(&create_info, None, None) }.result()?;
 
-        let attachments = [
-            image_view,
-            depth_image_view,
-        ];
+        let attachments = [image_view, depth_image_view];
         let create_info = vk::FramebufferCreateInfoBuilder::new()
             .render_pass(render_pass)
             .attachments(&attachments)

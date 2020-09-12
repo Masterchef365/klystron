@@ -1,12 +1,6 @@
 use anyhow::Result;
-use erupt::{
-    extensions::khr_surface,
-    vk1_0 as vk, InstanceLoader,
-};
-use std::{
-    ffi::CStr,
-    os::raw::c_char,
-};
+use erupt::{extensions::khr_surface, vk1_0 as vk, InstanceLoader};
+use std::{ffi::CStr, os::raw::c_char};
 
 /// Hardware selection for Winit backend
 #[derive(Debug)]
@@ -100,6 +94,8 @@ impl HardwareSelection {
                 vk::PhysicalDeviceType::INTEGRATED_GPU => 1,
                 _ => 0,
             })
-            .ok_or(anyhow::format_err!("No suitable hardware found for this configuration"))
+            .ok_or(anyhow::format_err!(
+                "No suitable hardware found for this configuration"
+            ))
     }
 }

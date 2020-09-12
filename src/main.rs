@@ -1,6 +1,7 @@
 use anyhow::Result;
 use klystron::{
-    DrawType, Engine, FramePacket, Material, Mesh, Object, OpenXrBackend, Vertex, WinitBackend, MouseCamera, Camera
+    Camera, DrawType, Engine, FramePacket, Material, Mesh, MouseCamera, Object, OpenXrBackend,
+    Vertex, WinitBackend,
 };
 use log::info;
 use nalgebra::Matrix4;
@@ -10,12 +11,12 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc,
 };
+use std::time::Duration;
 use winit::{
     event::{Event, StartCause, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     window::WindowBuilder,
 };
-use std::time::Duration;
 
 trait App: Sized {
     const NAME: &'static str;
@@ -89,7 +90,7 @@ impl App for MyApp {
     }
 
     fn next_frame(&mut self, _engine: &mut dyn Engine) -> Result<FramePacket> {
-        let transform = Matrix4::from_euler_angles(0.0, /*self.time*/0.0, 0.0);
+        let transform = Matrix4::from_euler_angles(0.0, /*self.time*/ 0.0, 0.0);
         let object = Object {
             material: self.material,
             mesh: self.mesh,
@@ -117,7 +118,9 @@ fn main() -> Result<()> {
 
 fn windowed_backend<A: App + 'static>() -> Result<()> {
     let event_loop = EventLoop::new();
-    let window = WindowBuilder::new().with_title(A::NAME).build(&event_loop)?;
+    let window = WindowBuilder::new()
+        .with_title(A::NAME)
+        .build(&event_loop)?;
     let mut engine = WinitBackend::new(&window, A::NAME)?;
 
     let mut app = A::new(&mut engine)?;
@@ -144,7 +147,6 @@ fn windowed_backend<A: App + 'static>() -> Result<()> {
         }
         _ => (),
     })
-
 }
 
 fn vr_backend<A: App>() -> Result<()> {

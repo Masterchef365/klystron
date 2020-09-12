@@ -1,4 +1,4 @@
-use crate::core:: VkPrelude;
+use crate::core::VkPrelude;
 use crate::vertex::Vertex;
 use crate::DrawType;
 use anyhow::Result;
