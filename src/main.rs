@@ -146,15 +146,13 @@ impl App for MyApp {
         let hypermesh = Object {
             material: self.line_material,
             mesh: self.line_mesh,
-            transform: Matrix4::new_translation(&Vector3::new(1.0, 0.0, 1.0)),
+            transform: Matrix4::new_translation(&Vector3::new(1.0, self.time.cos() * 50.0, 1.0)),
             anim: self.time,
         };
 
-        self.time += 0.01;
+        self.time += 0.001;
         Ok(FramePacket {
             objects: vec![cube, hypermesh],
-            //stage_origin: Point3::origin(),
-            //stage_rotation: UnitQuaternion::from_euler_angles(0.0, 0.0, 0.0),
         })
     }
 }

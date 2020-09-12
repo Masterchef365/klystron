@@ -46,7 +46,7 @@ impl MouseCamera {
             },
             WindowEvent::MouseWheel { delta, .. } => {
                 if let MouseScrollDelta::LineDelta(_x, y) = delta {
-                    self.inner.distance += y * 0.3;
+                    self.inner.distance += y * 0.9;
                     if self.inner.distance <= 0.01 {
                         self.inner.distance = 0.01;
                     }
