@@ -38,6 +38,10 @@ impl<T> HandleMap<T> {
     pub fn iter(&self) -> impl Iterator<Item=(&Id, &T)> {
         self.inner.iter()
     }
+
+    pub fn iter_mut(&mut self) -> impl Iterator<Item=(&Id, &mut T)> {
+        self.inner.iter_mut()
+    }
 }
 
 impl<T> Default for HandleMap<T> {

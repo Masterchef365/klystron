@@ -15,7 +15,7 @@ use winit::{
     event_loop::{ControlFlow, EventLoop},
     window::WindowBuilder,
 };
-
+use std::time::Duration;
 
 trait App: Sized {
     const NAME: &'static str;
@@ -89,7 +89,7 @@ impl App for MyApp {
     }
 
     fn next_frame(&mut self, _engine: &mut dyn Engine) -> Result<FramePacket> {
-        let transform = Matrix4::from_euler_angles(0.0, self.time, 0.0);
+        let transform = Matrix4::from_euler_angles(0.0, /*self.time*/0.0, 0.0);
         let object = Object {
             material: self.material,
             mesh: self.mesh,
@@ -122,7 +122,8 @@ fn windowed_backend<A: App + 'static>() -> Result<()> {
 
     let mut app = A::new(&mut engine)?;
 
-    let mut mouse_camera = MouseCamera::new(Camera::default(), 0.005);
+    let target_frame_time = Duration::from_micros(1_000_000 / 60);
+    let mut mouse_camera = MouseCamera::new(Camera::default(), 0.001);
     event_loop.run(move |event, _, control_flow| match event {
         Event::NewEvents(StartCause::Init) => {
             *control_flow = ControlFlow::Poll;
@@ -132,8 +133,14 @@ fn windowed_backend<A: App + 'static>() -> Result<()> {
             _ => mouse_camera.handle_events(&event),
         },
         Event::MainEventsCleared => {
+            let frame_start_time = std::time::Instant::now();
             let packet = app.next_frame(&mut engine).unwrap();
             engine.next_frame(&packet, mouse_camera.camera()).unwrap();
+            let frame_end_time = std::time::Instant::now();
+            let frame_duration = frame_end_time - frame_start_time;
+            if frame_duration < target_frame_time {
+                std::thread::sleep(target_frame_time - frame_duration);
+            }
         }
         _ => (),
     })
@@ -204,7 +211,7 @@ fn vr_backend<A: App>() -> Result<()> {
 
         if !session_running {
             // Don't grind up the CPU
-            std::thread::sleep(std::time::Duration::from_millis(100));
+            std::thread::sleep(Duration::from_millis(100));
             continue;
         }
 

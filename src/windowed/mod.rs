@@ -1,18 +1,18 @@
 mod camera;
 mod mouse_camera;
-pub use mouse_camera::MouseCamera;
-pub use camera::Camera;
 use crate::core::{Core, VkPrelude};
-use crate::swapchain_images::SwapchainImages;
 use crate::hardware_query::HardwareSelection;
+use crate::swapchain_images::SwapchainImages;
 use crate::{DrawType, Engine, FramePacket, Material, Mesh, Vertex};
 use anyhow::Result;
+pub use camera::Camera;
 use erupt::{
     cstr,
-    extensions::{khr_surface, ext_debug_utils, khr_swapchain},
+    extensions::{ext_debug_utils, khr_surface, khr_swapchain},
     utils::{allocator, surface},
     vk1_0 as vk, DeviceLoader, EntryLoader, InstanceLoader,
 };
+pub use mouse_camera::MouseCamera;
 use std::ffi::CString;
 use std::sync::Arc;
 use winit::window::Window;
@@ -96,10 +96,17 @@ impl WinitBackend {
 
         let core = Core::new(prelude.clone(), false)?;
 
-        let image_available_semaphores = (0..crate::core::FRAMES_IN_FLIGHT).map(|_| {
-            let create_info = vk::SemaphoreCreateInfoBuilder::new();
-            unsafe { prelude.device.create_semaphore(&create_info, None, None).result() }
-        }).collect::<Result<Vec<_>, _>>()?;
+        let image_available_semaphores = (0..crate::core::FRAMES_IN_FLIGHT)
+            .map(|_| {
+                let create_info = vk::SemaphoreCreateInfoBuilder::new();
+                unsafe {
+                    prelude
+                        .device
+                        .create_semaphore(&create_info, None, None)
+                        .result()
+                }
+            })
+            .collect::<Result<Vec<_>, _>>()?;
 
         Ok(Self {
             swapchain: None,
@@ -142,12 +149,11 @@ impl WinitBackend {
 
         //let image: crate::swapchain_images::SwapChainImage = todo!();
         let image = {
-        self
-            .core
-            .swapchain_images
-            .as_mut()
-            .unwrap()
-            .next_image(image_index, &frame)?
+            self.core
+                .swapchain_images
+                .as_mut()
+                .unwrap()
+                .next_image(image_index, &frame)?
         };
 
         // Write command buffers
@@ -155,7 +161,14 @@ impl WinitBackend {
 
         // Upload camera matrix and time
         let mut data = [0.0; 32];
-        data.iter_mut().zip(camera.matrix().as_slice().iter()).for_each(|(o, i)| *o = *i);
+        data.iter_mut()
+            .zip(
+                camera
+                    .matrix(image.extent.width, image.extent.height)
+                    .as_slice()
+                    .iter(),
+            )
+            .for_each(|(o, i)| *o = *i);
         self.core.camera_ubos[frame_idx].map(&self.prelude.device, &[data])?;
 
         // Submit to the queue
@@ -168,11 +181,17 @@ impl WinitBackend {
             .command_buffers(&command_buffers)
             .signal_semaphores(&signal_semaphores);
         unsafe {
-            self.prelude.device
+            self.prelude
+                .device
                 .reset_fences(&[frame.in_flight_fence])
                 .result()?; // TODO: Move this into the swapchain next_image
-            self.prelude.device
-                .queue_submit(self.prelude.queue, &[submit_info], Some(frame.in_flight_fence))
+            self.prelude
+                .device
+                .queue_submit(
+                    self.prelude.queue,
+                    &[submit_info],
+                    Some(frame.in_flight_fence),
+                )
                 .result()?;
         }
 
@@ -184,7 +203,11 @@ impl WinitBackend {
             .swapchains(&swapchains)
             .image_indices(&image_indices);
 
-        let queue_result = unsafe { self.prelude.device.queue_present_khr(self.prelude.queue, &present_info) };
+        let queue_result = unsafe {
+            self.prelude
+                .device
+                .queue_present_khr(self.prelude.queue, &present_info)
+        };
 
         if queue_result.raw == vk::Result::ERROR_OUT_OF_DATE_KHR {
             self.free_swapchain();
@@ -203,7 +226,9 @@ impl WinitBackend {
 
         if let Some(swapchain) = self.swapchain {
             unsafe {
-                self.prelude.device.destroy_swapchain_khr(self.swapchain.take(), None);
+                self.prelude
+                    .device
+                    .destroy_swapchain_khr(self.swapchain.take(), None);
             }
         }
 
@@ -212,11 +237,13 @@ impl WinitBackend {
 
     fn create_swapchain(&mut self) -> Result<()> {
         let surface_caps = unsafe {
-            self.prelude.instance.get_physical_device_surface_capabilities_khr(
-                self.prelude.physical_device,
-                self.surface,
-                None,
-            )
+            self.prelude
+                .instance
+                .get_physical_device_surface_capabilities_khr(
+                    self.prelude.physical_device,
+                    self.surface,
+                    None,
+                )
         }
         .result()?;
 
@@ -241,10 +268,18 @@ impl WinitBackend {
             .clipped(true)
             .old_swapchain(khr_swapchain::SwapchainKHR::null());
 
-        let swapchain =
-            unsafe { self.prelude.device.create_swapchain_khr(&create_info, None, None) }.result()?;
-        let swapchain_images =
-            unsafe { self.prelude.device.get_swapchain_images_khr(swapchain, None) }.result()?;
+        let swapchain = unsafe {
+            self.prelude
+                .device
+                .create_swapchain_khr(&create_info, None, None)
+        }
+        .result()?;
+        let swapchain_images = unsafe {
+            self.prelude
+                .device
+                .get_swapchain_images_khr(swapchain, None)
+        }
+        .result()?;
 
         self.swapchain = Some(swapchain);
 
@@ -265,7 +300,7 @@ impl WinitBackend {
 }
 
 // TODO: This is stupid.
-impl Engine for WinitBackend  {
+impl Engine for WinitBackend {
     fn add_material(
         &mut self,
         vertex: &[u8],
@@ -288,8 +323,13 @@ impl Engine for WinitBackend  {
 impl Drop for WinitBackend {
     fn drop(&mut self) {
         unsafe {
+            for semaphore in self.image_available_semaphores.drain(..) {
+                self.prelude.device.destroy_semaphore(Some(semaphore), None);
+            }
             self.free_swapchain();
-            self.prelude.instance.destroy_surface_khr(Some(self.surface), None);
+            self.prelude
+                .instance
+                .destroy_surface_khr(Some(self.surface), None);
         }
     }
 }

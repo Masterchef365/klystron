@@ -192,7 +192,8 @@ impl Core {
             .subpasses(&subpasses)
             .dependencies(&dependencies);
 
-        let view_mask = [!(!0 << 2)];
+        let views = if vr { 2 } else { 1 };
+        let view_mask = [!(!0 << views)];
         let mut multiview = vk1_1::RenderPassMultiviewCreateInfoBuilder::new()
             .view_masks(&view_mask)
             .correlation_masks(&view_mask)
@@ -442,7 +443,10 @@ impl Drop for Core {
     fn drop(&mut self) {
         unsafe {
             self.prelude.device.device_wait_idle().unwrap();
-            // TODO: Drop materials and meshes
+            for (_, mesh) in self.meshes.iter_mut() {
+                mesh.indices.free(&self.prelude.device, &mut self.allocator);
+                mesh.vertices.free(&self.prelude.device, &mut self.allocator);
+            }
             for ubo in &mut self.camera_ubos {
                 ubo.free(&self.prelude.device, &mut self.allocator).unwrap();
             }
