@@ -1,5 +1,6 @@
 # Todo
-* Use Ctrlc handler
+* Conundrum with the `image_available` semaphore not being available. Likely has to be a polyfill.
+* Arcball camera jig for windowed mode. Scrape code from lucidyne stuff.
 * Use dropbomb instead of a boolean for some stuff like allocatedbuffer I think
 * Add `Engine` methods to Core. Consider just exposing it to the user.
 * Meshes

@@ -1,5 +1,7 @@
-#![allow(unused)] // TODO: REMOVE ME
+mod camera;
+mod mouse_camera;
 use crate::core::{Core, VkPrelude};
+use crate::swapchain_images::SwapchainImages;
 use crate::hardware_query::HardwareSelection;
 use crate::{DrawType, Engine, FramePacket, Material, Mesh, Vertex};
 use anyhow::Result;
@@ -15,8 +17,10 @@ use winit::window::Window;
 
 /// Windowed mode Winit engine backend
 pub struct WinitBackend {
-    //swapchain: Swapchain,
+    swapchain: Option<khr_swapchain::SwapchainKHR>,
+    image_available_semaphores: Vec<vk::Semaphore>,
     surface: khr_surface::SurfaceKHR,
+    hardware: HardwareSelection,
     prelude: Arc<VkPrelude>,
     core: Core,
 }
@@ -90,7 +94,15 @@ impl WinitBackend {
 
         let core = Core::new(prelude.clone())?;
 
+        let image_available_semaphores = (0..crate::core::FRAMES_IN_FLIGHT).map(|_| {
+            let create_info = vk::SemaphoreCreateInfoBuilder::new();
+            unsafe { prelude.device.create_semaphore(&create_info, None, None).result() }
+        }).collect::<Result<Vec<_>, _>>()?;
+
         Ok(Self {
+            swapchain: None,
+            image_available_semaphores,
+            hardware,
             surface,
             prelude,
             core,
@@ -100,33 +112,126 @@ impl WinitBackend {
     // TODO: camera position should be driven by something external
     // Winit keypresses used to move camera.
     pub fn next_frame(&mut self, packet: &FramePacket) -> Result<()> {
-        todo!("Next frame")
+        if self.swapchain.is_none() {
+            self.create_swapchain()?;
+        }
+        let swapchain = self.swapchain.unwrap();
+
+        let (frame_idx, frame) = self.core.frame_sync.next_frame()?;
+
+        let image_index = unsafe {
+            self.prelude.device.acquire_next_image_khr(
+                swapchain,
+                u64::MAX,
+                Some(self.image_available_semaphores[frame_idx]),
+                None,
+                None,
+            )
+        };
+
+        // Early return and invalidate swapchain
+        let image_index = if image_index.raw == vk::Result::ERROR_OUT_OF_DATE_KHR {
+            self.free_swapchain();
+            return Ok(());
+        } else {
+            image_index.unwrap()
+        };
+
+        todo!()
+    }
+
+    fn free_swapchain(&mut self) -> Result<()> {
+        if let Some(mut images) = self.core.swapchain_images.take() {
+            images.free(&mut self.core.allocator)?;
+        }
+
+        if let Some(swapchain) = self.swapchain {
+            unsafe {
+                self.prelude.device.destroy_swapchain_khr(self.swapchain.take(), None);
+            }
+        }
+
+        Ok(())
+    }
+
+    fn create_swapchain(&mut self) -> Result<()> {
+        let surface_caps = unsafe {
+            self.prelude.instance.get_physical_device_surface_capabilities_khr(
+                self.prelude.physical_device,
+                self.surface,
+                None,
+            )
+        }
+        .result()?;
+
+        let mut image_count = surface_caps.min_image_count + 1;
+        if surface_caps.max_image_count > 0 && image_count > surface_caps.max_image_count {
+            image_count = surface_caps.max_image_count;
+        }
+
+        // Build the actual swapchain
+        let create_info = khr_swapchain::SwapchainCreateInfoKHRBuilder::new()
+            .surface(self.surface)
+            .min_image_count(image_count)
+            .image_format(crate::core::COLOR_FORMAT)
+            .image_color_space(self.hardware.format.color_space)
+            .image_extent(surface_caps.current_extent)
+            .image_array_layers(1)
+            .image_usage(vk::ImageUsageFlags::COLOR_ATTACHMENT)
+            .image_sharing_mode(vk::SharingMode::EXCLUSIVE)
+            .pre_transform(surface_caps.current_transform)
+            .composite_alpha(khr_surface::CompositeAlphaFlagBitsKHR::OPAQUE_KHR)
+            .present_mode(self.hardware.present_mode)
+            .clipped(true)
+            .old_swapchain(khr_swapchain::SwapchainKHR::null());
+
+        let swapchain =
+            unsafe { self.prelude.device.create_swapchain_khr(&create_info, None, None) }.result()?;
+        let swapchain_images =
+            unsafe { self.prelude.device.get_swapchain_images_khr(swapchain, None) }.result()?;
+
+        self.swapchain = Some(swapchain);
+
+        // TODO: Coagulate these two into one object?
+        self.swapchain = Some(swapchain);
+
+        self.core.swapchain_images = Some(SwapchainImages::new(
+            self.prelude.clone(),
+            &mut self.core.allocator,
+            surface_caps.current_extent,
+            self.core.render_pass,
+            swapchain_images,
+        )?);
+
+        Ok(())
     }
 }
 
-impl Engine for WinitBackend {
+// TODO: This is stupid.
+impl Engine for WinitBackend  {
     fn add_material(
         &mut self,
         vertex: &[u8],
         fragment: &[u8],
         draw_type: DrawType,
     ) -> Result<Material> {
-        todo!()
+        self.core.add_material(vertex, fragment, draw_type)
     }
     fn add_mesh(&mut self, vertices: &[Vertex], indices: &[u16]) -> Result<Mesh> {
-        todo!()
+        self.core.add_mesh(vertices, indices)
     }
     fn remove_material(&mut self, material: Material) -> Result<()> {
-        todo!()
+        self.core.remove_material(material)
     }
     fn remove_mesh(&mut self, mesh: Mesh) -> Result<()> {
-        todo!()
+        self.core.remove_mesh(mesh)
     }
 }
 
 impl Drop for WinitBackend {
     fn drop(&mut self) {
         unsafe {
+            self.free_swapchain();
             self.prelude.instance.destroy_surface_khr(Some(self.surface), None);
         }
     }

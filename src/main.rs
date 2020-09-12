@@ -10,9 +10,12 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc,
 };
-//use winit::event_loop::{ControlFlow, EventLoop};
-use winit::event_loop::EventLoop;
-use winit::window::WindowBuilder;
+use winit::{
+    event::{Event, StartCause, WindowEvent},
+    event_loop::{ControlFlow, EventLoop},
+    window::WindowBuilder,
+};
+
 
 trait App: Sized {
     const NAME: &'static str;
@@ -96,8 +99,8 @@ impl App for MyApp {
         self.time += 1.0;
         Ok(FramePacket {
             objects: vec![object],
-            stage_origin: Point3::origin(),
-            stage_rotation: UnitQuaternion::from_euler_angles(0.0, 0.0, 0.0),
+            //stage_origin: Point3::origin(),
+            //stage_rotation: UnitQuaternion::from_euler_angles(0.0, 0.0, 0.0),
         })
     }
 }
@@ -113,16 +116,27 @@ fn main() -> Result<()> {
 }
 
 fn windowed_backend<A: App + 'static>() -> Result<()> {
-    let eventloop = EventLoop::new();
-    let window = WindowBuilder::new().with_title(A::NAME).build(&eventloop)?;
+    let event_loop = EventLoop::new();
+    let window = WindowBuilder::new().with_title(A::NAME).build(&event_loop)?;
     let mut engine = WinitBackend::new(&window, A::NAME)?;
 
     let mut app = A::new(&mut engine)?;
 
-    eventloop.run(move |_event, _, _control_flow| {
-        let packet = app.next_frame(&mut engine).unwrap();
-        engine.next_frame(&packet).unwrap();
-    });
+    event_loop.run(move |event, _, control_flow| match event {
+        Event::NewEvents(StartCause::Init) => {
+            *control_flow = ControlFlow::Poll;
+        }
+        Event::WindowEvent { event, .. } => match event {
+            WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
+            _ => (),
+        },
+        Event::MainEventsCleared => {
+            let packet = app.next_frame(&mut engine).unwrap();
+            engine.next_frame(&packet).unwrap();
+        }
+        _ => (),
+    })
+
 }
 
 fn vr_backend<A: App>() -> Result<()> {

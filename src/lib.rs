@@ -24,10 +24,10 @@ pub use windowed::WinitBackend;
 pub struct FramePacket {
     /// The entire scene's worth of objects
     pub objects: Vec<Object>,
-    /// Move the entire stage here
-    pub stage_origin: Point3<f32>,
-    /// Rotate the stage by this much
-    pub stage_rotation: UnitQuaternion<f32>,
+    // /// Move the entire stage here
+    // pub stage_origin: Point3<f32>,
+    // /// Rotate the stage by this much
+    // pub stage_rotation: UnitQuaternion<f32>,
 }
 
 /// A single object in the scene
