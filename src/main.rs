@@ -18,12 +18,13 @@ use winit::{
 use std::time::Duration;
 
 fn hypermesh(side_length: i32, scale: f32) -> (Vec<Vertex>, Vec<u16>) {
-    let color = [1.0, 1.0, 1.0];
     let mut vertices = Vec::new();
     let mut indices = Vec::new();
     let mut index_count = 0;
+    let size = side_length as f32 * scale;
     let mut line = |a: Point3<f32>, b: Point3<f32>| {
         let mut pushvert = |v: Point3<f32>| {
+            let color = *((v.coords + Vector3::new(size, size, size)) / (size * 2.0)).as_ref();
             vertices.push(Vertex {
                 pos: *v.coords.as_ref(),
                 color,
@@ -36,7 +37,6 @@ fn hypermesh(side_length: i32, scale: f32) -> (Vec<Vertex>, Vec<u16>) {
     };
 
     type P = Point3<f32>;
-    let size = side_length as f32 * scale;
     for x in -side_length..=side_length {
         let x = scale * x as f32;
         for y in -side_length..=side_length {
@@ -136,19 +136,17 @@ impl App for MyApp {
     }
 
     fn next_frame(&mut self, _engine: &mut dyn Engine) -> Result<FramePacket> {
-        let transform = Matrix4::from_euler_angles(0.0, /*self.time*/0.0, 0.0);
-
         let cube = Object {
             material: self.cube_material,
             mesh: self.cube_mesh,
-            transform,
+            transform: Matrix4::new_translation(&Vector3::new(0.0, -1.0, 0.0)),
             anim: self.time,
         };
 
         let hypermesh = Object {
             material: self.line_material,
             mesh: self.line_mesh,
-            transform: Matrix4::new_translation(&Vector3::new(1.0, 1.0, 1.0)),
+            transform: Matrix4::new_translation(&Vector3::new(1.0, 0.0, 1.0)),
             anim: self.time,
         };
 
