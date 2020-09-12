@@ -4,18 +4,20 @@ use winit::dpi::PhysicalPosition;
 use winit::event::{ElementState, MouseButton, MouseScrollDelta, WindowEvent};
 
 pub struct MouseCamera {
-    pub(crate) internal: Camera,
-    sensitivity: f32,
+    pub inner: Camera,
+    pub pan_sensitivity: f32,
+    pub swivel_sensitivity: f32,
     last_mouse_position: Option<(f64, f64)>,
     left_is_clicked: bool,
     right_is_clicked: bool,
 }
 
 impl MouseCamera {
-    pub fn new(internal: Camera, sensitivity: f32) -> Self {
+    pub fn new(inner: Camera, pan_sensitivity: f32, swivel_sensitivity: f32) -> Self {
         Self {
-            internal,
-            sensitivity,
+            inner,
+            pan_sensitivity,
+            swivel_sensitivity,
             last_mouse_position: None,
             left_is_clicked: false,
             right_is_clicked: false,
@@ -44,9 +46,9 @@ impl MouseCamera {
             },
             WindowEvent::MouseWheel { delta, .. } => {
                 if let MouseScrollDelta::LineDelta(_x, y) = delta {
-                    self.internal.distance += y * 0.1;
-                    if self.internal.distance <= 0.01 {
-                        self.internal.distance = 0.01;
+                    self.inner.distance += y * 0.3;
+                    if self.inner.distance <= 0.01 {
+                        self.inner.distance = 0.01;
                     }
                 }
             }
@@ -55,22 +57,18 @@ impl MouseCamera {
     }
 
     fn mouse_pivot(&mut self, delta_x: f32, delta_y: f32) {
-        self.internal.yaw += delta_x * self.sensitivity;
-        self.internal.pitch -= delta_y * self.sensitivity;
+        self.inner.yaw += delta_x * self.swivel_sensitivity;
+        self.inner.pitch -= delta_y * self.swivel_sensitivity;
     }
 
     fn mouse_pan(&mut self, delta_x: f32, delta_y: f32) {
-        let view_inv = self.internal.view().try_inverse().unwrap();
         let delta = Vector4::new(
-            (delta_x as f32) * self.internal.distance,
-            (delta_y as f32) * self.internal.distance,
+            (delta_x as f32) * self.inner.distance,
+            (delta_y as f32) * self.inner.distance,
             0.0,
             0.0,
-        );
-        self.internal.pivot += (view_inv * delta).xyz() * self.sensitivity;
-    }
-
-    pub fn camera(&self) -> &Camera {
-        &self.internal
+        ) * self.pan_sensitivity;
+        let view_inv = self.inner.view().try_inverse().unwrap();
+        self.inner.pivot += (view_inv * delta).xyz();
     }
 }
