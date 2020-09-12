@@ -1,4 +1,6 @@
 # Todo
+* Make the interface much, much easier to use 
+* Refactor vr specializations
 * Better suit FramSync to its work (take render finished out?)
 * Use dropbomb instead of a boolean for some stuff like allocatedbuffer I think
 * Add `Engine` methods to Core. Consider just exposing it to the user.

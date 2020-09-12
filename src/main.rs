@@ -3,7 +3,7 @@ use klystron::{
     DrawType, Engine, FramePacket, Material, Mesh, Object, OpenXrBackend, Vertex, WinitBackend, MouseCamera, Camera
 };
 use log::info;
-use nalgebra::Matrix4;
+use nalgebra::{Matrix4, Point3, Vector3};
 use openxr as xr;
 use std::fs;
 use std::sync::{
@@ -17,6 +17,39 @@ use winit::{
 };
 use std::time::Duration;
 
+fn hypermesh(side_length: i32, scale: f32) -> (Vec<Vertex>, Vec<u16>) {
+    let color = [1.0, 1.0, 1.0];
+    let mut vertices = Vec::new();
+    let mut indices = Vec::new();
+    let mut index_count = 0;
+    let mut line = |a: Point3<f32>, b: Point3<f32>| {
+        let mut pushvert = |v: Point3<f32>| {
+            vertices.push(Vertex {
+                pos: *v.coords.as_ref(),
+                color,
+            });
+            indices.push(index_count);
+            index_count += 1;
+        };
+        pushvert(a);
+        pushvert(b);
+    };
+
+    type P = Point3<f32>;
+    let size = side_length as f32 * scale;
+    for x in -side_length..=side_length {
+        let x = scale * x as f32;
+        for y in -side_length..=side_length {
+            let y = scale * y as f32;
+            line(P::new(-size, x, y), P::new(size, x, y));
+            line(P::new(x, -size, y), P::new(x, size, y));
+            line(P::new(x, y, -size), P::new(x, y, size));
+        }
+    }
+
+    (vertices, indices)
+}
+
 trait App: Sized {
     const NAME: &'static str;
     fn new(engine: &mut dyn Engine) -> Result<Self>;
@@ -24,8 +57,10 @@ trait App: Sized {
 }
 
 struct MyApp {
-    material: Material,
-    mesh: Mesh,
+    cube_material: Material,
+    line_material: Material,
+    cube_mesh: Mesh,
+    line_mesh: Mesh,
     time: f32,
 }
 
@@ -33,13 +68,23 @@ impl App for MyApp {
     const NAME: &'static str = "MyApp";
 
     fn new(engine: &mut dyn Engine) -> Result<Self> {
-        let material = engine.add_material(
+        let line_material = engine.add_material(
+            &fs::read("./shaders/unlit.vert.spv")?,
+            &fs::read("./shaders/unlit.frag.spv")?,
+            DrawType::Lines,
+        )?;
+
+        let (line_vertices, line_indices) = hypermesh(10, 2.0);
+
+        let line_mesh = engine.add_mesh(&line_vertices, &line_indices)?;
+
+        let cube_material = engine.add_material(
             &fs::read("./shaders/unlit.vert.spv")?,
             &fs::read("./shaders/unlit.frag.spv")?,
             DrawType::Triangles,
         )?;
 
-        let vertices = [
+        let cube_vertices = [
             Vertex {
                 pos: [-1.0, -1.0, -1.0],
                 color: [0.0, 1.0, 1.0],
@@ -74,31 +119,42 @@ impl App for MyApp {
             },
         ];
 
-        let indices = [
+        let cube_indices = [
             0, 1, 3, 3, 1, 2, 1, 5, 2, 2, 5, 6, 5, 4, 6, 6, 4, 7, 4, 0, 7, 7, 0, 3, 3, 2, 7, 7, 2,
             6, 4, 5, 0, 0, 5, 1,
         ];
 
-        let mesh = engine.add_mesh(&vertices, &indices)?;
+        let cube_mesh = engine.add_mesh(&cube_vertices, &cube_indices)?;
 
         Ok(Self {
-            mesh,
-            material,
+            cube_mesh,
+            cube_material,
+            line_mesh,
+            line_material,
             time: 0.0,
         })
     }
 
     fn next_frame(&mut self, _engine: &mut dyn Engine) -> Result<FramePacket> {
         let transform = Matrix4::from_euler_angles(0.0, /*self.time*/0.0, 0.0);
-        let object = Object {
-            material: self.material,
-            mesh: self.mesh,
+
+        let cube = Object {
+            material: self.cube_material,
+            mesh: self.cube_mesh,
             transform,
             anim: self.time,
         };
+
+        let hypermesh = Object {
+            material: self.line_material,
+            mesh: self.line_mesh,
+            transform: Matrix4::new_translation(&Vector3::new(1.0, 1.0, 1.0)),
+            anim: self.time,
+        };
+
         self.time += 0.01;
         Ok(FramePacket {
-            objects: vec![object],
+            objects: vec![cube, hypermesh],
             //stage_origin: Point3::origin(),
             //stage_rotation: UnitQuaternion::from_euler_angles(0.0, 0.0, 0.0),
         })
