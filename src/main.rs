@@ -123,7 +123,7 @@ fn windowed_backend<A: App + 'static>() -> Result<()> {
     let mut app = A::new(&mut engine)?;
 
     let target_frame_time = Duration::from_micros(1_000_000 / 60);
-    let mut mouse_camera = MouseCamera::new(Camera::default(), 0.002);
+    let mut mouse_camera = MouseCamera::new(Camera::default(), 0.001, 0.004);
     event_loop.run(move |event, _, control_flow| match event {
         Event::NewEvents(StartCause::Init) => {
             *control_flow = ControlFlow::Poll;
@@ -135,7 +135,7 @@ fn windowed_backend<A: App + 'static>() -> Result<()> {
         Event::MainEventsCleared => {
             let frame_start_time = std::time::Instant::now();
             let packet = app.next_frame(&mut engine).unwrap();
-            engine.next_frame(&packet, mouse_camera.camera()).unwrap();
+            engine.next_frame(&packet, &mouse_camera.inner).unwrap();
             let frame_end_time = std::time::Instant::now();
             let frame_duration = frame_end_time - frame_start_time;
             if frame_duration < target_frame_time {
