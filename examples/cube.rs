@@ -37,7 +37,7 @@ impl App for MyApp {
         let material = engine.add_material(
             &fs::read("./shaders/unlit.vert.spv")?,
             &fs::read("./shaders/unlit.frag.spv")?,
-            DrawType::Lines,
+            DrawType::Triangles,
         )?;
 
         let vertices = [
