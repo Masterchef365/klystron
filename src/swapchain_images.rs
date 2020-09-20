@@ -123,7 +123,7 @@ impl SwapchainImages {
             depth_image_mem: Some(depth_image_mem),
             depth_image_view,
             prelude,
-            bomb: DropBomb::new("SwapchainImages dropped before fred"),
+            bomb: DropBomb::new("SwapchainImages dropped before freed"),
         })
     }
 
