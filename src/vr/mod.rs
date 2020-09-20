@@ -267,7 +267,7 @@ impl OpenXrBackend {
         let both = left.iter().chain(right.iter()).copied().collect::<Vec<_>>();
         let mut data = [0.0; 32];
         data.copy_from_slice(&both);
-        self.core.camera_ubos[frame_idx].map(&self.prelude.device, &[data])?;
+        self.core.camera_ubo_maps[frame_idx].import(bytemuck::cast_slice(&[data]));
 
         // Submit to the queue
         let command_buffers = [command_buffer];

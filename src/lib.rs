@@ -2,7 +2,6 @@
 //! simple, unlit scenes with dynamically placed objects. VR capable through the OpenXR
 //! interface, and hopefully easily modifiable.
 extern crate openxr as xr;
-mod allocated_buffer;
 mod core;
 mod extensions;
 mod frame_sync;

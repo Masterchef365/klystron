@@ -168,7 +168,7 @@ impl WinitBackend {
                     .iter(),
             )
             .for_each(|(o, i)| *o = *i);
-        self.core.camera_ubos[frame_idx].map(&self.prelude.device, &[data])?;
+        self.core.camera_ubo_maps[frame_idx].import(bytemuck::cast_slice(&[data]));
 
         // Submit to the queue
         let command_buffers = [command_buffer];

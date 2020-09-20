@@ -1,4 +1,3 @@
-use crate::allocated_buffer::AllocatedBuffer;
 use crate::frame_sync::FrameSync;
 use crate::handle::HandleMap;
 use crate::material::Material;
@@ -8,7 +7,7 @@ use anyhow::Result;
 use erupt::{
     utils::{
         self,
-        allocator::{self, Allocator},
+        allocator::{self, Allocation, Allocator, MappedMemory},
     },
     vk1_0 as vk, vk1_1, DeviceLoader, InstanceLoader,
 };
@@ -30,8 +29,8 @@ pub(crate) const DEPTH_FORMAT: vk::Format = vk::Format::D32_SFLOAT;
 pub type CameraUbo = [f32; 32];
 
 pub struct Mesh {
-    pub indices: AllocatedBuffer<u16>,
-    pub vertices: AllocatedBuffer<Vertex>,
+    pub indices: Allocation<vk::Buffer>,
+    pub vertices: Allocation<vk::Buffer>,
     pub n_indices: u32,
 }
 
@@ -47,7 +46,8 @@ pub struct Core {
     pub descriptor_pool: vk::DescriptorPool,
     pub descriptor_set_layout: vk::DescriptorSetLayout,
     pub descriptor_sets: Vec<vk::DescriptorSet>,
-    pub camera_ubos: Vec<AllocatedBuffer<CameraUbo>>,
+    pub camera_ubos: Vec<Allocation<vk::Buffer>>,
+    pub camera_ubo_maps: Vec<MappedMemory>,
     pub prelude: Arc<VkPrelude>,
 }
 
@@ -120,15 +120,29 @@ impl Core {
         // Camera's UBOs
         let create_info = vk::BufferCreateInfoBuilder::new()
             .usage(vk::BufferUsageFlags::UNIFORM_BUFFER)
-            .sharing_mode(vk::SharingMode::EXCLUSIVE);
-        let camera_ubos = (0..FRAMES_IN_FLIGHT)
-            .map(|_| AllocatedBuffer::new(1, create_info.clone(), &mut allocator, &prelude.device))
-            .collect::<Result<Vec<_>>>()?;
+            .sharing_mode(vk::SharingMode::EXCLUSIVE)
+            .size(std::mem::size_of::<CameraUbo>() as u64);
+        let mut camera_ubos = Vec::new();
+        let mut camera_ubo_maps = Vec::new();
+        for _ in 0..FRAMES_IN_FLIGHT {
+            let buffer =
+                unsafe { prelude.device.create_buffer(&create_info, None, None) }.result()?;
+            let memory = allocator
+                .allocate(
+                    &prelude.device,
+                    buffer,
+                    allocator::MemoryTypeFinder::dynamic(),
+                )
+                .result()?;
+            let map = memory.map(&prelude.device, ..).result()?;
+            camera_ubos.push(memory);
+            camera_ubo_maps.push(map);
+        }
 
         // Bind buffers to descriptors
         for (alloc, descriptor) in camera_ubos.iter().zip(descriptor_sets.iter()) {
             let buffer_infos = [vk::DescriptorBufferInfoBuilder::new()
-                .buffer(alloc.buffer)
+                .buffer(*alloc.object())
                 .offset(0)
                 .range(std::mem::size_of::<CameraUbo>() as u64)];
 
@@ -216,6 +230,7 @@ impl Core {
         Ok(Self {
             prelude,
             camera_ubos,
+            camera_ubo_maps,
             descriptor_set_layout,
             descriptor_pool,
             descriptor_sets,
@@ -259,28 +274,40 @@ impl Core {
     pub fn add_mesh(&mut self, vertices: &[Vertex], indices: &[u16]) -> Result<crate::Mesh> {
         let n_indices = indices.len() as u32;
 
-        //TODO: Use staging buffers as well!
+        //TODO: Use staging buffers!
         let create_info = vk::BufferCreateInfoBuilder::new()
             .usage(vk::BufferUsageFlags::VERTEX_BUFFER)
-            .sharing_mode(vk::SharingMode::EXCLUSIVE);
-        let vertex_buffer = AllocatedBuffer::new(
-            vertices.len(),
-            create_info,
-            &mut self.allocator,
-            &self.prelude.device,
-        )?;
-        vertex_buffer.map(&self.prelude.device, vertices)?;
+            .sharing_mode(vk::SharingMode::EXCLUSIVE)
+            .size(std::mem::size_of_val(vertices) as u64);
+        let buffer =
+            unsafe { self.prelude.device.create_buffer(&create_info, None, None) }.result()?;
+        let vertex_buffer = self
+            .allocator
+            .allocate(
+                &self.prelude.device,
+                buffer,
+                allocator::MemoryTypeFinder::dynamic(),
+            )
+            .result()?;
+        let mut map = vertex_buffer.map(&self.prelude.device, ..).result()?;
+        map.import(bytemuck::cast_slice(vertices));
 
         let create_info = vk::BufferCreateInfoBuilder::new()
             .usage(vk::BufferUsageFlags::INDEX_BUFFER)
-            .sharing_mode(vk::SharingMode::EXCLUSIVE);
-        let index_buffer = AllocatedBuffer::new(
-            indices.len(),
-            create_info,
-            &mut self.allocator,
-            &self.prelude.device,
-        )?;
-        index_buffer.map(&self.prelude.device, indices)?;
+            .sharing_mode(vk::SharingMode::EXCLUSIVE)
+            .size(std::mem::size_of_val(indices) as u64);
+        let buffer =
+            unsafe { self.prelude.device.create_buffer(&create_info, None, None) }.result()?;
+        let index_buffer = self
+            .allocator
+            .allocate(
+                &self.prelude.device,
+                buffer,
+                allocator::MemoryTypeFinder::dynamic(),
+            )
+            .result()?;
+        let mut map = index_buffer.map(&self.prelude.device, ..).result()?;
+        map.import(bytemuck::cast_slice(indices));
 
         let mesh = Mesh {
             indices: index_buffer,
@@ -297,10 +324,13 @@ impl Core {
             self.prelude.device.device_wait_idle().result()?;
         }
         if let Some(mut mesh) = self.meshes.remove(&id.0) {
-            mesh.vertices
-                .free(&self.prelude.device, &mut self.allocator)?;
-            mesh.indices
-                .free(&self.prelude.device, &mut self.allocator)?;
+            eprintln!("TODO: FREE MESH MEMORY");
+            /* TODO: FREE
+               mesh.vertices
+               .free(&self.prelude.device, &mut self.allocator)?;
+               mesh.indices
+               .free(&self.prelude.device, &mut self.allocator)?;
+               */
         }
         Ok(())
     }
@@ -348,7 +378,7 @@ impl Core {
                     offset: vk::Offset2D { x: 0, y: 0 },
                     extent: image.extent,
                 })
-                .clear_values(&clear_values);
+            .clear_values(&clear_values);
 
             self.prelude.device.cmd_begin_render_pass(
                 command_buffer,
@@ -394,59 +424,59 @@ impl Core {
 
                 for object in packet
                     .objects
-                    .iter()
-                    .filter(|o| o.material.0 == *material_id)
-                {
-                    let mesh = match self.meshes.get(&object.mesh.0) {
-                        Some(m) => m,
-                        None => {
-                            log::error!("Object references a mesh that no exists");
-                            continue;
+                        .iter()
+                        .filter(|o| o.material.0 == *material_id)
+                        {
+                            let mesh = match self.meshes.get(&object.mesh.0) {
+                                Some(m) => m,
+                                None => {
+                                    log::error!("Object references a mesh that no exists");
+                                    continue;
+                                }
+                            };
+                            self.prelude.device.cmd_bind_vertex_buffers(
+                                command_buffer,
+                                0,
+                                &[*mesh.vertices.object()],
+                                &[0],
+                            );
+
+                            self.prelude.device.cmd_bind_index_buffer(
+                                command_buffer,
+                                *mesh.indices.object(),
+                                0,
+                                vk::IndexType::UINT16,
+                            );
+
+                            let descriptor_sets = [self.descriptor_sets[frame_idx]];
+                            self.prelude.device.cmd_bind_descriptor_sets(
+                                command_buffer,
+                                vk::PipelineBindPoint::GRAPHICS,
+                                material.pipeline_layout,
+                                0,
+                                &descriptor_sets,
+                                &[],
+                            );
+
+                            // TODO: ADD ANIM
+                            self.prelude.device.cmd_push_constants(
+                                command_buffer,
+                                material.pipeline_layout,
+                                vk::ShaderStageFlags::VERTEX,
+                                0,
+                                std::mem::size_of::<[f32; 16]>() as u32,
+                                object.transform.data.as_ptr() as _,
+                            );
+
+                            self.prelude.device.cmd_draw_indexed(
+                                command_buffer,
+                                mesh.n_indices,
+                                1,
+                                0,
+                                0,
+                                0,
+                            );
                         }
-                    };
-                    self.prelude.device.cmd_bind_vertex_buffers(
-                        command_buffer,
-                        0,
-                        &[mesh.vertices.buffer],
-                        &[0],
-                    );
-
-                    self.prelude.device.cmd_bind_index_buffer(
-                        command_buffer,
-                        mesh.indices.buffer,
-                        0,
-                        vk::IndexType::UINT16,
-                    );
-
-                    let descriptor_sets = [self.descriptor_sets[frame_idx]];
-                    self.prelude.device.cmd_bind_descriptor_sets(
-                        command_buffer,
-                        vk::PipelineBindPoint::GRAPHICS,
-                        material.pipeline_layout,
-                        0,
-                        &descriptor_sets,
-                        &[],
-                    );
-
-                    // TODO: ADD ANIM
-                    self.prelude.device.cmd_push_constants(
-                        command_buffer,
-                        material.pipeline_layout,
-                        vk::ShaderStageFlags::VERTEX,
-                        0,
-                        std::mem::size_of::<[f32; 16]>() as u32,
-                        object.transform.data.as_ptr() as _,
-                    );
-
-                    self.prelude.device.cmd_draw_indexed(
-                        command_buffer,
-                        mesh.n_indices,
-                        1,
-                        0,
-                        0,
-                        0,
-                    );
-                }
             }
 
             self.prelude.device.cmd_end_render_pass(command_buffer);
@@ -455,7 +485,7 @@ impl Core {
                 .device
                 .end_command_buffer(command_buffer)
                 .result()?;
-        }
+            }
 
         Ok(command_buffer)
     }
@@ -465,17 +495,19 @@ impl Drop for Core {
     fn drop(&mut self) {
         unsafe {
             self.prelude.device.device_wait_idle().unwrap();
-            for (_, mesh) in self.meshes.iter_mut() {
-                mesh.indices
-                    .free(&self.prelude.device, &mut self.allocator)
-                    .unwrap();
-                mesh.vertices
-                    .free(&self.prelude.device, &mut self.allocator)
-                    .unwrap();
-            }
-            for ubo in &mut self.camera_ubos {
-                ubo.free(&self.prelude.device, &mut self.allocator).unwrap();
-            }
+            /* TODO: Free
+               for (_, mesh) in self.meshes.iter_mut() {
+               mesh.indices
+               .free(&self.prelude.device, &mut self.allocator)
+               .unwrap();
+               mesh.vertices
+               .free(&self.prelude.device, &mut self.allocator)
+               .unwrap();
+               }
+               for ubo in &mut self.camera_ubos {
+               ubo.free(&self.prelude.device, &mut self.allocator).unwrap();
+               }
+               */
             self.prelude
                 .device
                 .destroy_render_pass(Some(self.render_pass), None);
@@ -491,7 +523,7 @@ impl Drop for Core {
             self.prelude
                 .device
                 .destroy_command_pool(Some(self.command_pool), None);
-        }
+            }
     }
 }
 
