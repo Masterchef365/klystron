@@ -323,14 +323,9 @@ impl Core {
         unsafe {
             self.prelude.device.device_wait_idle().result()?;
         }
-        if let Some(mut mesh) = self.meshes.remove(&id.0) {
-            eprintln!("TODO: FREE MESH MEMORY");
-            /* TODO: FREE
-            mesh.vertices
-            .free(&self.prelude.device, &mut self.allocator)?;
-            mesh.indices
-            .free(&self.prelude.device, &mut self.allocator)?;
-            */
+        if let Some(mesh) = self.meshes.remove(&id.0) {
+            self.allocator.free(&self.prelude.device, mesh.vertices);
+            self.allocator.free(&self.prelude.device, mesh.indices);
         }
         Ok(())
     }
@@ -495,19 +490,13 @@ impl Drop for Core {
     fn drop(&mut self) {
         unsafe {
             self.prelude.device.device_wait_idle().unwrap();
-            /* TODO: Free
-            for (_, mesh) in self.meshes.iter_mut() {
-            mesh.indices
-            .free(&self.prelude.device, &mut self.allocator)
-            .unwrap();
-            mesh.vertices
-            .free(&self.prelude.device, &mut self.allocator)
-            .unwrap();
+            for (_, mesh) in self.meshes.drain() {
+                self.allocator.free(&self.prelude.device, mesh.vertices);
+                self.allocator.free(&self.prelude.device, mesh.indices);
             }
-            for ubo in &mut self.camera_ubos {
-            ubo.free(&self.prelude.device, &mut self.allocator).unwrap();
+            for ubo in self.camera_ubos.drain(..) {
+                self.allocator.free(&self.prelude.device, ubo);
             }
-            */
             self.prelude
                 .device
                 .destroy_render_pass(Some(self.render_pass), None);

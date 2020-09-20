@@ -42,6 +42,10 @@ impl<T> HandleMap<T> {
     pub fn iter_mut(&mut self) -> impl Iterator<Item = (&Id, &mut T)> {
         self.inner.iter_mut()
     }
+
+    pub fn drain<'a>(&'a mut self) -> impl Iterator<Item = (Id, T)> + 'a {
+        self.inner.drain()
+    }
 }
 
 impl<T> Default for HandleMap<T> {
