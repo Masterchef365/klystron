@@ -1,4 +1,5 @@
 # Todo
+* Staging buffer/gpu-only buffers
 * Better suit FramSync to its work (take render finished out?)
 * Use dropbomb instead of a boolean for some stuff like allocatedbuffer I think
 * Add `Engine` methods to Core. Consider just exposing it to the user.
