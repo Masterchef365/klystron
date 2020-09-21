@@ -39,6 +39,7 @@ impl<T> HandleMap<T> {
         self.inner.iter()
     }
 
+    #[allow(unused)]
     pub fn iter_mut(&mut self) -> impl Iterator<Item = (&Id, &mut T)> {
         self.inner.iter_mut()
     }

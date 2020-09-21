@@ -7,7 +7,7 @@ use anyhow::Result;
 use erupt::{
     utils::{
         self,
-        allocator::{self, Allocation, Allocator, MappedMemory},
+        allocator::{self, Allocation, Allocator},
     },
     vk1_0 as vk, vk1_1, DeviceLoader, InstanceLoader,
 };
@@ -47,7 +47,6 @@ pub struct Core {
     pub descriptor_set_layout: vk::DescriptorSetLayout,
     pub descriptor_sets: Vec<vk::DescriptorSet>,
     pub camera_ubos: Vec<Allocation<vk::Buffer>>,
-    pub camera_ubo_maps: Vec<MappedMemory>,
     pub prelude: Arc<VkPrelude>,
 }
 
@@ -123,7 +122,6 @@ impl Core {
             .sharing_mode(vk::SharingMode::EXCLUSIVE)
             .size(std::mem::size_of::<CameraUbo>() as u64);
         let mut camera_ubos = Vec::new();
-        let mut camera_ubo_maps = Vec::new();
         for _ in 0..FRAMES_IN_FLIGHT {
             let buffer =
                 unsafe { prelude.device.create_buffer(&create_info, None, None) }.result()?;
@@ -134,9 +132,7 @@ impl Core {
                     allocator::MemoryTypeFinder::dynamic(),
                 )
                 .result()?;
-            let map = memory.map(&prelude.device, ..).result()?;
             camera_ubos.push(memory);
-            camera_ubo_maps.push(map);
         }
 
         // Bind buffers to descriptors
@@ -166,7 +162,6 @@ impl Core {
         Ok(Self {
             prelude,
             camera_ubos,
-            camera_ubo_maps,
             descriptor_set_layout,
             descriptor_pool,
             descriptor_sets,
@@ -227,6 +222,7 @@ impl Core {
             .result()?;
         let mut map = vertex_buffer.map(&self.prelude.device, ..).result()?;
         map.import(bytemuck::cast_slice(vertices));
+        map.unmap(&self.prelude.device).result()?;
 
         let create_info = vk::BufferCreateInfoBuilder::new()
             .usage(vk::BufferUsageFlags::INDEX_BUFFER)
@@ -244,6 +240,7 @@ impl Core {
             .result()?;
         let mut map = index_buffer.map(&self.prelude.device, ..).result()?;
         map.import(bytemuck::cast_slice(indices));
+        map.unmap(&self.prelude.device).result()?;
 
         let mesh = Mesh {
             indices: index_buffer,
@@ -419,6 +416,15 @@ impl Core {
         }
 
         Ok(command_buffer)
+    }
+
+    /// Upload camera matricies (Two f32 camera matrics in column-major order)
+    pub fn update_camera_data(&self, frame_idx: usize, data: &[f32; 32]) -> Result<()> {
+        let ubo = &self.camera_ubos[frame_idx];
+        let mut map = ubo.map(&self.prelude.device, ..).result()?;
+        map.import(bytemuck::cast_slice(&data[..]));
+        map.unmap(&self.prelude.device).result()?;
+        Ok(())
     }
 }
 
