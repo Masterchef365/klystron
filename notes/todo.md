@@ -1,19 +1,6 @@
 # Todo
+* User-defined uniforms
 * Staging buffer/gpu-only buffers
-* Better suit FramSync to its work (take render finished out?)
-* Use dropbomb instead of a boolean for some stuff like allocatedbuffer I think
-* Add `Engine` methods to Core. Consider just exposing it to the user.
-* Meshes
-* Each backend has a `recreate_swapchain()` function that populates the `swapchain_images` field in Core.
-* Winit backend
-    * `next_frame()`
-    * `Swapchain`
-* OpenXR backend
-    * `next_frame()`
-    * `Swapchain`
-* Core
-    * Write Command buffers
-    * NOTE: MUST WRITE `vkCmdSetViewport` AND `vkCmdSetScissor`
 * logging ideas:
     * OpenXR loader path  
     * OpenXR version

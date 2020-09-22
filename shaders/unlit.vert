@@ -7,6 +7,10 @@ layout(binding = 0) uniform CameraUbo {
     mat4 matrix[2];
 } cam;
 
+layout(binding = 1) uniform Animation {
+    float value;
+} anim;
+
 layout(push_constant) uniform Model {
     mat4 matrix;
 } model;

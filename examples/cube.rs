@@ -32,14 +32,15 @@ impl App for MyApp {
         })
     }
 
-    fn next_frame(&mut self, _engine: &mut dyn Engine) -> Result<FramePacket> {
-        let transform = Matrix4::from_euler_angles(0.0, 0.0, 0.0);
+    fn next_frame(&mut self, engine: &mut dyn Engine) -> Result<FramePacket> {
+        let transform = Matrix4::from_euler_angles(0.0, self.time, 0.0);
         let object = Object {
             material: self.material,
             mesh: self.mesh,
             transform,
             anim: self.time,
         };
+        engine.update_animation_value(self.time)?;
         self.time += 0.01;
         Ok(FramePacket {
             objects: vec![object],

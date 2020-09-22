@@ -42,6 +42,10 @@ impl FrameSync {
         }
         Ok((self.frame_idx, frame))
     }
+
+    pub fn current_frame(&self) -> usize {
+        self.frame_idx
+    }
 }
 
 impl Drop for FrameSync {

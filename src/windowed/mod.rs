@@ -313,6 +313,9 @@ impl Engine for WinitBackend {
     fn remove_mesh(&mut self, mesh: Mesh) -> Result<()> {
         self.core.remove_mesh(mesh)
     }
+    fn update_animation_value(&self, data: f32) -> Result<()> {
+        self.core.update_animation_value(data)
+    }
 }
 
 impl Drop for WinitBackend {

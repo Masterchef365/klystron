@@ -47,6 +47,7 @@ pub struct Core {
     pub descriptor_set_layout: vk::DescriptorSetLayout,
     pub descriptor_sets: Vec<vk::DescriptorSet>,
     pub camera_ubos: Vec<Allocation<vk::Buffer>>,
+    pub animation_ubos: Vec<Allocation<vk::Buffer>>,
     pub prelude: Arc<VkPrelude>,
 }
 
@@ -77,11 +78,18 @@ impl Core {
         .result()?;
 
         // Create descriptor layout
-        let bindings = [vk::DescriptorSetLayoutBindingBuilder::new()
+        let bindings = [
+            vk::DescriptorSetLayoutBindingBuilder::new()
             .binding(0)
             .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
             .descriptor_count(1)
-            .stage_flags(vk::ShaderStageFlags::VERTEX)];
+            .stage_flags(vk::ShaderStageFlags::VERTEX),
+            vk::DescriptorSetLayoutBindingBuilder::new()
+            .binding(1)
+            .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
+            .descriptor_count(1)
+            .stage_flags(vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT)
+        ];
 
         let descriptor_set_layout_ci =
             vk::DescriptorSetLayoutCreateInfoBuilder::new().bindings(&bindings);
@@ -96,7 +104,7 @@ impl Core {
         // Create descriptor pool
         let pool_sizes = [vk::DescriptorPoolSizeBuilder::new()
             ._type(vk::DescriptorType::UNIFORM_BUFFER)
-            .descriptor_count(FRAMES_IN_FLIGHT as u32)];
+            .descriptor_count((FRAMES_IN_FLIGHT * 2) as u32)];
         let create_info = vk::DescriptorPoolCreateInfoBuilder::new()
             .pool_sizes(&pool_sizes)
             .max_sets(FRAMES_IN_FLIGHT as u32);
@@ -116,15 +124,17 @@ impl Core {
         let descriptor_sets =
             unsafe { prelude.device.allocate_descriptor_sets(&create_info) }.result()?;
 
-        // Camera's UBOs
-        let create_info = vk::BufferCreateInfoBuilder::new()
+        // UBOs
+        let ubo_create_info = vk::BufferCreateInfoBuilder::new()
             .usage(vk::BufferUsageFlags::UNIFORM_BUFFER)
             .sharing_mode(vk::SharingMode::EXCLUSIVE)
             .size(std::mem::size_of::<CameraUbo>() as u64);
+
+        // Camera:
         let mut camera_ubos = Vec::new();
         for _ in 0..FRAMES_IN_FLIGHT {
             let buffer =
-                unsafe { prelude.device.create_buffer(&create_info, None, None) }.result()?;
+                unsafe { prelude.device.create_buffer(&ubo_create_info, None, None) }.result()?;
             let memory = allocator
                 .allocate(
                     &prelude.device,
@@ -135,19 +145,51 @@ impl Core {
             camera_ubos.push(memory);
         }
 
-        // Bind buffers to descriptors
-        for (alloc, descriptor) in camera_ubos.iter().zip(descriptor_sets.iter()) {
-            let buffer_infos = [vk::DescriptorBufferInfoBuilder::new()
-                .buffer(*alloc.object())
-                .offset(0)
-                .range(std::mem::size_of::<CameraUbo>() as u64)];
+        // Animation
+        let mut animation_ubos = Vec::new();
+        for _ in 0..FRAMES_IN_FLIGHT {
+            let buffer =
+                unsafe { prelude.device.create_buffer(&ubo_create_info, None, None) }.result()?;
+            let memory = allocator
+                .allocate(
+                    &prelude.device,
+                    buffer,
+                    allocator::MemoryTypeFinder::dynamic(),
+                )
+                .result()?;
+            animation_ubos.push(memory);
+        }
 
-            let writes = [vk::WriteDescriptorSetBuilder::new()
-                .buffer_info(&buffer_infos)
+        // Bind buffers to descriptors
+        for (animation_ubo, (camera_ubo, descriptor)) in animation_ubos.iter().zip(camera_ubos.iter().zip(descriptor_sets.iter())) {
+            let camera_buffer_infos = [
+                vk::DescriptorBufferInfoBuilder::new()
+                .buffer(*camera_ubo.object())
+                .offset(0)
+                .range(std::mem::size_of::<CameraUbo>() as u64),
+            ];
+
+            let animation_buffer_infos = [
+                vk::DescriptorBufferInfoBuilder::new()
+                .buffer(*animation_ubo.object())
+                .offset(0)
+                .range(std::mem::size_of::<f32>() as u64),
+            ];
+
+            let writes = [
+                vk::WriteDescriptorSetBuilder::new()
+                .buffer_info(&camera_buffer_infos)
                 .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
                 .dst_set(*descriptor)
                 .dst_binding(0)
-                .dst_array_element(0)];
+                .dst_array_element(0),
+                vk::WriteDescriptorSetBuilder::new()
+                .buffer_info(&animation_buffer_infos)
+                .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
+                .dst_set(*descriptor)
+                .dst_binding(1)
+                .dst_array_element(0),
+            ];
 
             unsafe {
                 prelude.device.update_descriptor_sets(&writes, &[]);
@@ -162,6 +204,7 @@ impl Core {
         Ok(Self {
             prelude,
             camera_ubos,
+            animation_ubos,
             descriptor_set_layout,
             descriptor_pool,
             descriptor_sets,
@@ -426,6 +469,16 @@ impl Core {
         map.unmap(&self.prelude.device).result()?;
         Ok(())
     }
+
+    /// Update animation value
+    pub fn update_animation_value(&self, data: f32) -> Result<()> {
+        let frame_idx = self.frame_sync.current_frame();
+        let ubo = &self.animation_ubos[frame_idx];
+        let mut map = ubo.map(&self.prelude.device, ..).result()?;
+        map.import(bytemuck::cast_slice(&[data]));
+        map.unmap(&self.prelude.device).result()?;
+        Ok(())
+    }
 }
 
 fn create_render_pass(device: &DeviceLoader, vr: bool) -> Result<vk::RenderPass> {
@@ -504,6 +557,9 @@ impl Drop for Core {
                 self.allocator.free(&self.prelude.device, mesh.indices);
             }
             for ubo in self.camera_ubos.drain(..) {
+                self.allocator.free(&self.prelude.device, ubo);
+            }
+            for ubo in self.animation_ubos.drain(..) {
                 self.allocator.free(&self.prelude.device, ubo);
             }
             self.prelude

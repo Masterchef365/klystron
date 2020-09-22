@@ -24,10 +24,6 @@ pub use windowed::{Camera, WinitBackend};
 pub struct FramePacket {
     /// The entire scene's worth of objects
     pub objects: Vec<Object>,
-    // /// Move the entire stage here
-    // pub stage_origin: Point3<f32>,
-    // /// Rotate the stage by this much
-    // pub stage_rotation: UnitQuaternion<f32>,
 }
 
 /// A single object in the scene
@@ -76,6 +72,8 @@ pub trait Engine {
     fn remove_material(&mut self, material: Material) -> Result<()>;
     /// Remove the given mesh
     fn remove_mesh(&mut self, mesh: Mesh) -> Result<()>;
+    /// Update the animation value
+    fn update_animation_value(&self, data: f32) -> Result<()>;
 }
 
 pub(crate) const ENGINE_NAME: &'static str = "Klystron";
