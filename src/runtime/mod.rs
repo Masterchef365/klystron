@@ -1,3 +1,8 @@
+//! The runtime for the klystron engine. 
+//!
+//! A simple runtime providing only a first-person camera in VR mode and an Arcball camera in
+//! windowed mode. Abstracts over platform-specific features for quick prototyping.
+
 mod mouse_camera;
 use mouse_camera::MouseCamera;
 use anyhow::Result;
@@ -15,12 +20,26 @@ use winit::{
 };
 use crate::{Engine, FramePacket, WinitBackend, Camera, OpenXrBackend};
 
+/// An app that can be run on the runtime
 pub trait App: Sized {
     const NAME: &'static str;
+    /// Create a new instance of the app, populating the engine with meshes and materials
     fn new(engine: &mut dyn Engine) -> Result<Self>;
+    /// Update the app's state and render the next frame
     fn next_frame(&mut self, engine: &mut dyn Engine) -> Result<FramePacket>;
 }
 
+/// Launch an `App`
+///
+/// Example:
+/// ```rust
+/// struct MyApp {}
+/// impl App for MyApp {}
+///
+/// fn main() {
+///     launch::<MyApp>();
+/// }
+/// ```
 pub fn launch<A: App + 'static>() -> Result<()> {
     let vr = std::env::args().skip(1).next().is_some();
     if vr {
@@ -30,7 +49,8 @@ pub fn launch<A: App + 'static>() -> Result<()> {
     }
 }
 
-fn windowed_backend<A: App + 'static>() -> Result<()> {
+/// Launch an `App` using `winit` as a surface and input mechanism for windowed mode
+pub fn windowed_backend<A: App + 'static>() -> Result<()> {
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new()
         .with_title(A::NAME)
@@ -41,6 +61,7 @@ fn windowed_backend<A: App + 'static>() -> Result<()> {
 
     let target_frame_time = Duration::from_micros(1_000_000 / 60);
     let mut mouse_camera = MouseCamera::new(Camera::default(), 0.001, 0.004);
+
     event_loop.run(move |event, _, control_flow| match event {
         Event::NewEvents(StartCause::Init) => {
             *control_flow = ControlFlow::Poll;
@@ -63,6 +84,7 @@ fn windowed_backend<A: App + 'static>() -> Result<()> {
     })
 }
 
+/// Launch an `App` using OpenXR as a surface and input mechanism for VR
 fn vr_backend<A: App>() -> Result<()> {
     // Handle interrupts gracefully
     let running = Arc::new(AtomicBool::new(true));

@@ -1,5 +1,6 @@
 use nalgebra::{Matrix4, Point3, Vector3};
 
+/// An arcball camera
 pub struct Camera {
     pub pivot: Point3<f32>,
     pub distance: f32,
@@ -10,6 +11,7 @@ pub struct Camera {
 }
 
 impl Camera {
+    /// Extract the camera matrix
     pub fn matrix(&self, width: u32, height: u32) -> Matrix4<f32> {
         let perspective = Matrix4::new_perspective(
             width as f32 / height as f32,
@@ -20,6 +22,7 @@ impl Camera {
         perspective * self.view()
     }
 
+    /// View matrix
     pub fn view(&self) -> Matrix4<f32> {
         Matrix4::look_at_rh(
             &(self.pivot + self.eye()),
@@ -28,6 +31,7 @@ impl Camera {
         )
     }
 
+    /// Eye position
     pub fn eye(&self) -> Vector3<f32> {
         Vector3::new(
             self.yaw.cos() * self.pitch.cos().abs(),
