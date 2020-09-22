@@ -1,5 +1,4 @@
 mod camera;
-mod mouse_camera;
 use crate::core::{Core, VkPrelude};
 use crate::hardware_query::HardwareSelection;
 use crate::swapchain_images::SwapchainImages;
@@ -11,7 +10,6 @@ use erupt::{
     utils::surface,
     vk1_0 as vk, DeviceLoader, EntryLoader, InstanceLoader,
 };
-pub use mouse_camera::MouseCamera;
 use std::ffi::CString;
 use std::sync::Arc;
 use winit::window::Window;

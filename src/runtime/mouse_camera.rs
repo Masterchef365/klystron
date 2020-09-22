@@ -1,4 +1,4 @@
-use super::camera::Camera;
+use crate::windowed::Camera;
 use nalgebra::Vector4;
 use winit::dpi::PhysicalPosition;
 use winit::event::{ElementState, MouseButton, MouseScrollDelta, WindowEvent};
