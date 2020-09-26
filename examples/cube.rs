@@ -15,7 +15,9 @@ struct MyApp {
 impl App for MyApp {
     const NAME: &'static str = "MyApp";
 
-    fn new(engine: &mut dyn Engine) -> Result<Self> {
+    type Args = ();
+
+    fn new(engine: &mut dyn Engine, _args: Self::Args) -> Result<Self> {
         let material = engine.add_material(
             &fs::read("./shaders/unlit.vert.spv")?,
             &fs::read("./shaders/unlit.frag.spv")?,
@@ -49,8 +51,9 @@ impl App for MyApp {
 }
 
 fn main() -> Result<()> {
+    let vr = std::env::args().skip(1).next().is_some();
     env_logger::init();
-    launch::<MyApp>()
+    launch::<MyApp>(vr, ())
 }
 
 fn rainbow_cube() -> (Vec<Vertex>, Vec<u16>) {

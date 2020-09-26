@@ -23,13 +23,15 @@ use crate::{Engine, FramePacket, WinitBackend, Camera, OpenXrBackend};
 /// An app that can be run on the runtime
 pub trait App: Sized {
     const NAME: &'static str;
+    /// Arguments passed into the structure on creation
+    type Args;
     /// Create a new instance of the app, populating the engine with meshes and materials
-    fn new(engine: &mut dyn Engine) -> Result<Self>;
+    fn new(engine: &mut dyn Engine, args: Self::Args) -> Result<Self>;
     /// Update the app's state and render the next frame
     fn next_frame(&mut self, engine: &mut dyn Engine) -> Result<FramePacket>;
 }
 
-/// Launch an `App`
+/// Launch an `App`. Runs in OpenXR when `vr` is set.
 ///
 /// Example:
 /// ```rust
@@ -37,27 +39,26 @@ pub trait App: Sized {
 /// impl App for MyApp {}
 ///
 /// fn main() {
-///     launch::<MyApp>();
+///     launch::<MyApp>(false, ());
 /// }
 /// ```
-pub fn launch<A: App + 'static>() -> Result<()> {
-    let vr = std::env::args().skip(1).next().is_some();
+pub fn launch<A: App + 'static>(vr: bool, args: A::Args) -> Result<()> {
     if vr {
-        vr_backend::<A>()
+        vr_backend::<A>(args)
     } else {
-        windowed_backend::<A>()
+        windowed_backend::<A>(args)
     }
 }
 
 /// Launch an `App` using `winit` as a surface and input mechanism for windowed mode
-pub fn windowed_backend<A: App + 'static>() -> Result<()> {
+pub fn windowed_backend<A: App + 'static>(args: A::Args) -> Result<()> {
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new()
         .with_title(A::NAME)
         .build(&event_loop)?;
     let mut engine = WinitBackend::new(&window, A::NAME)?;
 
-    let mut app = A::new(&mut engine)?;
+    let mut app = A::new(&mut engine, args)?;
 
     let target_frame_time = Duration::from_micros(1_000_000 / 60);
     let mut mouse_camera = MouseCamera::new(Camera::default(), 0.001, 0.004);
@@ -85,7 +86,7 @@ pub fn windowed_backend<A: App + 'static>() -> Result<()> {
 }
 
 /// Launch an `App` using OpenXR as a surface and input mechanism for VR
-fn vr_backend<A: App>() -> Result<()> {
+fn vr_backend<A: App>(args: A::Args) -> Result<()> {
     // Handle interrupts gracefully
     let running = Arc::new(AtomicBool::new(true));
     let r = running.clone();
@@ -95,7 +96,7 @@ fn vr_backend<A: App>() -> Result<()> {
     .expect("setting Ctrl-C handler");
 
     let (mut engine, openxr) = OpenXrBackend::new(A::NAME)?;
-    let mut app = A::new(&mut engine)?;
+    let mut app = A::new(&mut engine, args)?;
 
     let mut event_storage = xr::EventDataBuffer::new();
     let mut session_running = false;
