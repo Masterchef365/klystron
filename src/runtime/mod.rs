@@ -1,12 +1,13 @@
-//! The runtime for the klystron engine. 
+//! The runtime for the klystron engine.
 //!
 //! A simple runtime providing only a first-person camera in VR mode and an Arcball camera in
 //! windowed mode. Abstracts over platform-specific features for quick prototyping.
 
 mod mouse_camera;
-use mouse_camera::MouseCamera;
+use crate::{Camera, Engine, FramePacket, OpenXrBackend, WinitBackend};
 use anyhow::Result;
 use log::info;
+use mouse_camera::MouseCamera;
 use openxr as xr;
 use std::sync::{
     atomic::{AtomicBool, Ordering},
@@ -18,7 +19,6 @@ use winit::{
     event_loop::{ControlFlow, EventLoop},
     window::WindowBuilder,
 };
-use crate::{Engine, FramePacket, WinitBackend, Camera, OpenXrBackend};
 
 /// An app that can be run on the runtime
 pub trait App: Sized {

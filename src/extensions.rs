@@ -10,9 +10,8 @@ pub fn extensions_and_layers(
     const LAYER_KHRONOS_VALIDATION: *const i8 = cstr!("VK_LAYER_KHRONOS_validation");
 
     //if cfg!(debug_assertions) {
-        instance_extensions
-            .push(erupt::extensions::ext_debug_utils::EXT_DEBUG_UTILS_EXTENSION_NAME);
-        instance_layers.push(LAYER_KHRONOS_VALIDATION);
-        device_layers.push(LAYER_KHRONOS_VALIDATION);
+    instance_extensions.push(erupt::extensions::ext_debug_utils::EXT_DEBUG_UTILS_EXTENSION_NAME);
+    instance_layers.push(LAYER_KHRONOS_VALIDATION);
+    device_layers.push(LAYER_KHRONOS_VALIDATION);
     //}
 }

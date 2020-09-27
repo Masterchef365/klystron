@@ -80,15 +80,15 @@ impl Core {
         // Create descriptor layout
         let bindings = [
             vk::DescriptorSetLayoutBindingBuilder::new()
-            .binding(0)
-            .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
-            .descriptor_count(1)
-            .stage_flags(vk::ShaderStageFlags::VERTEX),
+                .binding(0)
+                .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
+                .descriptor_count(1)
+                .stage_flags(vk::ShaderStageFlags::VERTEX),
             vk::DescriptorSetLayoutBindingBuilder::new()
-            .binding(1)
-            .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
-            .descriptor_count(1)
-            .stage_flags(vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT)
+                .binding(1)
+                .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
+                .descriptor_count(1)
+                .stage_flags(vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT),
         ];
 
         let descriptor_set_layout_ci =
@@ -161,34 +161,33 @@ impl Core {
         }
 
         // Bind buffers to descriptors
-        for (animation_ubo, (camera_ubo, descriptor)) in time_ubos.iter().zip(camera_ubos.iter().zip(descriptor_sets.iter())) {
-            let camera_buffer_infos = [
-                vk::DescriptorBufferInfoBuilder::new()
+        for (animation_ubo, (camera_ubo, descriptor)) in time_ubos
+            .iter()
+            .zip(camera_ubos.iter().zip(descriptor_sets.iter()))
+        {
+            let camera_buffer_infos = [vk::DescriptorBufferInfoBuilder::new()
                 .buffer(*camera_ubo.object())
                 .offset(0)
-                .range(std::mem::size_of::<CameraUbo>() as u64),
-            ];
+                .range(std::mem::size_of::<CameraUbo>() as u64)];
 
-            let animation_buffer_infos = [
-                vk::DescriptorBufferInfoBuilder::new()
+            let animation_buffer_infos = [vk::DescriptorBufferInfoBuilder::new()
                 .buffer(*animation_ubo.object())
                 .offset(0)
-                .range(std::mem::size_of::<f32>() as u64),
-            ];
+                .range(std::mem::size_of::<f32>() as u64)];
 
             let writes = [
                 vk::WriteDescriptorSetBuilder::new()
-                .buffer_info(&camera_buffer_infos)
-                .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
-                .dst_set(*descriptor)
-                .dst_binding(0)
-                .dst_array_element(0),
+                    .buffer_info(&camera_buffer_infos)
+                    .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
+                    .dst_set(*descriptor)
+                    .dst_binding(0)
+                    .dst_array_element(0),
                 vk::WriteDescriptorSetBuilder::new()
-                .buffer_info(&animation_buffer_infos)
-                .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
-                .dst_set(*descriptor)
-                .dst_binding(1)
-                .dst_array_element(0),
+                    .buffer_info(&animation_buffer_infos)
+                    .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
+                    .dst_set(*descriptor)
+                    .dst_binding(1)
+                    .dst_array_element(0),
             ];
 
             unsafe {

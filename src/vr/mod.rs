@@ -152,8 +152,8 @@ impl OpenXrBackend {
 
         let priorities = [1.0];
         let queues = [vk::DeviceQueueCreateInfoBuilder::new()
-                .queue_family_index(queue_family_index)
-                .queue_priorities(&priorities)];
+            .queue_family_index(queue_family_index)
+            .queue_priorities(&priorities)];
         let mut create_info = vk::DeviceCreateInfoBuilder::new()
             .queue_create_infos(&queues)
             .enabled_layer_names(&vk_device_layers_ptrs)
