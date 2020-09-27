@@ -34,8 +34,8 @@ pub struct Object {
     pub mesh: Mesh,
     /// Transformation applied to each vertex of this Object
     pub transform: Matrix4<f32>,
-    /// An additional time uniform passed to the vertex and fragment shaders
-    pub anim: f32,
+    // /// An additional time uniform passed to the vertex and fragment shaders
+    // pub anim: f32,
 }
 
 /// Handle for a Material (Draw commands)
@@ -73,7 +73,7 @@ pub trait Engine {
     /// Remove the given mesh
     fn remove_mesh(&mut self, mesh: Mesh) -> Result<()>;
     /// Update the animation value
-    fn update_animation_value(&self, data: f32) -> Result<()>;
+    fn update_time_value(&self, data: f32) -> Result<()>;
 }
 
 pub(crate) const ENGINE_NAME: &'static str = "Klystron";

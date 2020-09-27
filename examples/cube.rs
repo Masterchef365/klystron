@@ -40,9 +40,8 @@ impl App for MyApp {
             material: self.material,
             mesh: self.mesh,
             transform,
-            anim: self.time,
         };
-        engine.update_animation_value(self.time)?;
+        engine.update_time_value(self.time)?;
         self.time += 0.01;
         Ok(FramePacket {
             objects: vec![object],

@@ -47,7 +47,7 @@ pub struct Core {
     pub descriptor_set_layout: vk::DescriptorSetLayout,
     pub descriptor_sets: Vec<vk::DescriptorSet>,
     pub camera_ubos: Vec<Allocation<vk::Buffer>>,
-    pub animation_ubos: Vec<Allocation<vk::Buffer>>,
+    pub time_ubos: Vec<Allocation<vk::Buffer>>,
     pub prelude: Arc<VkPrelude>,
 }
 
@@ -146,7 +146,7 @@ impl Core {
         }
 
         // Animation
-        let mut animation_ubos = Vec::new();
+        let mut time_ubos = Vec::new();
         for _ in 0..FRAMES_IN_FLIGHT {
             let buffer =
                 unsafe { prelude.device.create_buffer(&ubo_create_info, None, None) }.result()?;
@@ -157,11 +157,11 @@ impl Core {
                     allocator::MemoryTypeFinder::dynamic(),
                 )
                 .result()?;
-            animation_ubos.push(memory);
+            time_ubos.push(memory);
         }
 
         // Bind buffers to descriptors
-        for (animation_ubo, (camera_ubo, descriptor)) in animation_ubos.iter().zip(camera_ubos.iter().zip(descriptor_sets.iter())) {
+        for (animation_ubo, (camera_ubo, descriptor)) in time_ubos.iter().zip(camera_ubos.iter().zip(descriptor_sets.iter())) {
             let camera_buffer_infos = [
                 vk::DescriptorBufferInfoBuilder::new()
                 .buffer(*camera_ubo.object())
@@ -204,7 +204,7 @@ impl Core {
         Ok(Self {
             prelude,
             camera_ubos,
-            animation_ubos,
+            time_ubos,
             descriptor_set_layout,
             descriptor_pool,
             descriptor_sets,
@@ -470,12 +470,12 @@ impl Core {
         Ok(())
     }
 
-    /// Update animation value
-    pub fn update_animation_value(&self, data: f32) -> Result<()> {
+    /// Update time value
+    pub fn update_time_value(&self, time: f32) -> Result<()> {
         let frame_idx = self.frame_sync.current_frame();
-        let ubo = &self.animation_ubos[frame_idx];
+        let ubo = &self.time_ubos[frame_idx];
         let mut map = ubo.map(&self.prelude.device, ..).result()?;
-        map.import(bytemuck::cast_slice(&[data]));
+        map.import(bytemuck::cast_slice(&[time]));
         map.unmap(&self.prelude.device).result()?;
         Ok(())
     }
@@ -559,7 +559,7 @@ impl Drop for Core {
             for ubo in self.camera_ubos.drain(..) {
                 self.allocator.free(&self.prelude.device, ubo);
             }
-            for ubo in self.animation_ubos.drain(..) {
+            for ubo in self.time_ubos.drain(..) {
                 self.allocator.free(&self.prelude.device, ubo);
             }
             self.prelude
