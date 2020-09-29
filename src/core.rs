@@ -1,6 +1,7 @@
 use crate::frame_sync::FrameSync;
 use crate::handle::HandleMap;
 use crate::material::Material;
+use crate::postprocessing::PostProcessing;
 use crate::swapchain_images::{SwapChainImage, SwapchainImages};
 use crate::vertex::Vertex;
 use anyhow::Result;
@@ -38,6 +39,7 @@ pub struct Core {
     pub allocator: Allocator,
     pub materials: HandleMap<Material>,
     pub meshes: HandleMap<Mesh>,
+    pub postprocessors: HandleMap<PostProcessing>,
     pub render_pass: vk::RenderPass,
     pub frame_sync: FrameSync,
     pub swapchain_images: Option<SwapchainImages>,
@@ -215,6 +217,7 @@ impl Core {
             swapchain_images: None,
             materials: Default::default(),
             meshes: Default::default(),
+            postprocessors: Default::default(),
         })
     }
 
@@ -239,7 +242,12 @@ impl Core {
         &mut self,
         spirv: &[u8],
     ) -> Result<crate::Postprocessing> {
-        todo!("Postprocessing shader in Core")
+        let postprocessor = PostProcessing::new(
+            self.prelude.clone(),
+            spirv,
+            todo!()
+        )?;
+        Ok(crate::Postprocessing(self.postprocessors.insert(postprocessor)))
     }
 
     pub fn remove_material(&mut self, material: crate::Material) -> Result<()> {

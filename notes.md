@@ -27,3 +27,5 @@ struct FramePacket {
 
 Descriptor set for compute/postprocessing pipeline
 Needs to have animation in there
+
+If no postprocessor, just use an image xfer?

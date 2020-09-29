@@ -25,6 +25,8 @@ pub use windowed::{Camera, WinitBackend};
 pub struct FramePacket {
     /// The entire scene's worth of objects
     pub objects: Vec<Object>,
+    /// Postprocessing shader to use (if any)
+    pub postprocessing: Option<Postprocessing>,
 }
 
 /// A single object in the scene
