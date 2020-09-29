@@ -309,6 +309,7 @@ impl Core {
         &self,
         frame_idx: usize,
         packet: &crate::FramePacket,
+        framebuffer: vk::Framebuffer,
         image: &SwapChainImage,
     ) -> Result<vk::CommandBuffer> {
         // Reset and write command buffers for this frame
@@ -342,7 +343,7 @@ impl Core {
             ];
 
             let begin_info = vk::RenderPassBeginInfoBuilder::new()
-                .framebuffer(image.framebuffer)
+                .framebuffer(framebuffer)
                 .render_pass(self.render_pass)
                 .render_area(vk::Rect2D {
                     offset: vk::Offset2D { x: 0, y: 0 },
@@ -490,11 +491,14 @@ fn create_render_pass(device: &DeviceLoader, vr: bool) -> Result<vk::RenderPass>
         .stencil_load_op(vk::AttachmentLoadOp::DONT_CARE)
         .stencil_store_op(vk::AttachmentStoreOp::DONT_CARE)
         .initial_layout(vk::ImageLayout::UNDEFINED)
-        .final_layout(if vr {
-            vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL
-        } else {
-            vk::ImageLayout::PRESENT_SRC_KHR
-        });
+        .final_layout(vk::ImageLayout::GENERAL);
+
+    // compute shader image final layout:
+    // if vr {
+    //     vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL
+    // } else {
+    //     vk::ImageLayout::PRESENT_SRC_KHR
+    // }
 
     let depth_attachment = vk::AttachmentDescriptionBuilder::new()
         .format(DEPTH_FORMAT)

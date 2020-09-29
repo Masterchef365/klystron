@@ -255,7 +255,12 @@ impl OpenXrBackend {
         };
 
         // Write command buffers
-        let command_buffer = self.core.write_command_buffers(frame_idx, packet, &image)?;
+        let command_buffer = self.core.write_command_buffers(
+            frame_idx,
+            packet,
+            self.core.swapchain_images.as_ref().unwrap().framebuffer,
+            &image,
+        )?;
 
         // Get views
         let (_, views) = self.openxr.session.locate_views(

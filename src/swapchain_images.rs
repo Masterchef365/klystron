@@ -13,6 +13,10 @@ pub struct SwapchainImages {
     pub depth_image: vk::Image,
     pub depth_image_mem: Option<Allocation<vk::Image>>,
     pub depth_image_view: vk::ImageView,
+    pub post_image: vk::Image,
+    pub post_image_mem: Option<Allocation<vk::Image>>,
+    pub post_image_view: vk::ImageView, // Image view for render output
+    pub framebuffer: vk::Framebuffer,   // Framebuffer for render output
     images: Vec<SwapChainImage>,
     prelude: Arc<VkPrelude>,
     bomb: DropBomb,
@@ -20,8 +24,6 @@ pub struct SwapchainImages {
 
 #[derive(Copy, Clone)]
 pub struct SwapChainImage {
-    pub framebuffer: vk::Framebuffer,
-    pub image_view: vk::ImageView,
     /// Whether or not the frame which this swapchain image is dependent on is in flight or not
     pub extent: vk::Extent2D,
     pub in_flight: vk::Fence,
@@ -59,6 +61,47 @@ impl SwapchainImages {
         vr: bool,
     ) -> Result<Self> {
         let layers = if vr { 2 } else { 1 };
+
+        // Create post image
+        let create_info = vk::ImageCreateInfoBuilder::new()
+            .image_type(vk::ImageType::_2D)
+            .extent(
+                vk::Extent3DBuilder::new()
+                    .width(extent.width)
+                    .height(extent.height)
+                    .depth(1)
+                    .build(),
+            )
+            .mip_levels(1)
+            .array_layers(layers)
+            .format(crate::core::COLOR_FORMAT)
+            .tiling(vk::ImageTiling::LINEAR)
+            .initial_layout(vk::ImageLayout::UNDEFINED)
+            .usage(vk::ImageUsageFlags::COLOR_ATTACHMENT)
+            .samples(vk::SampleCountFlagBits::_1)
+            .sharing_mode(vk::SharingMode::EXCLUSIVE);
+        let post_image =
+            unsafe { prelude.device.create_image(&create_info, None, None) }.result()?;
+
+        let post_image_mem = allocator
+            .allocate(&prelude.device, post_image, MemoryTypeFinder::gpu_only())
+            .result()?;
+
+        let create_info = vk::ImageViewCreateInfoBuilder::new()
+            .image(post_image)
+            .view_type(vk::ImageViewType::_2D)
+            .format(crate::core::COLOR_FORMAT)
+            .subresource_range(
+                vk::ImageSubresourceRangeBuilder::new()
+                    .aspect_mask(vk::ImageAspectFlags::DEPTH)
+                    .base_mip_level(0)
+                    .level_count(1)
+                    .base_array_layer(0)
+                    .layer_count(layers)
+                    .build(),
+            );
+        let post_image_view =
+            unsafe { prelude.device.create_image_view(&create_info, None, None) }.result()?;
 
         // Create depth image
         let create_info = vk::ImageCreateInfoBuilder::new()
@@ -101,19 +144,22 @@ impl SwapchainImages {
         let depth_image_view =
             unsafe { prelude.device.create_image_view(&create_info, None, None) }.result()?;
 
+        // Build framebuffer
+        let attachments = [post_image_view, depth_image_view];
+        let create_info = vk::FramebufferCreateInfoBuilder::new()
+            .render_pass(render_pass)
+            .attachments(&attachments)
+            .width(extent.width)
+            .height(extent.height)
+            .layers(1);
+
+        let framebuffer =
+            unsafe { prelude.device.create_framebuffer(&create_info, None, None) }.result()?;
+
         // Build swapchain image views and buffers
         let images = swapchain_images
             .iter()
-            .map(|&image| {
-                SwapChainImage::new(
-                    &prelude.device,
-                    render_pass,
-                    image,
-                    extent,
-                    depth_image_view,
-                    vr,
-                )
-            })
+            .map(|&image| SwapChainImage::new(extent))
             .collect::<Result<Vec<_>>>()?;
 
         Ok(Self {
@@ -122,7 +168,11 @@ impl SwapchainImages {
             depth_image,
             depth_image_mem: Some(depth_image_mem),
             depth_image_view,
+            post_image,
+            post_image_mem: Some(post_image_mem),
+            post_image_view,
             prelude,
+            framebuffer,
             bomb: DropBomb::new("SwapchainImages dropped before freed"),
         })
     }
@@ -130,14 +180,12 @@ impl SwapchainImages {
     pub fn free(&mut self, allocator: &mut Allocator) -> Result<()> {
         unsafe {
             self.prelude.device.device_wait_idle().result()?;
-            for image in self.images.drain(..) {
-                self.prelude
-                    .device
-                    .destroy_framebuffer(Some(image.framebuffer), None);
-                self.prelude
-                    .device
-                    .destroy_image_view(Some(image.image_view), None);
-            }
+            self.prelude
+                .device
+                .destroy_framebuffer(Some(self.framebuffer), None);
+            self.prelude
+                .device
+                .destroy_image_view(Some(self.post_image_view), None);
             self.prelude
                 .device
                 .destroy_image_view(Some(self.depth_image_view), None);
@@ -151,53 +199,9 @@ impl SwapchainImages {
 }
 
 impl SwapChainImage {
-    pub fn new(
-        device: &DeviceLoader,
-        render_pass: vk::RenderPass,
-        swapchain_image: vk::Image,
-        extent: vk::Extent2D,
-        depth_image_view: vk::ImageView,
-        vr: bool,
-    ) -> Result<Self> {
-        let in_flight = vk::Fence::null();
-
-        let create_info = vk::ImageViewCreateInfoBuilder::new()
-            .image(swapchain_image)
-            .view_type(vk::ImageViewType::_2D)
-            .format(crate::core::COLOR_FORMAT)
-            .components(vk::ComponentMapping {
-                r: vk::ComponentSwizzle::IDENTITY,
-                g: vk::ComponentSwizzle::IDENTITY,
-                b: vk::ComponentSwizzle::IDENTITY,
-                a: vk::ComponentSwizzle::IDENTITY,
-            })
-            .subresource_range(
-                vk::ImageSubresourceRangeBuilder::new()
-                    .aspect_mask(vk::ImageAspectFlags::COLOR)
-                    .base_mip_level(0)
-                    .level_count(1)
-                    .base_array_layer(0)
-                    .layer_count(if vr { 2 } else { 1 })
-                    .build(),
-            );
-
-        let image_view = unsafe { device.create_image_view(&create_info, None, None) }.result()?;
-
-        let attachments = [image_view, depth_image_view];
-        let create_info = vk::FramebufferCreateInfoBuilder::new()
-            .render_pass(render_pass)
-            .attachments(&attachments)
-            .width(extent.width)
-            .height(extent.height)
-            .layers(1);
-
-        let framebuffer =
-            unsafe { device.create_framebuffer(&create_info, None, None) }.result()?;
-
+    pub fn new(extent: vk::Extent2D) -> Result<Self> {
         Ok(Self {
-            framebuffer,
-            image_view,
-            in_flight,
+            in_flight: vk::Fence::null(),
             extent,
         })
     }
