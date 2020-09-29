@@ -19,8 +19,8 @@ impl App for MyApp {
 
     fn new(engine: &mut dyn Engine, _args: Self::Args) -> Result<Self> {
         let material = engine.add_material(
-            &fs::read("./shaders/unlit.vert.spv")?,
-            &fs::read("./shaders/unlit.frag.spv")?,
+            &fs::read("./examples/shaders/unlit.vert.spv")?,
+            &fs::read("./examples/shaders/unlit.frag.spv")?,
             DrawType::Triangles,
         )?;
 
