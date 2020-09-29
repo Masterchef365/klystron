@@ -8,6 +8,7 @@ mod frame_sync;
 mod handle;
 mod hardware_query;
 mod material;
+mod postprocessing;
 pub mod runtime;
 mod swapchain_images;
 mod vertex;
@@ -46,6 +47,10 @@ pub struct Material(pub(crate) handle::Id);
 #[derive(Copy, Clone)]
 pub struct Mesh(pub(crate) handle::Id);
 
+/// Handle for a Mesh (Draw content)
+#[derive(Copy, Clone)]
+pub struct Postprocessing(pub(crate) handle::Id);
+
 /// Material rasterization method
 pub enum DrawType {
     /// Lines in between each pair of indices
@@ -74,6 +79,11 @@ pub trait Engine {
     fn remove_mesh(&mut self, mesh: Mesh) -> Result<()>;
     /// Update the animation value
     fn update_time_value(&self, data: f32) -> Result<()>;
+    /// Add postprocessing shader
+    fn add_postprocessing(
+        &mut self,
+        spirv: &[u8],
+    ) -> Result<Postprocessing>;
 }
 
 pub(crate) const ENGINE_NAME: &'static str = "Klystron";

@@ -23,3 +23,7 @@ struct FramePacket {
     objects: Vec<Object>,
     postprocessing: ComputeShader,
 }
+```
+
+Descriptor set for compute/postprocessing pipeline
+Needs to have animation in there

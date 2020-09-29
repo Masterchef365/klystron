@@ -6,8 +6,7 @@ use erupt::{utils, vk1_0 as vk};
 use std::ffi::CString;
 use std::sync::Arc;
 
-/// Represents a backing pipeline that can render an object
-/// with the from which it was created.
+/// Represents a shader pipeline for color rendering
 pub struct Material {
     pub pipeline: vk::Pipeline,
     pub pipeline_layout: vk::PipelineLayout,

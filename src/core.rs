@@ -235,6 +235,13 @@ impl Core {
         Ok(crate::Material(self.materials.insert(material)))
     }
 
+    pub fn add_postprocessing(
+        &mut self,
+        spirv: &[u8],
+    ) -> Result<crate::Postprocessing> {
+        todo!("Postprocessing shader in Core")
+    }
+
     pub fn remove_material(&mut self, material: crate::Material) -> Result<()> {
         // Figure out how not to wait?
         unsafe {
