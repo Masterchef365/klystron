@@ -59,6 +59,10 @@ impl ParticleSystem {
         let pipeline =
             unsafe { prelude.device.create_compute_pipelines(None, &[create_info], None) }.result()?[0];
 
+        unsafe {
+            prelude.device.destroy_shader_module(Some(shader_module), None);
+        }
+
         Ok(Self {
             pipeline,
             prelude,

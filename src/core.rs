@@ -579,6 +579,11 @@ impl Drop for Core {
                 self.allocator.free(&self.prelude.device, mesh.vertices);
                 self.allocator.free(&self.prelude.device, mesh.indices);
             }
+            for (_, set) in self.particle_sets.drain() {
+                self.allocator.free(&self.prelude.device, set.mesh.vertices);
+                self.allocator.free(&self.prelude.device, set.mesh.indices);
+                self.allocator.free(&self.prelude.device, set.particles);
+            }
             for ubo in self.camera_ubos.drain(..) {
                 self.allocator.free(&self.prelude.device, ubo);
             }
