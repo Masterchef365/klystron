@@ -1,7 +1,7 @@
 use crate::frame_sync::FrameSync;
 use crate::handle::HandleMap;
 use crate::material::Material;
-use crate::particle_system::Particle;
+use crate::particle_system::{Particle, ParticleSystem, ParticleSet};
 use crate::swapchain_images::{SwapChainImage, SwapchainImages};
 use crate::vertex::Vertex;
 use crate::mesh::Mesh;
@@ -35,6 +35,8 @@ pub struct Core {
     pub allocator: Allocator,
     pub materials: HandleMap<Material>,
     pub meshes: HandleMap<Mesh>,
+    pub particle_systems: HandleMap<ParticleSystem>,
+    pub particle_sets: HandleMap<ParticleSet>,
     pub render_pass: vk::RenderPass,
     pub frame_sync: FrameSync,
     pub swapchain_images: Option<SwapchainImages>,
@@ -255,6 +257,8 @@ impl Core {
             swapchain_images: None,
             materials: Default::default(),
             meshes: Default::default(),
+            particle_systems: Default::default(),
+            particle_sets: Default::default(),
             particle_descriptor_set_layout,
             particle_pipeline_layout,
         })
@@ -483,7 +487,8 @@ impl Core {
 
     /// Add a compute shader for particle systems
     pub fn add_particle_system(&mut self, shader: &[u8]) -> Result<crate::ParticleSystem> {
-        todo!("Particle systems")
+        let particle_system = ParticleSystem::new(self.prelude.clone(), shader, self.particle_pipeline_layout)?;
+        Ok(crate::ParticleSystem(self.particle_systems.insert(particle_system)))
     }
 
     /// Add particle system data
