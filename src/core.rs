@@ -24,7 +24,7 @@ pub struct VkPrelude {
     pub entry: utils::loading::DefaultEntryLoader,
 }
 
-pub(crate) const FRAMES_IN_FLIGHT: usize = 2;
+pub(crate) const FRAMES_IN_FLIGHT: usize = 1;
 pub(crate) const COLOR_FORMAT: vk::Format = vk::Format::B8G8R8A8_SRGB;
 pub(crate) const DEPTH_FORMAT: vk::Format = vk::Format::D32_SFLOAT;
 
@@ -42,6 +42,8 @@ pub struct Core {
     pub descriptor_pool: vk::DescriptorPool,
     pub descriptor_set_layout: vk::DescriptorSetLayout,
     pub descriptor_sets: Vec<vk::DescriptorSet>,
+    pub particle_descriptor_set_layout: vk::DescriptorSetLayout,
+    pub particle_descriptor_set: vk::DescriptorSet,
     pub camera_ubos: Vec<Allocation<vk::Buffer>>,
     pub time_ubos: Vec<Allocation<vk::Buffer>>,
     pub prelude: Arc<VkPrelude>,
@@ -73,7 +75,8 @@ impl Core {
         )
         .result()?;
 
-        // Create descriptor layout
+        // Create descriptor layouts
+        // Color:
         let bindings = [
             vk::DescriptorSetLayoutBindingBuilder::new()
                 .binding(0)
@@ -97,13 +100,42 @@ impl Core {
         }
         .result()?;
 
+        // Particles:
+        let bindings = [
+            vk::DescriptorSetLayoutBindingBuilder::new()
+                .binding(0)
+                .descriptor_type(vk::DescriptorType::STORAGE_BUFFER)
+                .descriptor_count(1)
+                .stage_flags(vk::ShaderStageFlags::COMPUTE),
+            vk::DescriptorSetLayoutBindingBuilder::new()
+                .binding(1)
+                .descriptor_type(vk::DescriptorType::STORAGE_BUFFER)
+                .descriptor_count(1)
+                .stage_flags(vk::ShaderStageFlags::COMPUTE)
+        ];
+
+        let descriptor_set_layout_ci =
+            vk::DescriptorSetLayoutCreateInfoBuilder::new().bindings(&bindings);
+
+        let particle_descriptor_set_layout = unsafe {
+            prelude
+                .device
+                .create_descriptor_set_layout(&descriptor_set_layout_ci, None, None)
+        }
+        .result()?;
+
         // Create descriptor pool
-        let pool_sizes = [vk::DescriptorPoolSizeBuilder::new()
+        let color_render_descriptor_size = vk::DescriptorPoolSizeBuilder::new()
             ._type(vk::DescriptorType::UNIFORM_BUFFER)
-            .descriptor_count((FRAMES_IN_FLIGHT * 2) as u32)];
+            .descriptor_count((FRAMES_IN_FLIGHT * 2) as u32);
+        let particle_system_descriptor_size = vk::DescriptorPoolSizeBuilder::new()
+            ._type(vk::DescriptorType::STORAGE_BUFFER)
+            .descriptor_count(2);
+
+        let pool_sizes = [color_render_descriptor_size, particle_system_descriptor_size];
         let create_info = vk::DescriptorPoolCreateInfoBuilder::new()
             .pool_sizes(&pool_sizes)
-            .max_sets(FRAMES_IN_FLIGHT as u32);
+            .max_sets((FRAMES_IN_FLIGHT as u32) + 1);
         let descriptor_pool = unsafe {
             prelude
                 .device
@@ -112,13 +144,22 @@ impl Core {
         .result()?;
 
         // Create descriptor sets
-        let layouts = vec![descriptor_set_layout; FRAMES_IN_FLIGHT];
+        let layouts = [descriptor_set_layout; FRAMES_IN_FLIGHT];
         let create_info = vk::DescriptorSetAllocateInfoBuilder::new()
             .descriptor_pool(descriptor_pool)
             .set_layouts(&layouts);
 
         let descriptor_sets =
             unsafe { prelude.device.allocate_descriptor_sets(&create_info) }.result()?;
+
+        let layouts = [particle_descriptor_set_layout];
+        let create_info = vk::DescriptorSetAllocateInfoBuilder::new()
+            .descriptor_pool(descriptor_pool)
+            .set_layouts(&layouts);
+
+        let particle_descriptor_set =
+            unsafe { prelude.device.allocate_descriptor_sets(&create_info) }.result()?[0];
+
 
         // UBOs
         let ubo_create_info = vk::BufferCreateInfoBuilder::new()
@@ -201,6 +242,8 @@ impl Core {
             camera_ubos,
             time_ubos,
             descriptor_set_layout,
+            particle_descriptor_set_layout,
+            particle_descriptor_set,
             descriptor_pool,
             descriptor_sets,
             command_pool,

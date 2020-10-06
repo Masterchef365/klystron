@@ -20,7 +20,6 @@ pub struct ParticleSystem {
     prelude: Arc<VkPrelude>,
 }
 
-
 #[repr(C)]
 #[derive(Default, Copy, Clone)]
 pub struct Particle {
@@ -32,6 +31,13 @@ pub struct Particle {
 
 unsafe impl bytemuck::Zeroable for Particle {}
 unsafe impl bytemuck::Pod for Particle {}
+
+
+impl ParticleSystem {
+    pub fn new(prelude: Arc<VkPrelude>, shader: &[u8]) -> Result<Self> {
+        todo!()
+    }
+}
 
 impl ParticleSet {
     pub fn new(

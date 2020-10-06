@@ -1,3 +1,7 @@
+Big problem: `FRAMES_IN_FLIGHT` must equal one. This is because our current synchronization model will begin a new frame before the last one finished.
+That might kill VR until you can work out a better solution.
+
+
 * Make an SSBO. 
 * Populate the SSBO with particles
 * Load up the compute shader
