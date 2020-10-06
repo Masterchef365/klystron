@@ -7,3 +7,9 @@ Actually.... Maybe we have an SSBO for data the compute shader uses internally, 
 
 * You can add a particle system, and that returns a handle. Then you can specify the particle system in the frame packet and it'll draw. Custom shader? I guess??? Frricc
 Your render engine is not well set up for this...
+
+Y'know, you might be able to increase the number of visible "points" somehow by instead abusing fragment shaders to create a parallax effect with a texture of points. This would be much harder in VR I'd imagine... Well actually... If you had a seed for the random function, and used only camera-relative positional data it might work just fine. Hm.
+
+OOH - Once you have the particle system working, you should try setting it to triangle mode lol
+
+Remove the need for an index buffer perhaps... Just use draw instead of drawIndexed

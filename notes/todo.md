@@ -1,5 +1,5 @@
 # Todo
-* User-defined uniforms
+* Rename ComputeShader to ParticleSimulator
 * Staging buffer/gpu-only buffers
 * logging ideas:
     * OpenXR loader path  

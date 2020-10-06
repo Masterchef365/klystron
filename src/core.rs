@@ -481,12 +481,12 @@ impl Core {
     }
 
     /// Add a compute shader
-    pub fn add_compute_shader(&mut self, shader: &[u8]) -> Result<()> {
+    pub fn add_compute_shader(&mut self, shader: &[u8]) -> Result<crate::ComputeShader> {
         todo!()
     }
 
     /// Add a particle system
-    pub fn add_particles(&mut self, particles: &[Particle]) -> Result<()> {
+    pub fn add_particles(&mut self, particles: &[Particle]) -> Result<crate::ParticleSet> {
         todo!()
     }
 

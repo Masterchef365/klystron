@@ -1,14 +1,17 @@
 use anyhow::Result;
 use klystron::{
     runtime::{launch, App},
-    DrawType, Engine, FramePacket, Material, Mesh, Object, Vertex,
+    DrawType, Engine, FramePacket, Material, Mesh, Object, Vertex, ParticleSet, Particle, ComputeShader, ParticleSystem
 };
 use nalgebra::{Matrix4, Point3};
 use std::fs;
 
 struct MyApp {
-    material: Material,
+    triangle_mat: Material,
+    point_mat: Material,
+    simulation: ComputeShader,
     mesh: Mesh,
+    particles: ParticleSet,
     time: f32,
 }
 
@@ -18,7 +21,7 @@ impl App for MyApp {
     type Args = ();
 
     fn new(engine: &mut dyn Engine, _args: Self::Args) -> Result<Self> {
-        let material = engine.add_material(
+        let triangle_mat = engine.add_material(
             &fs::read("./examples/shaders/unlit.vert.spv")?,
             &fs::read("./examples/shaders/unlit.frag.spv")?,
             DrawType::Triangles,
@@ -27,9 +30,42 @@ impl App for MyApp {
         let (vertices, indices) = rainbow_cube();
         let mesh = engine.add_mesh(&vertices, &indices)?;
 
+        let point_mat = engine.add_material(
+            &fs::read("./examples/shaders/unlit.vert.spv")?,
+            &fs::read("./examples/shaders/unlit.frag.spv")?,
+            DrawType::Points,
+        )?;
+
+        let simulation = engine.add_compute_shader(&fs::read("./examples/shaders/particle.comp.spv")?)?;
+
+        const SIDE_LEN: usize = 10;
+        let mut particles = Vec::with_capacity(SIDE_LEN * SIDE_LEN * SIDE_LEN);
+        let mass = 10.0;
+        for x in 0..SIDE_LEN {
+            let x = x as f32 / SIDE_LEN as f32;
+            for y in 0..SIDE_LEN {
+                let y = y as f32 / SIDE_LEN as f32;
+                for z in 0..SIDE_LEN {
+                    let z = z as f32 / SIDE_LEN as f32;
+                    let charge = x.cos() + y.sin();
+                    particles.push(Particle {
+                        charge,
+                        mass,
+                        position: [x, y, z],
+                        velocity: [0.0; 3],
+                    });
+                }
+            }
+        }
+
+        let particles = engine.add_particles(&particles)?;
+
         Ok(Self {
+            point_mat,
+            simulation,
+            particles,
             mesh,
-            material,
+            triangle_mat,
             time: 0.0,
         })
     }
@@ -37,14 +73,20 @@ impl App for MyApp {
     fn next_frame(&mut self, engine: &mut dyn Engine) -> Result<FramePacket> {
         let transform = Matrix4::from_euler_angles(0.0, self.time, 0.0);
         let object = Object {
-            material: self.material,
+            material: self.triangle_mat,
             mesh: self.mesh,
             transform,
+        };
+        let particle_system = ParticleSystem {
+            compute_shader: self.simulation,
+            material: self.point_mat,
+            particles: self.particles,
         };
         engine.update_time_value(self.time)?;
         self.time += 0.01;
         Ok(FramePacket {
             objects: vec![object],
+            particle_systems: vec![particle_system],
         })
     }
 }

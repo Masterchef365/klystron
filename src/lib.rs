@@ -26,14 +26,16 @@ pub use windowed::{Camera, WinitBackend};
 pub struct FramePacket {
     /// The entire scene's worth of objects
     pub objects: Vec<Object>,
+    /// Particle systems drawn and simulated this frame
+    pub particle_systems: Vec<ParticleSystem>,
 }
 
 /// Particle system
 pub struct ParticleSystem {
     /// How to simulate particles
     pub compute_shader: ComputeShader,
-    /// Particles to draw
-    pub particles: Particles,
+    /// ParticleSet to draw
+    pub particles: ParticleSet,
     /// How to draw particles
     pub material: Material,
 }
@@ -60,9 +62,9 @@ pub struct Mesh(pub(crate) handle::Id);
 #[derive(Copy, Clone)]
 pub struct ComputeShader(pub(crate) handle::Id);
 
-/// Handle for a set of Particles
+/// Handle for a set of ParticleSet
 #[derive(Copy, Clone)]
-pub struct Particles(pub(crate) handle::Id);
+pub struct ParticleSet(pub(crate) handle::Id);
 
 /// Material rasterization method
 pub enum DrawType {
@@ -93,9 +95,9 @@ pub trait Engine {
     /// Update the animation value
     fn update_time_value(&self, data: f32) -> Result<()>;
     /// Add a compute shader
-    fn add_compute_shader(&mut self, shader: &[u8]) -> Result<()>;
+    fn add_compute_shader(&mut self, shader: &[u8]) -> Result<ComputeShader>;
     /// Add a particle system
-    fn add_particles(&mut self, particles: &[Particle]) -> Result<()>;
+    fn add_particles(&mut self, particles: &[Particle]) -> Result<ParticleSet>;
 }
 
 pub(crate) const ENGINE_NAME: &'static str = "Klystron";
