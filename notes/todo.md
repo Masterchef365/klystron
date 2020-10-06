@@ -12,9 +12,8 @@
     * Swapchain rebuilds
 
 ## Design experiments
-* Improve `AllocatedBuffer`! (see source)
-* Separate features for VR and Windowed modes. You may use both if you enable both.
 * Move `Mutex<Allocator>` into `VkPrelude`
+* Separate features for VR and Windowed modes. You may use both if you enable both.
 * Return `Arc<VkPrelude>` from `VkPrelude::new()`. Or something. I don't like having to add Arc to everything.
 * Bring Your Own Shader Uniforms (User defined data...)
 * Object for each backend, just pass the core in an argument to `next_frame()`

@@ -44,6 +44,7 @@ impl App for MyApp {
         engine.update_time_value(self.time)?;
         self.time += 0.01;
         Ok(FramePacket {
+            particle_systems: vec![],
             objects: vec![object],
         })
     }

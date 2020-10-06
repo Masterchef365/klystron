@@ -3,8 +3,10 @@ use anyhow::Result;
 use erupt::{utils, vk1_0 as vk};
 use std::ffi::CString;
 use std::sync::Arc;
+use crate::Mesh;
 
 pub struct ParticleSet {
+    mesh: Mesh,
 }
 
 pub struct ParticleSystem {

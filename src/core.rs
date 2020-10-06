@@ -1,9 +1,10 @@
 use crate::frame_sync::FrameSync;
 use crate::handle::HandleMap;
 use crate::material::Material;
+use crate::particle_system::Particle;
 use crate::swapchain_images::{SwapChainImage, SwapchainImages};
 use crate::vertex::Vertex;
-use crate::particle_system::Particle;
+use crate::mesh::Mesh;
 use anyhow::Result;
 use erupt::{
     utils::{
@@ -28,12 +29,6 @@ pub(crate) const COLOR_FORMAT: vk::Format = vk::Format::B8G8R8A8_SRGB;
 pub(crate) const DEPTH_FORMAT: vk::Format = vk::Format::D32_SFLOAT;
 
 pub type CameraUbo = [f32; 32];
-
-pub struct Mesh {
-    pub indices: Allocation<vk::Buffer>,
-    pub vertices: Allocation<vk::Buffer>,
-    pub n_indices: u32,
-}
 
 pub struct Core {
     pub allocator: Allocator,
@@ -246,52 +241,12 @@ impl Core {
     }
 
     pub fn add_mesh(&mut self, vertices: &[Vertex], indices: &[u16]) -> Result<crate::Mesh> {
-        let n_indices = indices.len() as u32;
-
-        //TODO: Use staging buffers!
-        let create_info = vk::BufferCreateInfoBuilder::new()
-            .usage(vk::BufferUsageFlags::VERTEX_BUFFER)
-            .sharing_mode(vk::SharingMode::EXCLUSIVE)
-            .size(std::mem::size_of_val(vertices) as u64);
-        let buffer =
-            unsafe { self.prelude.device.create_buffer(&create_info, None, None) }.result()?;
-        let vertex_buffer = self
-            .allocator
-            .allocate(
-                &self.prelude.device,
-                buffer,
-                allocator::MemoryTypeFinder::dynamic(),
-            )
-            .result()?;
-        let mut map = vertex_buffer.map(&self.prelude.device, ..).result()?;
-        map.import(bytemuck::cast_slice(vertices));
-        map.unmap(&self.prelude.device).result()?;
-
-        let create_info = vk::BufferCreateInfoBuilder::new()
-            .usage(vk::BufferUsageFlags::INDEX_BUFFER)
-            .sharing_mode(vk::SharingMode::EXCLUSIVE)
-            .size(std::mem::size_of_val(indices) as u64);
-        let buffer =
-            unsafe { self.prelude.device.create_buffer(&create_info, None, None) }.result()?;
-        let index_buffer = self
-            .allocator
-            .allocate(
-                &self.prelude.device,
-                buffer,
-                allocator::MemoryTypeFinder::dynamic(),
-            )
-            .result()?;
-        let mut map = index_buffer.map(&self.prelude.device, ..).result()?;
-        map.import(bytemuck::cast_slice(indices));
-        map.unmap(&self.prelude.device).result()?;
-
-        let mesh = Mesh {
-            indices: index_buffer,
-            vertices: vertex_buffer,
-            n_indices,
-        };
-
-        Ok(crate::Mesh(self.meshes.insert(mesh)))
+        Ok(crate::Mesh(self.meshes.insert(Mesh::new(
+            &self.prelude.device,
+            &mut self.allocator,
+            vertices,
+            indices,
+        )?)))
     }
 
     pub fn remove_mesh(&mut self, id: crate::Mesh) -> Result<()> {
@@ -489,7 +444,6 @@ impl Core {
     pub fn add_particles(&mut self, particles: &[Particle]) -> Result<crate::ParticleSet> {
         todo!()
     }
-
 }
 
 fn create_render_pass(device: &DeviceLoader, vr: bool) -> Result<vk::RenderPass> {

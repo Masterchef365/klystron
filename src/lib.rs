@@ -13,6 +13,7 @@ mod vertex;
 mod vr;
 mod windowed;
 mod particle_system;
+mod mesh;
 pub mod runtime;
 use anyhow::Result;
 use nalgebra::Matrix4;
