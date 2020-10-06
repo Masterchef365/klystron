@@ -28,13 +28,13 @@ pub struct FramePacket {
     /// The entire scene's worth of objects
     pub objects: Vec<Object>,
     /// Particle systems drawn and simulated this frame
-    pub particle_systems: Vec<ParticleSystem>,
+    pub particle_systems: Vec<ParticleSimulation>,
 }
 
 /// Particle system
-pub struct ParticleSystem {
+pub struct ParticleSimulation {
     /// How to simulate particles
-    pub compute_shader: ComputeShader,
+    pub particle_system: particle_system::ParticleSystem,
     /// ParticleSet to draw
     pub particles: ParticleSet,
     /// How to draw particles
@@ -61,7 +61,7 @@ pub struct Mesh(pub(crate) handle::Id);
 
 /// Handle for a Compute Shader
 #[derive(Copy, Clone)]
-pub struct ComputeShader(pub(crate) handle::Id);
+pub struct ParticleSystem(pub(crate) handle::Id);
 
 /// Handle for a set of ParticleSet
 #[derive(Copy, Clone)]
@@ -96,7 +96,7 @@ pub trait Engine {
     /// Update the animation value
     fn update_time_value(&self, data: f32) -> Result<()>;
     /// Add a compute shader
-    fn add_compute_shader(&mut self, shader: &[u8]) -> Result<ComputeShader>;
+    fn add_particle_system(&mut self, shader: &[u8]) -> Result<ParticleSystem>;
     /// Add a particle system
     fn add_particles(&mut self, particles: &[Particle]) -> Result<ParticleSet>;
 }

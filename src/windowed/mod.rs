@@ -2,7 +2,7 @@ mod camera;
 use crate::core::{Core, VkPrelude};
 use crate::hardware_query::HardwareSelection;
 use crate::swapchain_images::SwapchainImages;
-use crate::{DrawType, Engine, FramePacket, Material, Mesh, Vertex, ComputeShader, ParticleSet};
+use crate::{DrawType, Engine, FramePacket, Material, Mesh, Vertex, ParticleSystem, ParticleSet};
 use anyhow::Result;
 pub use camera::Camera;
 use erupt::{
@@ -317,8 +317,8 @@ impl Engine for WinitBackend {
     fn update_time_value(&self, data: f32) -> Result<()> {
         self.core.update_time_value(data)
     }
-    fn add_compute_shader(&mut self, shader: &[u8]) -> Result<ComputeShader> {
-        self.core.add_compute_shader(shader)
+    fn add_particle_system(&mut self, shader: &[u8]) -> Result<ParticleSystem> {
+        self.core.add_particle_system(shader)
     }
     fn add_particles(&mut self, particles: &[Particle]) -> Result<ParticleSet> {
         self.core.add_particles(particles)
