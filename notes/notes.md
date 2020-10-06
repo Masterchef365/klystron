@@ -1,3 +1,5 @@
+Need to actually write command buffers.. But before then we should make that loading this all works
+
 Big problem: `FRAMES_IN_FLIGHT` must equal one. This is because our current synchronization model will begin a new frame before the last one finished.
 That might kill VR until you can work out a better solution.
 

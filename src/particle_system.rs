@@ -10,11 +10,12 @@ use erupt::{
 use std::ffi::CString;
 use std::sync::Arc;
 
+// TODO: This leaks GPU memory!!
 pub struct ParticleSet {
     pub mesh: Mesh,
     pub particles: Allocation<vk::Buffer>,
     pub descriptor_set: vk::DescriptorSet,
-    prelude: Arc<VkPrelude>,
+    //prelude: Arc<VkPrelude>,
 }
 
 pub struct ParticleSystem {
@@ -114,26 +115,26 @@ impl ParticleSet {
             unsafe { prelude.device.allocate_descriptor_sets(&create_info) }.result()?[0];
 
         // Update it with the buffers in this structure
-        let camera_buffer_infos = [vk::DescriptorBufferInfoBuilder::new()
+        let vertex_buffer_infos = [vk::DescriptorBufferInfoBuilder::new()
             .buffer(*mesh.vertices.object())
             .offset(0)
             .range(std::mem::size_of::<Particle>() as u64)];
 
-        let animation_buffer_infos = [vk::DescriptorBufferInfoBuilder::new()
+        let particle_buffer_infos = [vk::DescriptorBufferInfoBuilder::new()
             .buffer(*particle_buffer.object())
             .offset(0)
             .range(std::mem::size_of::<f32>() as u64)];
 
         let writes = [
             vk::WriteDescriptorSetBuilder::new()
-                .buffer_info(&camera_buffer_infos)
-                .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
+                .buffer_info(&vertex_buffer_infos)
+                .descriptor_type(vk::DescriptorType::STORAGE_BUFFER)
                 .dst_set(descriptor_set)
                 .dst_binding(0)
                 .dst_array_element(0),
             vk::WriteDescriptorSetBuilder::new()
-                .buffer_info(&animation_buffer_infos)
-                .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
+                .buffer_info(&particle_buffer_infos)
+                .descriptor_type(vk::DescriptorType::STORAGE_BUFFER)
                 .dst_set(descriptor_set)
                 .dst_binding(1)
                 .dst_array_element(0),
@@ -147,7 +148,16 @@ impl ParticleSet {
             mesh,
             descriptor_set,
             particles: particle_buffer,
-            prelude,
         })
     }
 }
+
+/*
+impl Drop for ParticleSet {
+    fn drop(&mut self) {
+        unsafe {
+            self.prelude.device.destroy_desc
+        }
+    }
+}
+*/

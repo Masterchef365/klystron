@@ -6,6 +6,8 @@ use erupt::{
     vk1_0 as vk,
 };
 
+// TODO: This leaks GPU memory!!
+
 pub struct Mesh {
     pub indices: Allocation<vk::Buffer>,
     pub vertices: Allocation<vk::Buffer>,
