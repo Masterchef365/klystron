@@ -29,7 +29,7 @@ impl Mesh {
         let buffer =
             unsafe { device.create_buffer(&create_info, None, None) }.result()?;
         let vertex_buffer = allocator
-            .allocate(device, buffer, allocator::MemoryTypeFinder::dynamic())
+            .allocate(device, buffer, allocator::MemoryTypeFinder::upload())
             .result()?;
         let mut map = vertex_buffer.map(device, ..).result()?;
         map.import(bytemuck::cast_slice(vertices));
@@ -41,7 +41,7 @@ impl Mesh {
             .size(std::mem::size_of_val(indices) as u64);
         let buffer = unsafe { device.create_buffer(&create_info, None, None) }.result()?;
         let index_buffer = allocator
-            .allocate(device, buffer, allocator::MemoryTypeFinder::dynamic())
+            .allocate(device, buffer, allocator::MemoryTypeFinder::upload())
             .result()?;
         let mut map = index_buffer.map(device, ..).result()?;
         map.import(bytemuck::cast_slice(indices));
