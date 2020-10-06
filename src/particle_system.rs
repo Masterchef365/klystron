@@ -118,12 +118,12 @@ impl ParticleSet {
         let vertex_buffer_infos = [vk::DescriptorBufferInfoBuilder::new()
             .buffer(*mesh.vertices.object())
             .offset(0)
-            .range(std::mem::size_of::<Particle>() as u64)];
+            .range(std::mem::size_of::<Vertex>() as u64)];
 
         let particle_buffer_infos = [vk::DescriptorBufferInfoBuilder::new()
             .buffer(*particle_buffer.object())
             .offset(0)
-            .range(std::mem::size_of::<f32>() as u64)];
+            .range(std::mem::size_of::<Particle>() as u64)];
 
         let writes = [
             vk::WriteDescriptorSetBuilder::new()

@@ -493,7 +493,14 @@ impl Core {
 
     /// Add particle system data
     pub fn add_particles(&mut self, particles: &[Particle]) -> Result<crate::ParticleSet> {
-        todo!("Particle sets")
+        let particle_set = ParticleSet::new(
+            self.prelude.clone(), 
+            &mut self.allocator, 
+            particles, 
+            self.particle_descriptor_set_layout, 
+            self.descriptor_pool
+        )?;
+        Ok(crate::ParticleSet(self.particle_sets.insert(particle_set)))
     }
 }
 

@@ -25,7 +25,7 @@ impl Mesh {
 
         //TODO: Use staging buffers!
         let create_info = vk::BufferCreateInfoBuilder::new()
-            .usage(vk::BufferUsageFlags::VERTEX_BUFFER)
+            .usage(vk::BufferUsageFlags::VERTEX_BUFFER | vk::BufferUsageFlags::STORAGE_BUFFER)
             .sharing_mode(vk::SharingMode::EXCLUSIVE)
             .size(std::mem::size_of_val(vertices) as u64);
         let buffer =
