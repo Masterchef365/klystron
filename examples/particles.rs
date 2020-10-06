@@ -1,7 +1,7 @@
 use anyhow::Result;
 use klystron::{
     runtime::{launch, App},
-    DrawType, Engine, FramePacket, Material, Mesh, Object, Vertex, ParticleSet, Particle, ComputeShader, ParticleSystem
+    DrawType, Engine, FramePacket, Material, Mesh, Object, Vertex, ParticleSet, Particle, ParticleSystem, ParticleSimulation,
 };
 use nalgebra::{Matrix4, Point3};
 use std::fs;
@@ -9,7 +9,7 @@ use std::fs;
 struct MyApp {
     triangle_mat: Material,
     point_mat: Material,
-    simulation: ComputeShader,
+    simulation: ParticleSystem,
     mesh: Mesh,
     particles: ParticleSet,
     time: f32,
@@ -36,7 +36,7 @@ impl App for MyApp {
             DrawType::Points,
         )?;
 
-        let simulation = engine.add_compute_shader(&fs::read("./examples/shaders/particle.comp.spv")?)?;
+        let simulation = engine.add_particle_system(&fs::read("./examples/shaders/particle.comp.spv")?)?;
 
         const SIDE_LEN: usize = 10;
         let mut particles = Vec::with_capacity(SIDE_LEN * SIDE_LEN * SIDE_LEN);
@@ -77,8 +77,8 @@ impl App for MyApp {
             mesh: self.mesh,
             transform,
         };
-        let particle_system = ParticleSystem {
-            compute_shader: self.simulation,
+        let particle_system = ParticleSimulation {
+            particle_system: self.simulation,
             material: self.point_mat,
             particles: self.particles,
         };

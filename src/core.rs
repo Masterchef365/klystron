@@ -483,12 +483,12 @@ impl Core {
 
     /// Add a compute shader for particle systems
     pub fn add_particle_system(&mut self, shader: &[u8]) -> Result<crate::ParticleSystem> {
-        todo!()
+        todo!("Particle systems")
     }
 
     /// Add particle system data
     pub fn add_particles(&mut self, particles: &[Particle]) -> Result<crate::ParticleSet> {
-        todo!()
+        todo!("Particle sets")
     }
 }
 

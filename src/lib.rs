@@ -34,7 +34,7 @@ pub struct FramePacket {
 /// Particle system
 pub struct ParticleSimulation {
     /// How to simulate particles
-    pub particle_system: particle_system::ParticleSystem,
+    pub particle_system: ParticleSystem,
     /// ParticleSet to draw
     pub particles: ParticleSet,
     /// How to draw particles
