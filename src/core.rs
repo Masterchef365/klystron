@@ -3,6 +3,7 @@ use crate::handle::HandleMap;
 use crate::material::Material;
 use crate::swapchain_images::{SwapChainImage, SwapchainImages};
 use crate::vertex::Vertex;
+use crate::particle_system::Particle;
 use anyhow::Result;
 use erupt::{
     utils::{
@@ -478,6 +479,17 @@ impl Core {
         map.unmap(&self.prelude.device).result()?;
         Ok(())
     }
+
+    /// Add a compute shader
+    pub fn add_compute_shader(&mut self, shader: &[u8]) -> Result<()> {
+        todo!()
+    }
+
+    /// Add a particle system
+    pub fn add_particles(&mut self, particles: &[Particle]) -> Result<()> {
+        todo!()
+    }
+
 }
 
 fn create_render_pass(device: &DeviceLoader, vr: bool) -> Result<vk::RenderPass> {

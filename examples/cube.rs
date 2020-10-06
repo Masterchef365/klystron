@@ -21,7 +21,7 @@ impl App for MyApp {
         let material = engine.add_material(
             &fs::read("./examples/shaders/unlit.vert.spv")?,
             &fs::read("./examples/shaders/unlit.frag.spv")?,
-            DrawType::Triangles,
+            DrawType::Lines,
         )?;
 
         let (vertices, indices) = rainbow_cube();

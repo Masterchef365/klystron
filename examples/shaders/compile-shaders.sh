@@ -6,3 +6,4 @@ compile() {
 
 compile unlit.vert
 compile unlit.frag
+compile particle.comp

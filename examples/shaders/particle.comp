@@ -1,0 +1,24 @@
+#version 450
+struct Particle {
+    vec3 position;
+    vec3 velocity;
+    float mass;
+    float charge;
+};
+
+layout (std430, binding = 0) buffer ParticleBuffer {
+    Particle particles[];
+};
+
+void main() {
+    uint gid = gl_GlobalInvocationID.x;
+    Particle self = particles[gid];
+    vec3 velocity = self.velocity;
+    for (int i = 0; i < particles.length(); i++) {
+        Particle other = particles[i];
+        float dist = distance(self.position, other.position);
+        velocity += (self.charge * other.charge) / (dist * self.mass);
+    }
+    particles[gid].velocity = velocity;
+    particles[gid].position += velocity;
+}

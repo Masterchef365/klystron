@@ -13,6 +13,7 @@ use erupt::{
 use std::ffi::CString;
 use std::sync::Arc;
 use winit::window::Window;
+use crate::particle_system::Particle;
 
 /// Windowed mode Winit engine backend
 pub struct WinitBackend {
@@ -315,6 +316,12 @@ impl Engine for WinitBackend {
     }
     fn update_time_value(&self, data: f32) -> Result<()> {
         self.core.update_time_value(data)
+    }
+    fn add_compute_shader(&mut self, shader: &[u8]) -> Result<()> {
+        self.core.add_compute_shader(shader)
+    }
+    fn add_particles(&mut self, particles: &[Particle]) -> Result<()> {
+        self.core.add_particles(particles)
     }
 }
 

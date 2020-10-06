@@ -8,13 +8,15 @@ mod frame_sync;
 mod handle;
 mod hardware_query;
 mod material;
-pub mod runtime;
 mod swapchain_images;
 mod vertex;
 mod vr;
 mod windowed;
+mod particle_system;
+pub mod runtime;
 use anyhow::Result;
 use nalgebra::Matrix4;
+pub use particle_system::Particle;
 pub use vertex::Vertex;
 pub use vr::{xr_prelude::XrPrelude, OpenXrBackend};
 pub use windowed::{Camera, WinitBackend};
@@ -26,6 +28,16 @@ pub struct FramePacket {
     pub objects: Vec<Object>,
 }
 
+/// Particle system
+pub struct ParticleSystem {
+    /// How to simulate particles
+    pub compute_shader: ComputeShader,
+    /// Particles to draw
+    pub particles: Particles,
+    /// How to draw particles
+    pub material: Material,
+}
+
 /// A single object in the scene
 pub struct Object {
     /// How to draw this object
@@ -34,8 +46,6 @@ pub struct Object {
     pub mesh: Mesh,
     /// Transformation applied to each vertex of this Object
     pub transform: Matrix4<f32>,
-    // /// An additional time uniform passed to the vertex and fragment shaders
-    // pub anim: f32,
 }
 
 /// Handle for a Material (Draw commands)
@@ -45,6 +55,14 @@ pub struct Material(pub(crate) handle::Id);
 /// Handle for a Mesh (Draw content)
 #[derive(Copy, Clone)]
 pub struct Mesh(pub(crate) handle::Id);
+
+/// Handle for a Compute Shader
+#[derive(Copy, Clone)]
+pub struct ComputeShader(pub(crate) handle::Id);
+
+/// Handle for a set of Particles
+#[derive(Copy, Clone)]
+pub struct Particles(pub(crate) handle::Id);
 
 /// Material rasterization method
 pub enum DrawType {
@@ -74,6 +92,10 @@ pub trait Engine {
     fn remove_mesh(&mut self, mesh: Mesh) -> Result<()>;
     /// Update the animation value
     fn update_time_value(&self, data: f32) -> Result<()>;
+    /// Add a compute shader
+    fn add_compute_shader(&mut self, shader: &[u8]) -> Result<()>;
+    /// Add a particle system
+    fn add_particles(&mut self, particles: &[Particle]) -> Result<()>;
 }
 
 pub(crate) const ENGINE_NAME: &'static str = "Klystron";

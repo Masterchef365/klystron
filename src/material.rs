@@ -72,7 +72,7 @@ impl Material {
             .depth_clamp_enable(false)
             .rasterizer_discard_enable(false)
             .polygon_mode(vk::PolygonMode::FILL)
-            .line_width(1.0)
+            .line_width(8.0)
             .cull_mode(vk::CullModeFlags::BACK)
             .front_face(vk::FrontFace::COUNTER_CLOCKWISE)
             .depth_clamp_enable(false);
