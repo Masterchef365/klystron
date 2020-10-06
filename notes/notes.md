@@ -1,6 +1,9 @@
 Big problem: `FRAMES_IN_FLIGHT` must equal one. This is because our current synchronization model will begin a new frame before the last one finished.
 That might kill VR until you can work out a better solution.
 
+* Why do we make a new pipeline layout for every material?
+    * We really only need one per draw type
+
 
 * Make an SSBO. 
 * Populate the SSBO with particles

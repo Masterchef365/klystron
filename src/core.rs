@@ -24,6 +24,7 @@ pub struct VkPrelude {
     pub entry: utils::loading::DefaultEntryLoader,
 }
 
+pub(crate) const MAX_PARTICLE_SYSEMS: u32 = 8;
 pub(crate) const FRAMES_IN_FLIGHT: usize = 1;
 pub(crate) const COLOR_FORMAT: vk::Format = vk::Format::B8G8R8A8_SRGB;
 pub(crate) const DEPTH_FORMAT: vk::Format = vk::Format::D32_SFLOAT;
@@ -43,7 +44,7 @@ pub struct Core {
     pub descriptor_set_layout: vk::DescriptorSetLayout,
     pub descriptor_sets: Vec<vk::DescriptorSet>,
     pub particle_descriptor_set_layout: vk::DescriptorSetLayout,
-    pub particle_descriptor_set: vk::DescriptorSet,
+    pub particle_pipeline_layout: vk::PipelineLayout,
     pub camera_ubos: Vec<Allocation<vk::Buffer>>,
     pub time_ubos: Vec<Allocation<vk::Buffer>>,
     pub prelude: Arc<VkPrelude>,
@@ -135,7 +136,7 @@ impl Core {
         let pool_sizes = [color_render_descriptor_size, particle_system_descriptor_size];
         let create_info = vk::DescriptorPoolCreateInfoBuilder::new()
             .pool_sizes(&pool_sizes)
-            .max_sets((FRAMES_IN_FLIGHT as u32) + 1);
+            .max_sets((FRAMES_IN_FLIGHT as u32) + MAX_PARTICLE_SYSEMS);
         let descriptor_pool = unsafe {
             prelude
                 .device
@@ -151,14 +152,6 @@ impl Core {
 
         let descriptor_sets =
             unsafe { prelude.device.allocate_descriptor_sets(&create_info) }.result()?;
-
-        let layouts = [particle_descriptor_set_layout];
-        let create_info = vk::DescriptorSetAllocateInfoBuilder::new()
-            .descriptor_pool(descriptor_pool)
-            .set_layouts(&layouts);
-
-        let particle_descriptor_set =
-            unsafe { prelude.device.allocate_descriptor_sets(&create_info) }.result()?[0];
 
 
         // UBOs
@@ -237,13 +230,21 @@ impl Core {
 
         let render_pass = create_render_pass(&prelude.device, vr)?;
 
+        // Pipeline layout for particle systems
+        let descriptor_set_layouts = [particle_descriptor_set_layout];
+        let create_info =
+            vk::PipelineLayoutCreateInfoBuilder::new()
+            .push_constant_ranges(&[])
+            .set_layouts(&descriptor_set_layouts);
+        let particle_pipeline_layout =
+            unsafe { prelude.device.create_pipeline_layout(&create_info, None, None) }.result()?;
+
+
         Ok(Self {
             prelude,
             camera_ubos,
             time_ubos,
             descriptor_set_layout,
-            particle_descriptor_set_layout,
-            particle_descriptor_set,
             descriptor_pool,
             descriptor_sets,
             command_pool,
@@ -254,6 +255,8 @@ impl Core {
             swapchain_images: None,
             materials: Default::default(),
             meshes: Default::default(),
+            particle_descriptor_set_layout,
+            particle_pipeline_layout,
         })
     }
 
@@ -570,6 +573,8 @@ impl Drop for Core {
             for ubo in self.time_ubos.drain(..) {
                 self.allocator.free(&self.prelude.device, ubo);
             }
+            self.prelude.device.destroy_pipeline_layout(Some(self.particle_pipeline_layout), None);
+            self.prelude.device.destroy_descriptor_set_layout(Some(self.particle_descriptor_set_layout), None);
             self.prelude
                 .device
                 .destroy_render_pass(Some(self.render_pass), None);
