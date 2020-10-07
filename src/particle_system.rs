@@ -15,6 +15,7 @@ pub struct ParticleSet {
     pub mesh: Mesh,
     pub particles: Allocation<vk::Buffer>,
     pub descriptor_set: vk::DescriptorSet,
+    pub n_particles: usize,
 }
 
 pub struct ParticleSystem {
@@ -193,6 +194,7 @@ impl ParticleSet {
 
         Ok(Self {
             mesh,
+            n_particles: particles.len(),
             descriptor_set,
             particles: particle_buffer,
         })

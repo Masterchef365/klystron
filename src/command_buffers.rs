@@ -114,7 +114,6 @@ impl Core {
                     }
                 };
 
-                println!("DRAW PARTICLE SYSTEM");
                 self.cmd_draw_mesh(
                     command_buffer,
                     descriptor_set,
@@ -175,6 +174,7 @@ impl Core {
             .cmd_draw_indexed(command_buffer, mesh.n_indices, 1, 0, 0, 0);
     }
 
+    /*
     unsafe fn cmd_particle_forces(
         &self,
         command_buffer: vk::CommandBuffer,
@@ -188,6 +188,7 @@ impl Core {
             for particle_sim in relevant_sims {}
         }
     }
+    */
 
     unsafe fn cmd_particle_motion(
         &self,
@@ -217,7 +218,8 @@ impl Core {
                     &[particle_set.descriptor_set],
                     &[],
                 );
-                self.prelude.device.cmd_dispatch(command_buffer, 64, 1, 1);
+                let size_x = (particle_set.n_particles / 64) as u32 + 1;
+                self.prelude.device.cmd_dispatch(command_buffer, size_x, 1, 1);
             }
         }
     }
@@ -243,13 +245,20 @@ impl Core {
                 .begin_command_buffer(command_buffer, &begin_info)
                 .result()?;
 
-            self.cmd_particle_forces(command_buffer, packet);
-
-            // TODO: BARRIER
+            //self.cmd_particle_forces(command_buffer, packet);
 
             self.cmd_particle_motion(command_buffer, packet);
 
-            // TODO: BARRIER
+
+            self.prelude.device.cmd_pipeline_barrier(
+                command_buffer,
+                vk::PipelineStageFlags::COMPUTE_SHADER,
+                vk::PipelineStageFlags::VERTEX_INPUT,
+                None,
+                &[],
+                &[],
+                &[],
+            );
 
             self.cmd_render_objects(command_buffer, descriptor_set, packet, image);
 
