@@ -13,6 +13,7 @@ mod vertex;
 mod vr;
 mod windowed;
 mod particle_system;
+mod command_buffers;
 mod mesh;
 pub mod runtime;
 use anyhow::Result;
