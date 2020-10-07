@@ -61,20 +61,21 @@ impl ParticleSystem {
         }
         .result()?;
 
-        // Create pipeline
+        // Create pipelines
         let entry_point = CString::new("main")?;
+
         let forces_stage = vk::PipelineShaderStageCreateInfoBuilder::new()
             .stage(vk::ShaderStageFlagBits::COMPUTE)
             .module(forces_shader_module)
             .name(&entry_point)
             .build();
 
-        let entry_point = CString::new("main")?;
         let motion_stage = vk::PipelineShaderStageCreateInfoBuilder::new()
             .stage(vk::ShaderStageFlagBits::COMPUTE)
             .module(motion_shader_module)
             .name(&entry_point)
             .build();
+
         let pipeline_create_infos = [
             vk::ComputePipelineCreateInfoBuilder::new()
                 .stage(forces_stage)

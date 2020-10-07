@@ -36,7 +36,10 @@ impl App for MyApp {
             DrawType::Points,
         )?;
 
-        let simulation = engine.add_particle_system(&fs::read("./examples/shaders/particle.comp.spv")?)?;
+        let simulation = engine.add_particle_system(
+            &fs::read("./examples/shaders/particle_forces.comp.spv")?,
+            &fs::read("./examples/shaders/particle_motion.comp.spv")?
+        )?;
 
         const SIDE_LEN: usize = 10;
         let mut particles = Vec::with_capacity(SIDE_LEN * SIDE_LEN * SIDE_LEN);
@@ -47,7 +50,7 @@ impl App for MyApp {
                 let y = y as f32 / SIDE_LEN as f32;
                 for z in 0..SIDE_LEN {
                     let z = z as f32 / SIDE_LEN as f32;
-                    let charge = x.cos() + y.sin();
+                    let charge = x.cos() + y.sin() + z.cos();
                     particles.push(Particle {
                         charge,
                         mass,
