@@ -486,8 +486,8 @@ impl Core {
     }
 
     /// Add a compute shader for particle systems
-    pub fn add_particle_system(&mut self, shader: &[u8]) -> Result<crate::ParticleSystem> {
-        let particle_system = ParticleSystem::new(self.prelude.clone(), shader, self.particle_pipeline_layout)?;
+    pub fn add_particle_system(&mut self, forces: &[u8], motion: &[u8]) -> Result<crate::ParticleSystem> {
+        let particle_system = ParticleSystem::new(self.prelude.clone(), forces, motion, self.particle_pipeline_layout)?;
         Ok(crate::ParticleSystem(self.particle_systems.insert(particle_system)))
     }
 

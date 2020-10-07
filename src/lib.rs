@@ -96,7 +96,7 @@ pub trait Engine {
     /// Update the animation value
     fn update_time_value(&self, data: f32) -> Result<()>;
     /// Add a compute shader
-    fn add_particle_system(&mut self, shader: &[u8]) -> Result<ParticleSystem>;
+    fn add_particle_system(&mut self, forces: &[u8], motion: &[u8]) -> Result<ParticleSystem>;
     /// Add a particle system
     fn add_particles(&mut self, particles: &[Particle]) -> Result<ParticleSet>;
 }

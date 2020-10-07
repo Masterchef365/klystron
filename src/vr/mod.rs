@@ -412,8 +412,8 @@ impl Engine for OpenXrBackend {
     fn update_time_value(&self, data: f32) -> Result<()> {
         self.core.update_time_value(data)
     }
-    fn add_particle_system(&mut self, shader: &[u8]) -> Result<ParticleSystem> {
-        self.core.add_particle_system(shader)
+    fn add_particle_system(&mut self, forces_shader: &[u8], motion_shader: &[u8]) -> Result<ParticleSystem> {
+        self.core.add_particle_system(forces_shader, motion_shader)
     }
     fn add_particles(&mut self, particles: &[Particle]) -> Result<ParticleSet> {
         self.core.add_particles(particles)

@@ -3,9 +3,9 @@ use crate::mesh::Mesh;
 use crate::vertex::Vertex;
 use anyhow::Result;
 use erupt::{
-    utils::allocator::{self, Allocation, Allocator},
     utils,
-    vk1_0 as vk, DeviceLoader,
+    utils::allocator::{self, Allocation, Allocator},
+    vk1_0 as vk,
 };
 use std::ffi::CString;
 use std::sync::Arc;
@@ -15,11 +15,11 @@ pub struct ParticleSet {
     pub mesh: Mesh,
     pub particles: Allocation<vk::Buffer>,
     pub descriptor_set: vk::DescriptorSet,
-    //prelude: Arc<VkPrelude>,
 }
 
 pub struct ParticleSystem {
-    pub pipeline: vk::Pipeline,
+    pub forces_pipeline: vk::Pipeline,
+    pub motion_pipeline: vk::Pipeline,
     prelude: Arc<VkPrelude>,
 }
 
@@ -36,44 +36,86 @@ unsafe impl bytemuck::Zeroable for Particle {}
 unsafe impl bytemuck::Pod for Particle {}
 
 impl ParticleSystem {
-    pub fn new(prelude: Arc<VkPrelude>, shader: &[u8], pipeline_layout: vk::PipelineLayout) -> Result<Self> {
-        // Create shader modules
-        let shader_decoded = utils::decode_spv(shader)?;
-        let create_info = vk::ShaderModuleCreateInfoBuilder::new().code(&shader_decoded);
-        let shader_module = unsafe {
-                prelude.device
+    pub fn new(
+        prelude: Arc<VkPrelude>,
+        forces_shader: &[u8],
+        motion_shader: &[u8],
+        pipeline_layout: vk::PipelineLayout,
+    ) -> Result<Self> {
+        // Create forces_shader modules
+        let forces_shader_decoded = utils::decode_spv(forces_shader)?;
+        let create_info = vk::ShaderModuleCreateInfoBuilder::new().code(&forces_shader_decoded);
+        let forces_shader_module = unsafe {
+            prelude
+                .device
+                .create_shader_module(&create_info, None, None)
+        }
+        .result()?;
+
+        let motion_shader_decoded = utils::decode_spv(motion_shader)?;
+        let create_info = vk::ShaderModuleCreateInfoBuilder::new().code(&motion_shader_decoded);
+        let motion_shader_module = unsafe {
+            prelude
+                .device
                 .create_shader_module(&create_info, None, None)
         }
         .result()?;
 
         // Create pipeline
         let entry_point = CString::new("main")?;
-        let stage = vk::PipelineShaderStageCreateInfoBuilder::new()
+        let forces_stage = vk::PipelineShaderStageCreateInfoBuilder::new()
             .stage(vk::ShaderStageFlagBits::COMPUTE)
-            .module(shader_module)
+            .module(forces_shader_module)
             .name(&entry_point)
             .build();
-        let create_info = vk::ComputePipelineCreateInfoBuilder::new()
-            .stage(stage)
-            .layout(pipeline_layout);
-        let pipeline =
-            unsafe { prelude.device.create_compute_pipelines(None, &[create_info], None) }.result()?[0];
+
+        let entry_point = CString::new("main")?;
+        let motion_stage = vk::PipelineShaderStageCreateInfoBuilder::new()
+            .stage(vk::ShaderStageFlagBits::COMPUTE)
+            .module(motion_shader_module)
+            .name(&entry_point)
+            .build();
+        let pipeline_create_infos = [
+            vk::ComputePipelineCreateInfoBuilder::new()
+                .stage(forces_stage)
+                .layout(pipeline_layout),
+            vk::ComputePipelineCreateInfoBuilder::new()
+                .stage(motion_stage)
+                .layout(pipeline_layout),
+        ];
+
+        let mut pipelines = unsafe {
+            prelude
+                .device
+                .create_compute_pipelines(None, &pipeline_create_infos, None)
+        }
+        .result()?.into_iter();
+
+        let forces_pipeline = pipelines.next().unwrap();
+        let motion_pipeline = pipelines.next().unwrap();
 
         unsafe {
-            prelude.device.destroy_shader_module(Some(shader_module), None);
+            prelude
+                .device
+                .destroy_shader_module(Some(forces_shader_module), None);
+            prelude
+                .device
+                .destroy_shader_module(Some(motion_shader_module), None);
         }
 
-        Ok(Self {
-            pipeline,
-            prelude,
-        })
+        Ok(Self { forces_pipeline, motion_pipeline, prelude })
     }
 }
 
 impl Drop for ParticleSystem {
     fn drop(&mut self) {
         unsafe {
-            self.prelude.device.destroy_pipeline(Some(self.pipeline), None);
+            self.prelude
+                .device
+                .destroy_pipeline(Some(self.motion_pipeline), None);
+            self.prelude
+                .device
+                .destroy_pipeline(Some(self.forces_pipeline), None);
         }
     }
 }
