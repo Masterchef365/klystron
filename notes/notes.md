@@ -1,3 +1,5 @@
+Note that we might want to allow the compute shader to run at the same time as _most_ of the vertex shaders
+
 God DAMNIT
 Okay so actually, we gotta use two entry points and a pipeline barrier
 Use ONLY ONE descriptor set. It's the same...? Well it's close enough sorta

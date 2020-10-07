@@ -80,7 +80,7 @@ impl App for MyApp {
             mesh: self.mesh,
             transform,
         };
-        let particle_system = ParticleSimulation {
+        let particle_sim = ParticleSimulation {
             particle_system: self.simulation,
             material: self.point_mat,
             particles: self.particles,
@@ -89,7 +89,7 @@ impl App for MyApp {
         self.time += 0.01;
         Ok(FramePacket {
             objects: vec![object],
-            particle_systems: vec![particle_system],
+            particle_simulations: vec![particle_sim],
         })
     }
 }

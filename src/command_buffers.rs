@@ -128,6 +128,29 @@ impl Core {
                     .cmd_draw_indexed(command_buffer, mesh.n_indices, 1, 0, 0, 0);
             }
         }
+
+        self.prelude.device.cmd_end_render_pass(command_buffer);
+    }
+
+    unsafe fn cmd_particle_forces(
+        &self,
+        command_buffer: vk::CommandBuffer,
+        packet: &crate::FramePacket,
+    ) {
+        for (&part_sys_id, particle_system) in self.particle_systems.iter() {
+            let relevant_sims = packet.particle_simulations
+                .iter()
+                .filter(|sim| sim.particle_system.0 == part_sys_id);
+            for particle_sim in relevant_sims {
+            }
+        }
+    }
+
+    unsafe fn cmd_particle_motion(
+        &self,
+        command_buffer: vk::CommandBuffer,
+        packet: &crate::FramePacket,
+    ) {
     }
 
     pub fn write_command_buffers(
@@ -151,9 +174,15 @@ impl Core {
                 .begin_command_buffer(command_buffer, &begin_info)
                 .result()?;
 
-            self.cmd_render_objects(command_buffer, descriptor_set, packet, image);
+            self.cmd_particle_forces(command_buffer, packet);
 
-            self.prelude.device.cmd_end_render_pass(command_buffer);
+            // TODO: BARRIER
+
+            self.cmd_particle_motion(command_buffer, packet);
+
+            // TODO: BARRIER
+
+            self.cmd_render_objects(command_buffer, descriptor_set, packet, image);
 
             self.prelude
                 .device

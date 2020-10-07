@@ -29,7 +29,7 @@ pub struct FramePacket {
     /// The entire scene's worth of objects
     pub objects: Vec<Object>,
     /// Particle systems drawn and simulated this frame
-    pub particle_systems: Vec<ParticleSimulation>,
+    pub particle_simulations: Vec<ParticleSimulation>,
 }
 
 /// Particle system
