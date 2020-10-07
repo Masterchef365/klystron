@@ -1,0 +1,23 @@
+layout (local_size_x = 64) in;
+
+struct Particle {
+    vec3 position;
+    vec3 velocity;
+    float mass;
+    float charge;
+};
+
+struct Vertex {
+    vec3 position;
+    vec3 color;
+};
+
+layout(std430, binding = 1) buffer VertexBuffer {
+    Vertex verts[];
+};
+
+layout(std430, binding = 1) buffer ParticleBuffer {
+    Particle particles[];
+};
+
+uint gid = gl_GlobalInvocationID.x;

@@ -1,0 +1,7 @@
+#version 450
+#include "particle_base.comp"
+
+void main() {
+    if (gid >= particles.length()) return;
+    particles[gid].position += particles[gid].velocity;
+}
