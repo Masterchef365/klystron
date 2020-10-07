@@ -87,7 +87,7 @@ impl Core {
                 let mesh = match self.meshes.get(&object.mesh.0) {
                     Some(m) => m,
                     None => {
-                        log::error!("Object references a mesh that no exists");
+                        log::error!("Object references a mesh that no longer exists");
                         continue;
                     }
                 };
@@ -98,6 +98,29 @@ impl Core {
                     material,
                     mesh,
                     &object.transform,
+                );
+            }
+
+            for particle_system in packet
+                .particle_simulations
+                .iter()
+                .filter(|o| o.material.0 == *material_id)
+            {
+                let particle_set = match self.particle_sets.get(&particle_system.particles.0) {
+                    Some(m) => m,
+                    None => {
+                        log::error!("Particle system references a mesh that no longer exists");
+                        continue;
+                    }
+                };
+
+                println!("DRAW PARTICLE SYSTEM");
+                self.cmd_draw_mesh(
+                    command_buffer,
+                    descriptor_set,
+                    material,
+                    &particle_set.mesh,
+                    &nalgebra::Matrix4::identity(),
                 );
             }
         }
