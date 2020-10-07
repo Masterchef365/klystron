@@ -1,4 +1,6 @@
 use crate::core::Core;
+use crate::material::Material;
+use crate::mesh::Mesh;
 use crate::swapchain_images::SwapChainImage;
 use anyhow::Result;
 use erupt::vk1_0 as vk;
@@ -89,47 +91,65 @@ impl Core {
                         continue;
                     }
                 };
-                self.prelude.device.cmd_bind_vertex_buffers(
-                    command_buffer,
-                    0,
-                    &[*mesh.vertices.object()],
-                    &[0],
-                );
 
-                self.prelude.device.cmd_bind_index_buffer(
+                self.cmd_draw_mesh(
                     command_buffer,
-                    *mesh.indices.object(),
-                    0,
-                    vk::IndexType::UINT16,
+                    descriptor_set,
+                    material,
+                    mesh,
+                    &object.transform,
                 );
-
-                let descriptor_sets = [descriptor_set];
-                self.prelude.device.cmd_bind_descriptor_sets(
-                    command_buffer,
-                    vk::PipelineBindPoint::GRAPHICS,
-                    material.pipeline_layout,
-                    0,
-                    &descriptor_sets,
-                    &[],
-                );
-
-                // TODO: ADD ANIM
-                self.prelude.device.cmd_push_constants(
-                    command_buffer,
-                    material.pipeline_layout,
-                    vk::ShaderStageFlags::VERTEX,
-                    0,
-                    std::mem::size_of::<[f32; 16]>() as u32,
-                    object.transform.data.as_ptr() as _,
-                );
-
-                self.prelude
-                    .device
-                    .cmd_draw_indexed(command_buffer, mesh.n_indices, 1, 0, 0, 0);
             }
         }
 
         self.prelude.device.cmd_end_render_pass(command_buffer);
+    }
+
+    unsafe fn cmd_draw_mesh(
+        &self,
+        command_buffer: vk::CommandBuffer,
+        descriptor_set: vk::DescriptorSet,
+        material: &Material,
+        mesh: &Mesh,
+        transform: &nalgebra::Matrix4<f32>,
+    ) {
+        self.prelude.device.cmd_bind_vertex_buffers(
+            command_buffer,
+            0,
+            &[*mesh.vertices.object()],
+            &[0],
+        );
+
+        self.prelude.device.cmd_bind_index_buffer(
+            command_buffer,
+            *mesh.indices.object(),
+            0,
+            vk::IndexType::UINT16,
+        );
+
+        let descriptor_sets = [descriptor_set];
+        self.prelude.device.cmd_bind_descriptor_sets(
+            command_buffer,
+            vk::PipelineBindPoint::GRAPHICS,
+            material.pipeline_layout,
+            0,
+            &descriptor_sets,
+            &[],
+        );
+
+        // TODO: ADD ANIM
+        self.prelude.device.cmd_push_constants(
+            command_buffer,
+            material.pipeline_layout,
+            vk::ShaderStageFlags::VERTEX,
+            0,
+            std::mem::size_of::<[f32; 16]>() as u32,
+            transform.data.as_ptr() as _,
+        );
+
+        self.prelude
+            .device
+            .cmd_draw_indexed(command_buffer, mesh.n_indices, 1, 0, 0, 0);
     }
 
     unsafe fn cmd_particle_forces(
@@ -138,11 +158,11 @@ impl Core {
         packet: &crate::FramePacket,
     ) {
         for (&part_sys_id, particle_system) in self.particle_systems.iter() {
-            let relevant_sims = packet.particle_simulations
+            let relevant_sims = packet
+                .particle_simulations
                 .iter()
                 .filter(|sim| sim.particle_system.0 == part_sys_id);
-            for particle_sim in relevant_sims {
-            }
+            for particle_sim in relevant_sims {}
         }
     }
 
@@ -151,6 +171,32 @@ impl Core {
         command_buffer: vk::CommandBuffer,
         packet: &crate::FramePacket,
     ) {
+        for (&part_sys_id, particle_system) in self.particle_systems.iter() {
+            self.prelude.device.cmd_bind_pipeline(
+                command_buffer,
+                vk::PipelineBindPoint::COMPUTE,
+                particle_system.motion_pipeline,
+            );
+            let relevant_sims = packet
+                .particle_simulations
+                .iter()
+                .filter(|sim| sim.particle_system.0 == part_sys_id);
+            for particle_sim in relevant_sims {
+                let particle_set = self
+                    .particle_sets
+                    .get(&particle_sim.particles.0)
+                    .expect("Associated particle set deleted");
+                self.prelude.device.cmd_bind_descriptor_sets(
+                    command_buffer,
+                    vk::PipelineBindPoint::COMPUTE,
+                    self.particle_pipeline_layout,
+                    0,
+                    &[particle_set.descriptor_set],
+                    &[],
+                );
+                self.prelude.device.cmd_dispatch(command_buffer, 64, 1, 1);
+            }
+        }
     }
 
     pub fn write_command_buffers(
