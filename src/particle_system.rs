@@ -28,11 +28,9 @@ pub struct ParticleSystem {
 #[derive(Default, Copy, Clone)]
 pub struct Particle {
     pub position: [f32; 3],
-    _pad0: u32,
-    pub velocity: [f32; 3],
     pub mass: f32,
+    pub velocity: [f32; 3],
     pub charge: f32,
-    _pad1: [u32; 3],
 }
 
 unsafe impl bytemuck::Zeroable for Particle {}

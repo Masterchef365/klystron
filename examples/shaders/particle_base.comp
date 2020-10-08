@@ -2,8 +2,8 @@ layout (local_size_x = 64) in;
 
 struct Particle {
     vec3 position;
-    vec3 velocity;
     float mass;
+    vec3 velocity;
     float charge;
 };
 
