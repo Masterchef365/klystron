@@ -41,7 +41,7 @@ impl App for MyApp {
             &fs::read("./examples/shaders/particle_motion.comp.spv")?
         )?;
 
-        const SIDE_LEN: usize = 10;
+        const SIDE_LEN: usize = 20;
         let mut particles = Vec::with_capacity(SIDE_LEN * SIDE_LEN * SIDE_LEN);
         let mass = 900000.0;
         for x in 0..SIDE_LEN {
@@ -76,11 +76,13 @@ impl App for MyApp {
     fn next_frame(&mut self, engine: &mut dyn Engine) -> Result<FramePacket> {
         let transform = Matrix4::from_euler_angles(0.0, self.time, 0.0)
             * Matrix4::new_translation(&Vector3::new(0.0, -1.0, 0.0));
+        /*
         let object = Object {
             material: self.triangle_mat,
             mesh: self.mesh,
             transform,
         };
+        */
         let particle_sim = ParticleSimulation {
             particle_system: self.simulation,
             material: self.point_mat,
@@ -89,7 +91,7 @@ impl App for MyApp {
         engine.update_time_value(self.time)?;
         self.time += 0.01;
         Ok(FramePacket {
-            objects: vec![object],
+            objects: vec![],
             particle_simulations: vec![particle_sim],
         })
     }

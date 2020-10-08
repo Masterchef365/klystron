@@ -10,8 +10,7 @@ void main() {
         Particle other = particles[i];
         vec3 force_vector = self.position - other.position;
         float dist_sq = dot(force_vector, force_vector);
-        //float dist = distance(self.position, other.position);
-        velocity -= (force_vector / dist_sq) / 10000.0;
+        velocity -= (force_vector / dist_sq) / 8000000.0;
     }
     particles[gid].velocity = velocity;
 }

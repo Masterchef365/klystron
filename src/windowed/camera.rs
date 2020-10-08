@@ -45,7 +45,7 @@ impl Default for Camera {
     fn default() -> Self {
         Self {
             pivot: Point3::origin(),
-            distance: 15.0,
+            distance: 5.0,
             yaw: 1.0,
             pitch: 1.0,
             fov: 45.0f32.to_radians(),
