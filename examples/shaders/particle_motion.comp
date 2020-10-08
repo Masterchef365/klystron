@@ -6,4 +6,5 @@ void main() {
     particles[gid].position += particles[gid].velocity;
     verts[gid].position = particles[gid].position;
     verts[gid].color = vec3(1.);
+    //verts[gid].color = particles[gid].velocity;
 }

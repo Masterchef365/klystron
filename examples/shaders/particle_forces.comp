@@ -2,16 +2,16 @@
 #include "particle_base.comp"
 
 void main() {
-    particles[gid].position = particles[gid].position;
-    /*
     if (gid >= particles.length()) return;
     Particle self = particles[gid];
     vec3 velocity = self.velocity;
     for (int i = 0; i < particles.length(); i++) {
+        if (i == gid) break;
         Particle other = particles[i];
-        float dist = distance(self.position, other.position);
-        velocity += (self.charge * other.charge) / (dist * self.mass);
+        vec3 force_vector = self.position - other.position;
+        float dist_sq = dot(force_vector, force_vector);
+        //float dist = distance(self.position, other.position);
+        velocity -= (force_vector / dist_sq) / 10000.0;
     }
     particles[gid].velocity = velocity;
-    */
 }

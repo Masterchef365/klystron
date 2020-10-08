@@ -2,6 +2,7 @@ use crate::core::Core;
 use crate::material::Material;
 use crate::mesh::Mesh;
 use crate::swapchain_images::SwapChainImage;
+use crate::particle_system::ParticleSystem;
 use anyhow::Result;
 use erupt::vk1_0 as vk;
 
@@ -174,32 +175,17 @@ impl Core {
             .cmd_draw_indexed(command_buffer, mesh.n_indices, 1, 0, 0, 0);
     }
 
-    /*
-    unsafe fn cmd_particle_forces(
+    unsafe fn cmd_particle_exec_pipeline(
         &self,
         command_buffer: vk::CommandBuffer,
         packet: &crate::FramePacket,
-    ) {
-        for (&part_sys_id, particle_system) in self.particle_systems.iter() {
-            let relevant_sims = packet
-                .particle_simulations
-                .iter()
-                .filter(|sim| sim.particle_system.0 == part_sys_id);
-            for particle_sim in relevant_sims {}
-        }
-    }
-    */
-
-    unsafe fn cmd_particle_motion(
-        &self,
-        command_buffer: vk::CommandBuffer,
-        packet: &crate::FramePacket,
+        extract_pipeline: impl Fn(&ParticleSystem) -> vk::Pipeline,
     ) {
         for (&part_sys_id, particle_system) in self.particle_systems.iter() {
             self.prelude.device.cmd_bind_pipeline(
                 command_buffer,
                 vk::PipelineBindPoint::COMPUTE,
-                particle_system.motion_pipeline,
+                extract_pipeline(particle_system),
             );
             let relevant_sims = packet
                 .particle_simulations
@@ -245,10 +231,19 @@ impl Core {
                 .begin_command_buffer(command_buffer, &begin_info)
                 .result()?;
 
-            //self.cmd_particle_forces(command_buffer, packet);
+            self.cmd_particle_exec_pipeline(command_buffer, packet, |p| p.forces_pipeline);
 
-            self.cmd_particle_motion(command_buffer, packet);
+            self.prelude.device.cmd_pipeline_barrier(
+                command_buffer,
+                vk::PipelineStageFlags::COMPUTE_SHADER,
+                vk::PipelineStageFlags::COMPUTE_SHADER,
+                None,
+                &[],
+                &[],
+                &[],
+            );
 
+            self.cmd_particle_exec_pipeline(command_buffer, packet, |p| p.motion_pipeline);
 
             self.prelude.device.cmd_pipeline_barrier(
                 command_buffer,
