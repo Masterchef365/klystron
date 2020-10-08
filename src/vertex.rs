@@ -7,7 +7,9 @@ use nalgebra::Point3;
 #[derive(Default, Copy, Clone)]
 pub struct Vertex {
     pub pos: [f32; 3],
+    _pad0: u32,
     pub color: [f32; 3],
+    _pad1: u32,
 }
 
 unsafe impl bytemuck::Zeroable for Vertex {}
@@ -18,6 +20,7 @@ impl Vertex {
         Self {
             pos: *pos.coords.as_ref(),
             color: *color.coords.as_ref(),
+            ..Default::default()
         }
     }
 
