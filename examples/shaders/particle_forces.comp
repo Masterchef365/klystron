@@ -2,6 +2,8 @@
 #include "particle_base.comp"
 
 void main() {
+    particles[gid].position = particles[gid].position;
+    /*
     if (gid >= particles.length()) return;
     Particle self = particles[gid];
     vec3 velocity = self.velocity;
@@ -11,4 +13,5 @@ void main() {
         velocity += (self.charge * other.charge) / (dist * self.mass);
     }
     particles[gid].velocity = velocity;
+    */
 }

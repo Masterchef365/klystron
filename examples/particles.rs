@@ -3,7 +3,7 @@ use klystron::{
     runtime::{launch, App},
     DrawType, Engine, FramePacket, Material, Mesh, Object, Vertex, ParticleSet, Particle, ParticleSystem, ParticleSimulation,
 };
-use nalgebra::{Matrix4, Point3};
+use nalgebra::{Matrix4, Point3, Vector3};
 use std::fs;
 
 struct MyApp {
@@ -51,12 +51,12 @@ impl App for MyApp {
                 for z in 0..SIDE_LEN {
                     let z = z as f32 / SIDE_LEN as f32;
                     let charge = x.cos() + y.sin() + z.cos();
-                    particles.push(Particle {
-                        charge,
+                    particles.push(Particle::new(
+                        [x, y, z],
+                        [0.0; 3],
                         mass,
-                        position: [x, y, z],
-                        velocity: [0.0; 3],
-                    });
+                        charge,
+                    ));
                 }
             }
         }
@@ -74,7 +74,8 @@ impl App for MyApp {
     }
 
     fn next_frame(&mut self, engine: &mut dyn Engine) -> Result<FramePacket> {
-        let transform = Matrix4::from_euler_angles(0.0, self.time, 0.0);
+        let transform = Matrix4::from_euler_angles(0.0, self.time, 0.0)
+            * Matrix4::new_translation(&Vector3::new(0.0, -1.0, 0.0));
         let object = Object {
             material: self.triangle_mat,
             mesh: self.mesh,

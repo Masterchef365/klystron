@@ -28,13 +28,32 @@ pub struct ParticleSystem {
 #[derive(Default, Copy, Clone)]
 pub struct Particle {
     pub position: [f32; 3],
+    _pad0: u32,
     pub velocity: [f32; 3],
     pub mass: f32,
     pub charge: f32,
+    _pad1: [u32; 3],
 }
 
 unsafe impl bytemuck::Zeroable for Particle {}
 unsafe impl bytemuck::Pod for Particle {}
+
+impl Particle {
+    pub fn new(
+        position: [f32; 3],
+        velocity: [f32; 3],
+        mass: f32,
+        charge: f32,
+    ) -> Self {
+        Self {
+            position,
+            velocity,
+            mass,
+            charge,
+            ..Default::default()
+        }
+    }
+}
 
 impl ParticleSystem {
     pub fn new(

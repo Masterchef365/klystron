@@ -3,7 +3,7 @@
 
 void main() {
     if (gid >= particles.length()) return;
-    //particles[gid].position += particles[gid].velocity;
+    particles[gid].position += particles[gid].velocity;
     verts[gid].position = particles[gid].position;
     verts[gid].color = vec3(1.);
 }

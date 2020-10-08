@@ -12,11 +12,11 @@ struct Vertex {
     vec3 color;
 };
 
-layout(std430, binding = 0) buffer VertexBuffer {
+layout(binding = 0) buffer VertexBuffer {
     Vertex verts[];
 };
 
-layout(std430, binding = 1) buffer ParticleBuffer {
+layout(binding = 1) buffer ParticleBuffer {
     Particle particles[];
 };
 
