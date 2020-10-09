@@ -12,5 +12,10 @@ void main() {
     particles[gid].position += particles[gid].velocity;
     verts[gid].position = particles[gid].position;
     float speed = length(particles[gid].velocity);
-    verts[gid].color = hsv2rgb(vec3(speed * 15., 1., 1.));
+    //verts[gid].color = hsv2rgb(vec3(speed * 45., 1., 1.));
+    vec3 color = vec3(1., 0., 0.);
+    if (particles[gid].charge < 0.) {
+        color = vec3(0., 0.2, 1.);
+    }
+    verts[gid].color = color;
 }

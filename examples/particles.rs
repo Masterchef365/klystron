@@ -41,21 +41,21 @@ impl App for MyApp {
             &fs::read("./examples/shaders/particle_motion.comp.spv")?
         )?;
 
-        const SIDE_LEN: usize = 20;
+        const SIDE_LEN: usize = 15;
         let mut particles = Vec::with_capacity(SIDE_LEN * SIDE_LEN * SIDE_LEN);
-        let mass = 900000.0;
         for x in 0..SIDE_LEN {
             let x = x as f32 / SIDE_LEN as f32;
             for y in 0..SIDE_LEN {
                 let y = y as f32 / SIDE_LEN as f32;
                 for z in 0..SIDE_LEN {
+                    let charge = if z & 2 == 0 { -1. } else { 1. };
                     let z = z as f32 / SIDE_LEN as f32;
-                    let charge = -0.01;
+                    let mass = 0.1;
                     particles.push(Particle::new(
                         [x, y, z],
                         [0.0; 3],
-                        mass,
-                        charge,
+                        mass * (z + 1.),
+                        charge
                     ));
                 }
             }
