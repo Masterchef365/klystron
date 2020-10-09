@@ -217,13 +217,3 @@ impl ParticleSet {
         })
     }
 }
-
-/*
-impl Drop for ParticleSet {
-    fn drop(&mut self) {
-        unsafe {
-            self.prelude.device.destroy_desc
-        }
-    }
-}
-*/
