@@ -5,7 +5,6 @@ extern crate openxr as xr;
 mod core;
 mod extensions;
 mod frame_sync;
-mod handle;
 mod hardware_query;
 mod material;
 pub mod runtime;
@@ -18,6 +17,7 @@ use nalgebra::Matrix4;
 pub use vertex::Vertex;
 pub use vr::{xr_prelude::XrPrelude, OpenXrBackend};
 pub use windowed::{Camera, WinitBackend};
+use genmap::Handle;
 
 /// All information necessary to define a frame of video (besides camera, which is passed in a
 /// special camera for windowed mode and implicitly in OpenXR)
@@ -40,11 +40,11 @@ pub struct Object {
 
 /// Handle for a Material (Draw commands)
 #[derive(Copy, Clone)]
-pub struct Material(pub(crate) handle::Id);
+pub struct Material(pub(crate) Handle);
 
 /// Handle for a Mesh (Draw content)
 #[derive(Copy, Clone)]
-pub struct Mesh(pub(crate) handle::Id);
+pub struct Mesh(pub(crate) Handle);
 
 /// Material rasterization method
 pub enum DrawType {
