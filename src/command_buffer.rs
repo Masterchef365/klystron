@@ -1,7 +1,8 @@
-use anyhow::Result;
 use crate::core::Core;
-use erupt::{vk1_0 as vk, DeviceLoader};
+use crate::material::Material;
 use crate::swapchain_images::SwapChainImage;
+use anyhow::Result;
+use erupt::{vk1_0 as vk, DeviceLoader};
 
 impl Core {
     pub fn write_command_buffers(
@@ -101,55 +102,7 @@ impl Core {
                     .iter()
                     .filter(|o| o.material.0 == material_id)
                 {
-                    let mesh = match self.meshes.get(object.mesh.0) {
-                        Some(m) => m,
-                        None => {
-                            log::error!("Object references a mesh that no exists");
-                            continue;
-                        }
-                    };
-                    self.prelude.device.cmd_bind_vertex_buffers(
-                        command_buffer,
-                        0,
-                        &[*mesh.vertices.object()],
-                        &[0],
-                    );
-
-                    self.prelude.device.cmd_bind_index_buffer(
-                        command_buffer,
-                        *mesh.indices.object(),
-                        0,
-                        vk::IndexType::UINT16,
-                    );
-
-                    let descriptor_sets = [self.descriptor_sets[frame_idx]];
-                    self.prelude.device.cmd_bind_descriptor_sets(
-                        command_buffer,
-                        vk::PipelineBindPoint::GRAPHICS,
-                        material.pipeline_layout,
-                        0,
-                        &descriptor_sets,
-                        &[],
-                    );
-
-                    // TODO: ADD ANIM
-                    self.prelude.device.cmd_push_constants(
-                        command_buffer,
-                        material.pipeline_layout,
-                        vk::ShaderStageFlags::VERTEX,
-                        0,
-                        std::mem::size_of::<[f32; 16]>() as u32,
-                        object.transform.data.as_ptr() as _,
-                    );
-
-                    self.prelude.device.cmd_draw_indexed(
-                        command_buffer,
-                        mesh.n_indices,
-                        1,
-                        0,
-                        0,
-                        0,
-                    );
+                    self.object_draw_cmds(command_buffer, object, material, frame_idx);
                 }
             }
 
@@ -162,5 +115,60 @@ impl Core {
         }
 
         Ok(command_buffer)
+    }
+
+    fn object_draw_cmds(
+        &self,
+        command_buffer: vk::CommandBuffer,
+        object: &crate::Object,
+        material: &Material,
+        frame_idx: usize,
+    ) {
+        let mesh = match self.meshes.get(object.mesh.0) {
+            Some(m) => m,
+            None => {
+                log::error!("Object references a mesh that no exists");
+                return;
+            }
+        };
+        unsafe {
+            self.prelude.device.cmd_bind_vertex_buffers(
+                command_buffer,
+                0,
+                &[*mesh.vertices.object()],
+                &[0],
+            );
+
+            self.prelude.device.cmd_bind_index_buffer(
+                command_buffer,
+                *mesh.indices.object(),
+                0,
+                vk::IndexType::UINT16,
+            );
+
+            let descriptor_sets = [self.descriptor_sets[frame_idx]];
+            self.prelude.device.cmd_bind_descriptor_sets(
+                command_buffer,
+                vk::PipelineBindPoint::GRAPHICS,
+                material.pipeline_layout,
+                0,
+                &descriptor_sets,
+                &[],
+            );
+
+            // TODO: ADD ANIM
+            self.prelude.device.cmd_push_constants(
+                command_buffer,
+                material.pipeline_layout,
+                vk::ShaderStageFlags::VERTEX,
+                0,
+                std::mem::size_of::<[f32; 16]>() as u32,
+                object.transform.data.as_ptr() as _,
+            );
+
+            self.prelude
+                .device
+                .cmd_draw_indexed(command_buffer, mesh.n_indices, 1, 0, 0, 0);
+        }
     }
 }
