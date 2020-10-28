@@ -26,39 +26,43 @@ impl Core {
                 .device
                 .begin_command_buffer(command_buffer, &begin_info)
                 .result()?;
+        }
 
-            // Set render pass
-            let clear_values = [
-                vk::ClearValue {
-                    color: vk::ClearColorValue {
-                        float32: [0.0, 0.0, 0.0, 1.0],
-                    },
+        // Set render pass
+        let clear_values = [
+            vk::ClearValue {
+                color: vk::ClearColorValue {
+                    float32: [0.0, 0.0, 0.0, 1.0],
                 },
-                vk::ClearValue {
-                    depth_stencil: vk::ClearDepthStencilValue {
-                        depth: 1.0,
-                        stencil: 0,
-                    },
+            },
+            vk::ClearValue {
+                depth_stencil: vk::ClearDepthStencilValue {
+                    depth: 1.0,
+                    stencil: 0,
                 },
-            ];
+            },
+        ];
 
-            let begin_info = vk::RenderPassBeginInfoBuilder::new()
-                .framebuffer(image.framebuffer)
-                .render_pass(self.render_pass)
-                .render_area(vk::Rect2D {
-                    offset: vk::Offset2D { x: 0, y: 0 },
-                    extent: image.extent,
-                })
-                .clear_values(&clear_values);
+        let begin_info = vk::RenderPassBeginInfoBuilder::new()
+            .framebuffer(image.framebuffer)
+            .render_pass(self.render_pass)
+            .render_area(vk::Rect2D {
+                offset: vk::Offset2D { x: 0, y: 0 },
+                extent: image.extent,
+            })
+            .clear_values(&clear_values);
 
+        unsafe {
             self.prelude.device.cmd_begin_render_pass(
                 command_buffer,
                 &begin_info,
                 vk::SubpassContents::INLINE,
             );
+        }
 
-            self.object_set_draw_cmds(command_buffer, image, descriptor_set, &packet.objects);
+        self.object_set_draw_cmds(command_buffer, image, descriptor_set, &packet.objects);
 
+        unsafe {
             self.prelude.device.cmd_end_render_pass(command_buffer);
 
             self.prelude

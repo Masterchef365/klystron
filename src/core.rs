@@ -1,5 +1,4 @@
 use crate::frame_sync::FrameSync;
-use genmap::GenMap;
 use crate::material::Material;
 use crate::swapchain_images::SwapchainImages;
 use crate::vertex::Vertex;
@@ -11,6 +10,7 @@ use erupt::{
     },
     vk1_0 as vk, vk1_1, DeviceLoader, InstanceLoader,
 };
+use genmap::GenMap;
 use std::sync::Arc;
 
 pub struct VkPrelude {
@@ -198,7 +198,7 @@ impl Core {
         // Frame synchronization
         let frame_sync = FrameSync::new(prelude.clone(), FRAMES_IN_FLIGHT)?;
 
-        let render_pass = create_render_pass(&prelude.device, vr)?;
+        let render_pass = create_render_pass(&prelude.device, vr, false)?;
 
         Ok(Self {
             prelude,
@@ -325,7 +325,7 @@ impl Core {
     }
 }
 
-fn create_render_pass(device: &DeviceLoader, vr: bool) -> Result<vk::RenderPass> {
+fn create_render_pass(device: &DeviceLoader, vr: bool, portal: bool) -> Result<vk::RenderPass> {
     // Render pass
     let color_attachment = vk::AttachmentDescriptionBuilder::new()
         .format(COLOR_FORMAT)
@@ -344,10 +344,16 @@ fn create_render_pass(device: &DeviceLoader, vr: bool) -> Result<vk::RenderPass>
     let depth_attachment = vk::AttachmentDescriptionBuilder::new()
         .format(DEPTH_FORMAT)
         .samples(vk::SampleCountFlagBits::_1)
-        .load_op(vk::AttachmentLoadOp::CLEAR)
-        .store_op(vk::AttachmentStoreOp::DONT_CARE)
-        .stencil_load_op(vk::AttachmentLoadOp::DONT_CARE)
-        .stencil_store_op(vk::AttachmentStoreOp::DONT_CARE)
+        .load_op(if portal {
+            // Only want to render portals on top!
+            vk::AttachmentLoadOp::LOAD
+        } else {
+            // Clear when we're rendering the scene behind the portal, or outside
+            vk::AttachmentLoadOp::CLEAR
+        })
+        .store_op(vk::AttachmentStoreOp::STORE)
+        .stencil_load_op(vk::AttachmentLoadOp::LOAD)
+        .stencil_store_op(vk::AttachmentStoreOp::STORE)
         .initial_layout(vk::ImageLayout::UNDEFINED)
         .final_layout(vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 
