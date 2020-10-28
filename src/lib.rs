@@ -12,6 +12,7 @@ mod swapchain_images;
 mod vertex;
 mod vr;
 mod windowed;
+mod command_buffer;
 use anyhow::Result;
 use nalgebra::Matrix4;
 pub use vertex::Vertex;
