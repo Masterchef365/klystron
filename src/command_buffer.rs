@@ -1,8 +1,9 @@
 use crate::core::Core;
 use crate::material::Material;
 use crate::swapchain_images::SwapChainImage;
+use crate::Object;
 use anyhow::Result;
-use erupt::{vk1_0 as vk, DeviceLoader};
+use erupt::vk1_0 as vk;
 
 impl Core {
     pub fn write_command_buffers(
@@ -56,24 +57,46 @@ impl Core {
                 vk::SubpassContents::INLINE,
             );
 
-            let viewports = [vk::ViewportBuilder::new()
-                .x(0.0)
-                .y(0.0)
-                .width(image.extent.width as f32)
-                .height(image.extent.height as f32)
-                .min_depth(0.0)
-                .max_depth(1.0)];
+            self.object_set_draw_cmds(command_buffer, image, descriptor_set, &packet.objects);
 
-            let scissors = [vk::Rect2DBuilder::new()
-                .offset(vk::Offset2D { x: 0, y: 0 })
-                .extent(image.extent)];
+            self.prelude.device.cmd_end_render_pass(command_buffer);
 
-            let handles = self.materials.iter().collect::<Vec<_>>();
-            for material_id in handles {
-                let material = match self.materials.get(material_id) {
-                    Some(m) => m,
-                    None => continue,
-                };
+            self.prelude
+                .device
+                .end_command_buffer(command_buffer)
+                .result()?;
+        }
+
+        Ok(command_buffer)
+    }
+
+    fn object_set_draw_cmds(
+        &self,
+        command_buffer: vk::CommandBuffer,
+        image: &SwapChainImage,
+        descriptor_set: vk::DescriptorSet,
+        objects: &[Object],
+    ) {
+        let viewports = [vk::ViewportBuilder::new()
+            .x(0.0)
+            .y(0.0)
+            .width(image.extent.width as f32)
+            .height(image.extent.height as f32)
+            .min_depth(0.0)
+            .max_depth(1.0)];
+
+        let scissors = [vk::Rect2DBuilder::new()
+            .offset(vk::Offset2D { x: 0, y: 0 })
+            .extent(image.extent)];
+
+        let handles = self.materials.iter().collect::<Vec<_>>();
+        for material_id in handles {
+            let material = match self.materials.get(material_id) {
+                Some(m) => m,
+                None => continue,
+            };
+
+            unsafe {
                 self.prelude.device.cmd_bind_pipeline(
                     command_buffer,
                     vk::PipelineBindPoint::GRAPHICS,
@@ -96,33 +119,20 @@ impl Core {
                     &[descriptor_set],
                     &[],
                 );
-
-                for object in packet
-                    .objects
-                    .iter()
-                    .filter(|o| o.material.0 == material_id)
-                {
-                    self.object_draw_cmds(command_buffer, object, material, frame_idx);
-                }
             }
 
-            self.prelude.device.cmd_end_render_pass(command_buffer);
-
-            self.prelude
-                .device
-                .end_command_buffer(command_buffer)
-                .result()?;
+            for object in objects.iter().filter(|o| o.material.0 == material_id) {
+                self.object_draw_cmds(command_buffer, object, material, descriptor_set);
+            }
         }
-
-        Ok(command_buffer)
     }
 
     fn object_draw_cmds(
         &self,
         command_buffer: vk::CommandBuffer,
-        object: &crate::Object,
+        object: &Object,
         material: &Material,
-        frame_idx: usize,
+        descriptor_set: vk::DescriptorSet,
     ) {
         let mesh = match self.meshes.get(object.mesh.0) {
             Some(m) => m,
@@ -146,7 +156,7 @@ impl Core {
                 vk::IndexType::UINT16,
             );
 
-            let descriptor_sets = [self.descriptor_sets[frame_idx]];
+            let descriptor_sets = [descriptor_set];
             self.prelude.device.cmd_bind_descriptor_sets(
                 command_buffer,
                 vk::PipelineBindPoint::GRAPHICS,
