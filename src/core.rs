@@ -26,6 +26,15 @@ pub(crate) const FRAMES_IN_FLIGHT: usize = 2;
 pub(crate) const COLOR_FORMAT: vk::Format = vk::Format::B8G8R8A8_SRGB;
 pub(crate) const DEPTH_FORMAT: vk::Format = vk::Format::D32_SFLOAT;
 pub(crate) const N_PORTALS: usize = 2;
+pub(crate) const N_VIEWS: usize = N_PORTALS + 1;
+pub(crate) const N_UBOS: usize = FRAMES_IN_FLIGHT * N_VIEWS;
+
+#[repr(usize)]
+pub enum PortalCamera {
+    Regular = 0,
+    Orange = 1,
+    Blue = 2,
+}
 
 pub type CameraUbo = [f32; 32];
 
@@ -102,15 +111,13 @@ impl Core {
         }
         .result()?;
 
-        const N_DESCRIPTORS: usize = FRAMES_IN_FLIGHT * (N_PORTALS + 1);
-
         // Create descriptor pool
         let pool_sizes = [vk::DescriptorPoolSizeBuilder::new()
             ._type(vk::DescriptorType::UNIFORM_BUFFER)
-            .descriptor_count((N_DESCRIPTORS * 2) as u32)];
+            .descriptor_count((N_UBOS * 2) as u32)];
         let create_info = vk::DescriptorPoolCreateInfoBuilder::new()
             .pool_sizes(&pool_sizes)
-            .max_sets(N_DESCRIPTORS as u32);
+            .max_sets(N_UBOS as u32);
         let descriptor_pool = unsafe {
             prelude
                 .device
@@ -119,7 +126,7 @@ impl Core {
         .result()?;
 
         // Create descriptor sets
-        let layouts = vec![descriptor_set_layout; N_DESCRIPTORS];
+        let layouts = vec![descriptor_set_layout; N_UBOS];
         let create_info = vk::DescriptorSetAllocateInfoBuilder::new()
             .descriptor_pool(descriptor_pool)
             .set_layouts(&layouts);
@@ -135,7 +142,7 @@ impl Core {
 
         // Camera:
         let mut camera_ubos = Vec::new();
-        for _ in 0..FRAMES_IN_FLIGHT {
+        for _ in 0..N_UBOS {
             let buffer =
                 unsafe { prelude.device.create_buffer(&ubo_create_info, None, None) }.result()?;
             let memory = allocator
@@ -150,7 +157,7 @@ impl Core {
 
         // Animation
         let mut time_ubos = Vec::new();
-        for _ in 0..FRAMES_IN_FLIGHT {
+        for _ in 0..N_UBOS {
             let buffer =
                 unsafe { prelude.device.create_buffer(&ubo_create_info, None, None) }.result()?;
             let memory = allocator
@@ -308,9 +315,13 @@ impl Core {
         Ok(())
     }
 
+    fn camera_ubo_by_frame_idx(&self, frame_idx: usize, camera: PortalCamera) -> &Allocation<vk::Buffer> {
+        &self.camera_ubos[FRAMES_IN_FLIGHT * camera as usize + frame_idx]
+    }
+
     /// Upload camera matricies (Two f32 camera matrics in column-major order)
-    pub fn update_camera_data(&self, frame_idx: usize, data: &[f32; 32]) -> Result<()> {
-        let ubo = &self.camera_ubos[frame_idx];
+    pub fn update_camera_data(&self, frame_idx: usize, data: &[f32; 32], camera: PortalCamera) -> Result<()> {
+        let ubo = self.camera_ubo_by_frame_idx(frame_idx, camera);
         let mut map = ubo.map(&self.prelude.device, ..).result()?;
         map.import(bytemuck::cast_slice(&data[..]));
         map.unmap(&self.prelude.device).result()?;

@@ -1,5 +1,5 @@
 mod camera;
-use crate::core::{Core, VkPrelude};
+use crate::core::{Core, VkPrelude, PortalCamera};
 use crate::hardware_query::HardwareSelection;
 use crate::swapchain_images::SwapchainImages;
 use crate::{DrawType, Engine, FramePacket, Material, Mesh, Vertex};
@@ -166,7 +166,7 @@ impl WinitBackend {
                     .iter(),
             )
             .for_each(|(o, i)| *o = *i);
-        self.core.update_camera_data(frame_idx, &data)?;
+        self.core.update_camera_data(frame_idx, &data, PortalCamera::Regular)?;
 
         // Submit to the queue
         let command_buffers = [command_buffer];

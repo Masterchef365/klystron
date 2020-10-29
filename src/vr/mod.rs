@@ -1,5 +1,5 @@
 pub mod xr_prelude;
-use crate::core::{Core, VkPrelude};
+use crate::core::{Core, VkPrelude, PortalCamera};
 use crate::swapchain_images::SwapchainImages;
 use crate::{DrawType, Engine, FramePacket, Material, Mesh, Vertex};
 use anyhow::{bail, Result};
@@ -254,9 +254,6 @@ impl OpenXrBackend {
                 .next_image(image_index, &frame)?
         };
 
-        // Write command buffers
-        let command_buffer = self.core.write_command_buffers(frame_idx, packet, &image)?;
-
         // Get views
         let (_, views) = self.openxr.session.locate_views(
             xr::ViewConfigurationType::PRIMARY_STEREO,
@@ -264,12 +261,17 @@ impl OpenXrBackend {
             &self.stage,
         )?;
 
+        // TODO: Portalling state update
+
         let left = matrix_from_view(&views[0]);
         let right = matrix_from_view(&views[1]);
         let both = left.iter().chain(right.iter()).copied().collect::<Vec<_>>();
         let mut data = [0.0; 32];
         data.copy_from_slice(&both);
-        self.core.update_camera_data(frame_idx, &data)?;
+        self.core.update_camera_data(frame_idx, &data, PortalCamera::Regular)?;
+
+        // Write command buffers
+        let command_buffer = self.core.write_command_buffers(frame_idx, packet, &image)?;
 
         // Submit to the queue
         let command_buffers = [command_buffer];
