@@ -166,6 +166,7 @@ impl WinitBackend {
                     .iter(),
             )
             .for_each(|(o, i)| *o = *i);
+
         self.core.update_camera_data(frame_idx, &data, PortalCamera::Regular)?;
 
         // Submit to the queue

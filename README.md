@@ -66,3 +66,7 @@ Next steps:
     * Associated view matrix for the matching camera
 * Add special render pass for portals (using the create render pass function with the portal set to true)
 * Figure out how to switch camera matrices for the different portal views... Oh perhaps 3 different descriptor sets per frame - one for each view
+
+# Idea
+Set different time in the ubo for each of the portals!
+That makes it time travel on the other side...

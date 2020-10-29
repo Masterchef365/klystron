@@ -1,4 +1,4 @@
-use crate::core::Core;
+use crate::core::{Core, PortalCamera};
 use crate::material::Material;
 use crate::swapchain_images::SwapChainImage;
 use crate::Object;
@@ -14,7 +14,6 @@ impl Core {
     ) -> Result<vk::CommandBuffer> {
         // Reset and write command buffers for this frame
         let command_buffer = self.command_buffers[frame_idx];
-        let descriptor_set = self.descriptor_sets[frame_idx];
         unsafe {
             self.prelude
                 .device
@@ -60,6 +59,7 @@ impl Core {
             );
         }
 
+        let descriptor_set = self.descriptor_set_by_frame_idx(frame_idx, PortalCamera::Regular);
         self.object_set_draw_cmds(command_buffer, image, descriptor_set, &packet.objects);
 
         unsafe {

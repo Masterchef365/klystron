@@ -315,8 +315,12 @@ impl Core {
         Ok(())
     }
 
-    fn camera_ubo_by_frame_idx(&self, frame_idx: usize, camera: PortalCamera) -> &Allocation<vk::Buffer> {
+    pub(crate) fn camera_ubo_by_frame_idx(&self, frame_idx: usize, camera: PortalCamera) -> &Allocation<vk::Buffer> {
         &self.camera_ubos[FRAMES_IN_FLIGHT * camera as usize + frame_idx]
+    }
+
+    pub(crate) fn descriptor_set_by_frame_idx(&self, frame_idx: usize, camera: PortalCamera) -> vk::DescriptorSet {
+        self.descriptor_sets[FRAMES_IN_FLIGHT * camera as usize + frame_idx]
     }
 
     /// Upload camera matricies (Two f32 camera matrics in column-major order)
@@ -331,10 +335,12 @@ impl Core {
     /// Update time value
     pub fn update_time_value(&self, time: f32) -> Result<()> {
         let frame_idx = self.frame_sync.current_frame();
-        let ubo = &self.time_ubos[frame_idx];
-        let mut map = ubo.map(&self.prelude.device, ..).result()?;
-        map.import(bytemuck::cast_slice(&[time]));
-        map.unmap(&self.prelude.device).result()?;
+        for ubos in self.time_ubos.chunks_exact(FRAMES_IN_FLIGHT) {
+            let ubo = &ubos[frame_idx];
+            let mut map = ubo.map(&self.prelude.device, ..).result()?;
+            map.import(bytemuck::cast_slice(&[time]));
+            map.unmap(&self.prelude.device).result()?;
+        }
         Ok(())
     }
 }
