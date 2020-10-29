@@ -70,3 +70,5 @@ Next steps:
 # Idea
 Set different time in the ubo for each of the portals!
 That makes it time travel on the other side...
+
+Make it so that the portal motion for each eye in VR is independent - if you walked forward so that the edge of the portal seperated your eyes they would _actually seperate_

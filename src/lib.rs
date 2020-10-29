@@ -13,6 +13,7 @@ mod vertex;
 mod vr;
 mod windowed;
 mod command_buffer;
+mod portal_motion;
 use anyhow::Result;
 pub use nalgebra::{Matrix4, Point3, UnitQuaternion};
 pub use vertex::Vertex;
