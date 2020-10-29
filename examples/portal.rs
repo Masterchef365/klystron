@@ -1,7 +1,7 @@
 use anyhow::Result;
 use klystron::{
     runtime::{launch, App},
-    DrawType, Engine, FramePacket, Material, Mesh, Object, Vertex,
+    DrawType, Engine, FramePacket, Material, Mesh, Object, Vertex, Portal,
 };
 use nalgebra::{Matrix4, Point3};
 use std::fs;
@@ -41,10 +41,25 @@ impl App for MyApp {
             mesh: self.mesh,
             transform,
         };
+
+        let blue_portal = Portal {
+            origin: Point3::new(3., 0., 0.),
+            size: 2.0,
+            rotation: (0., 0., 0.),
+        };
+
+        let orange_portal = Portal {
+            origin: Point3::new(0., 3., 0.),
+            size: 2.0,
+            rotation: (0., std::f32::consts::PI, 0.),
+        };
+
         engine.update_time_value(self.time)?;
         self.time += 0.01;
         Ok(FramePacket {
             objects: vec![object],
+            blue_portal,
+            orange_portal,
         })
     }
 }

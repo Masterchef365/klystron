@@ -25,6 +25,7 @@ pub struct VkPrelude {
 pub(crate) const FRAMES_IN_FLIGHT: usize = 2;
 pub(crate) const COLOR_FORMAT: vk::Format = vk::Format::B8G8R8A8_SRGB;
 pub(crate) const DEPTH_FORMAT: vk::Format = vk::Format::D32_SFLOAT;
+pub(crate) const N_PORTALS: usize = 2;
 
 pub type CameraUbo = [f32; 32];
 
@@ -101,13 +102,15 @@ impl Core {
         }
         .result()?;
 
+        const N_DESCRIPTORS: usize = FRAMES_IN_FLIGHT * (N_PORTALS + 1);
+
         // Create descriptor pool
         let pool_sizes = [vk::DescriptorPoolSizeBuilder::new()
             ._type(vk::DescriptorType::UNIFORM_BUFFER)
-            .descriptor_count((FRAMES_IN_FLIGHT * 2) as u32)];
+            .descriptor_count((N_DESCRIPTORS * 2) as u32)];
         let create_info = vk::DescriptorPoolCreateInfoBuilder::new()
             .pool_sizes(&pool_sizes)
-            .max_sets(FRAMES_IN_FLIGHT as u32);
+            .max_sets(N_DESCRIPTORS as u32);
         let descriptor_pool = unsafe {
             prelude
                 .device
@@ -116,7 +119,7 @@ impl Core {
         .result()?;
 
         // Create descriptor sets
-        let layouts = vec![descriptor_set_layout; FRAMES_IN_FLIGHT];
+        let layouts = vec![descriptor_set_layout; N_DESCRIPTORS];
         let create_info = vk::DescriptorSetAllocateInfoBuilder::new()
             .descriptor_pool(descriptor_pool)
             .set_layouts(&layouts);
