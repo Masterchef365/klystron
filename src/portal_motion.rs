@@ -30,21 +30,37 @@ impl PortalMotion {
         let orange_view = portal_view(orange_portal);
         let blue_view = portal_view(orange_portal);
 
+        // Reverse towards the origin, at the offset from this portal, then move to the other
+        // portal with this same offset set (Might need to mirror?)
         if portal_intersection(orange_portal, self.last_position, new_position) {
             self.last_position = Point3::from_homogeneous(
-                   orange_view.try_inverse().unwrap() * new_position.to_homogeneous()
-            ).unwrap();
+                blue_view * (orange_view.try_inverse().unwrap() * new_position.to_homogeneous()),
+            )
+            .unwrap();
             self.current_view *= blue_view;
+        }
+
+        if portal_intersection(blue_portal, self.last_position, new_position) {
+            self.last_position = Point3::from_homogeneous(
+                orange_view * (blue_view.try_inverse().unwrap() * new_position.to_homogeneous()),
+            )
+            .unwrap();
+            self.current_view *= orange_view;
         }
 
         (self.last_position, self.current_view)
     }
 }
 
-fn portal_view(portal: &Portal) -> Matrix4<f32> {}
+fn portal_view(portal: &Portal) -> Matrix4<f32> {
+    let (roll, pitch, yaw) = portal.rotation;
+    Matrix4::new_translation(&portal.origin.coords) * Matrix4::from_euler_angles(roll, pitch, yaw)
+}
 
-fn portal_intersection(portal: &Portal, start: Point3<f32>, end: Point3<f32>) -> bool {}
+fn portal_intersection(portal: &Portal, start: Point3<f32>, end: Point3<f32>) -> bool {
+    todo!()
+}
 
-fn cross_through(tri: &[Point3<f32>; 3], start: Point3<f32>, end: Point3<f32>) -> bool {
+fn cross_triangle(tri: &[Point3<f32>; 3], start: Point3<f32>, end: Point3<f32>) -> bool {
     todo!()
 }
