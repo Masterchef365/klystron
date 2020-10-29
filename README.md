@@ -61,11 +61,12 @@ Scene
 Scene
 
 Next steps:
+* First person camera
+* Finish portal motion calc
+    * Debounce might be necessary
+    * Apply this to the center of eyes of the VR, and to first person camera
 * Enable the `VK_EXT_extended_dynamic_state` feature
-* Create an interface for adding portals
-    * Associated view matrix for the matching camera
 * Add special render pass for portals (using the create render pass function with the portal set to true)
-* Figure out how to switch camera matrices for the different portal views... Oh perhaps 3 different descriptor sets per frame - one for each view
 
 # Idea
 Set different time in the ubo for each of the portals!
