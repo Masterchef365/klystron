@@ -14,7 +14,7 @@ mod vr;
 mod windowed;
 mod command_buffer;
 use anyhow::Result;
-use nalgebra::Matrix4;
+pub use nalgebra::{Matrix4, Point3, UnitQuaternion};
 pub use vertex::Vertex;
 pub use vr::{xr_prelude::XrPrelude, OpenXrBackend};
 pub use windowed::{Camera, WinitBackend};
@@ -25,6 +25,20 @@ use genmap::Handle;
 pub struct FramePacket {
     /// The entire scene's worth of objects
     pub objects: Vec<Object>,
+    /// Connects to orange
+    pub blue_portal: Portal,
+    /// Connects to blue
+    pub orange_portal: Portal,
+}
+
+/// A portal to be placed in the world
+pub struct Portal {
+    /// The size of the portal's quad
+    pub size: f32,
+    /// The origin of the portal
+    pub origin: Point3<f32>,
+    /// The yaw, pitch, and roll of the portal
+    pub rotation: (f32, f32, f32),
 }
 
 /// A single object in the scene
@@ -35,8 +49,6 @@ pub struct Object {
     pub mesh: Mesh,
     /// Transformation applied to each vertex of this Object
     pub transform: Matrix4<f32>,
-    // /// An additional time uniform passed to the vertex and fragment shaders
-    // pub anim: f32,
 }
 
 /// Handle for a Material (Draw commands)
