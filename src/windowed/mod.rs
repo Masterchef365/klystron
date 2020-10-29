@@ -4,7 +4,7 @@ use crate::hardware_query::HardwareSelection;
 use crate::swapchain_images::SwapchainImages;
 use crate::{DrawType, Engine, FramePacket, Material, Mesh, Vertex};
 use anyhow::Result;
-pub use camera::Camera;
+pub use camera::*;
 use erupt::{
     extensions::{khr_surface, khr_swapchain},
     utils::surface,
@@ -117,7 +117,7 @@ impl WinitBackend {
 
     // TODO: camera position should be driven by something external
     // Winit keypresses used to move camera.
-    pub fn next_frame(&mut self, packet: &FramePacket, camera: &camera::Camera) -> Result<()> {
+    pub fn next_frame(&mut self, packet: &FramePacket, camera: &dyn camera::Camera) -> Result<()> {
         if self.swapchain.is_none() {
             self.create_swapchain()?;
         }

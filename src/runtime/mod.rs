@@ -4,7 +4,7 @@
 //! windowed mode. Abstracts over platform-specific features for quick prototyping.
 
 mod mouse_camera;
-use crate::{Camera, Engine, FramePacket, OpenXrBackend, WinitBackend};
+use crate::{PerspectiveCamera, Engine, FramePacket, OpenXrBackend, WinitBackend};
 use anyhow::Result;
 use log::info;
 use mouse_camera::MouseCamera;
@@ -61,7 +61,7 @@ pub fn windowed_backend<A: App + 'static>(args: A::Args) -> Result<()> {
     let mut app = A::new(&mut engine, args)?;
 
     let target_frame_time = Duration::from_micros(1_000_000 / 60);
-    let mut mouse_camera = MouseCamera::new(Camera::default(), 0.001, 0.004);
+    let mut mouse_camera = MouseCamera::new(PerspectiveCamera::default(), 0.001, 0.004);
 
     event_loop.run(move |event, _, control_flow| match event {
         Event::NewEvents(StartCause::Init) => {

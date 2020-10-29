@@ -1,10 +1,10 @@
-use crate::windowed::Camera;
+use crate::windowed::PerspectiveCamera;
 use nalgebra::Vector4;
 use winit::dpi::PhysicalPosition;
 use winit::event::{ElementState, MouseButton, MouseScrollDelta, WindowEvent};
 
 pub struct MouseCamera {
-    pub inner: Camera,
+    pub inner: PerspectiveCamera,
     pub pan_sensitivity: f32,
     pub swivel_sensitivity: f32,
     last_mouse_position: Option<(f64, f64)>,
@@ -13,7 +13,7 @@ pub struct MouseCamera {
 }
 
 impl MouseCamera {
-    pub fn new(inner: Camera, pan_sensitivity: f32, swivel_sensitivity: f32) -> Self {
+    pub fn new(inner: PerspectiveCamera, pan_sensitivity: f32, swivel_sensitivity: f32) -> Self {
         Self {
             inner,
             pan_sensitivity,
