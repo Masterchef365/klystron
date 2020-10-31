@@ -286,8 +286,6 @@ impl WinitBackend {
         }
         .result()?;
 
-        self.swapchain = Some(swapchain);
-
         // TODO: Coagulate these two into one object?
         self.swapchain = Some(swapchain);
 

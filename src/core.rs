@@ -119,6 +119,14 @@ impl Mesh {
             prelude,
         })
     }
+
+    pub fn frame(&self, frame_idx: usize) -> &MeshBufferSet {
+        if self.frames.len() == 1 {
+            &self.frames[0]
+        } else {
+            self.frames.get(frame_idx).unwrap()
+        }
+    }
 }
 
 impl Drop for Mesh {
@@ -462,13 +470,13 @@ impl Core {
                     self.prelude.device.cmd_bind_vertex_buffers(
                         command_buffer,
                         0,
-                        &[*mesh.frames[frame_idx].vertices.object()],
+                        &[*mesh.frame(frame_idx).vertices.object()],
                         &[0],
                     );
 
                     self.prelude.device.cmd_bind_index_buffer(
                         command_buffer,
-                        *mesh.frames[frame_idx].indices.object(),
+                        *mesh.frame(frame_idx).indices.object(),
                         0,
                         vk::IndexType::UINT16,
                     );
@@ -495,7 +503,7 @@ impl Core {
 
                     self.prelude.device.cmd_draw_indexed(
                         command_buffer,
-                        mesh.frames[frame_idx].n_indices,
+                        mesh.frame(frame_idx).n_indices,
                         1,
                         0,
                         0,

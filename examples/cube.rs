@@ -25,7 +25,7 @@ impl App for MyApp {
         )?;
 
         let (vertices, indices) = rainbow_cube();
-        let mesh = engine.add_mesh(&vertices, &indices)?;
+        let mesh = engine.add_mesh(&vertices, &indices, false)?;
 
         Ok(Self {
             mesh,
