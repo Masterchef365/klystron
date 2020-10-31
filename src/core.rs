@@ -541,6 +541,11 @@ impl Core {
         map.unmap(&self.prelude.device).result()?;
         Ok(())
     }
+
+    /// Update mesh vertices
+    pub fn update_verts(&mut self, mesh: crate::Mesh, vertices: &[Vertex]) -> Result<()> {
+        todo!()
+    }
 }
 
 fn create_render_pass(device: &DeviceLoader, vr: bool) -> Result<vk::RenderPass> {

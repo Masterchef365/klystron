@@ -329,6 +329,9 @@ impl Engine for WinitBackend {
     fn update_time_value(&self, data: f32) -> Result<()> {
         self.core.update_time_value(data)
     }
+    fn update_verts(&mut self, mesh: Mesh, vertices: &[Vertex]) -> Result<()> {
+        self.core.update_verts(mesh, vertices)
+    }
 }
 
 impl Drop for WinitBackend {

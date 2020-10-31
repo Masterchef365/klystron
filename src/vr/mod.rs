@@ -427,6 +427,9 @@ impl Engine for OpenXrBackend {
     fn update_time_value(&self, data: f32) -> Result<()> {
         self.core.update_time_value(data)
     }
+    fn update_verts(&mut self, mesh: Mesh, vertices: &[Vertex]) -> Result<()> {
+        self.core.update_verts(mesh, vertices)
+    }
 }
 
 fn matrix_from_view(view: &xr::View) -> Matrix4<f32> {

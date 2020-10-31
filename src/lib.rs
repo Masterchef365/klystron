@@ -79,6 +79,8 @@ pub trait Engine {
     fn remove_mesh(&mut self, mesh: Mesh) -> Result<()>;
     /// Update the animation value
     fn update_time_value(&self, data: f32) -> Result<()>;
+    /// Update mesh vertices
+    fn update_verts(&mut self, mesh: Mesh, vertices: &[Vertex]) -> Result<()>;
 }
 
 pub(crate) const ENGINE_NAME: &'static str = "Klystron";
