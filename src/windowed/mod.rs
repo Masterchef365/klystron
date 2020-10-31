@@ -9,9 +9,10 @@ use erupt::{
     extensions::{khr_surface, khr_swapchain},
     utils::surface,
     vk1_0 as vk, DeviceLoader, EntryLoader, InstanceLoader,
+    utils::allocator::{self, Allocator},
 };
 use std::ffi::CString;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use winit::window::Window;
 
 /// Windowed mode Winit engine backend
@@ -82,10 +83,19 @@ impl WinitBackend {
         let device = DeviceLoader::new(&instance, hardware.physical_device, &create_info, None)?;
         let queue = unsafe { device.get_device_queue(hardware.queue_family, 0, None) };
 
+        // Device memory allocator
+        let mut allocator = Allocator::new(
+            &instance,
+            hardware.physical_device,
+            allocator::AllocatorCreateInfo::default(),
+        )
+        .result()?;
+
         let prelude = Arc::new(VkPrelude {
             queue,
             queue_family_index: hardware.queue_family,
             physical_device: hardware.physical_device,
+            allocator: Mutex::new(allocator),
             device,
             instance,
             entry,
@@ -218,7 +228,7 @@ impl WinitBackend {
 
     fn free_swapchain(&mut self) -> Result<()> {
         if let Some(mut images) = self.core.swapchain_images.take() {
-            images.free(&mut self.core.allocator)?;
+            images.free(&mut *self.prelude.allocator()?)?;
         }
 
         unsafe {
@@ -283,7 +293,7 @@ impl WinitBackend {
 
         self.core.swapchain_images = Some(SwapchainImages::new(
             self.prelude.clone(),
-            &mut self.core.allocator,
+            &mut *self.prelude.allocator()?,
             surface_caps.current_extent,
             self.core.render_pass,
             swapchain_images,
@@ -304,8 +314,13 @@ impl Engine for WinitBackend {
     ) -> Result<Material> {
         self.core.add_material(vertex, fragment, draw_type)
     }
-    fn add_mesh(&mut self, vertices: &[Vertex], indices: &[u16]) -> Result<Mesh> {
-        self.core.add_mesh(vertices, indices)
+    fn add_mesh(
+        &mut self,
+        vertices: &[Vertex],
+        indices: &[u16],
+        dynamic: bool,
+    ) -> Result<Mesh> {
+        self.core.add_mesh(vertices, indices, dynamic)
     }
     fn remove_material(&mut self, material: Material) -> Result<()> {
         self.core.remove_material(material)

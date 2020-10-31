@@ -1,9 +1,8 @@
 use crate::frame_sync::FrameSync;
-use genmap::GenMap;
 use crate::material::Material;
 use crate::swapchain_images::{SwapChainImage, SwapchainImages};
 use crate::vertex::Vertex;
-use anyhow::Result;
+use anyhow::{format_err, Result};
 use erupt::{
     utils::{
         self,
@@ -11,7 +10,8 @@ use erupt::{
     },
     vk1_0 as vk, vk1_1, DeviceLoader, InstanceLoader,
 };
-use std::sync::Arc;
+use genmap::GenMap;
+use std::sync::{Arc, Mutex, MutexGuard};
 
 pub struct VkPrelude {
     pub queue: vk::Queue,
@@ -19,7 +19,16 @@ pub struct VkPrelude {
     pub device: DeviceLoader,
     pub physical_device: vk::PhysicalDevice,
     pub instance: InstanceLoader,
+    pub allocator: Mutex<Allocator>,
     pub entry: utils::loading::DefaultEntryLoader,
+}
+
+impl VkPrelude {
+    pub fn allocator(&self) -> Result<MutexGuard<Allocator>> {
+        self.allocator
+            .lock()
+            .map_err(|_| format_err!("Allocator mutex poisoned"))
+    }
 }
 
 pub(crate) const FRAMES_IN_FLIGHT: usize = 2;
@@ -28,14 +37,99 @@ pub(crate) const DEPTH_FORMAT: vk::Format = vk::Format::D32_SFLOAT;
 
 pub type CameraUbo = [f32; 32];
 
-pub struct Mesh {
+// TODO: Just use one buffer/alloc for each mesh! Just use indices into it...
+pub struct MeshBufferSet {
     pub indices: Allocation<vk::Buffer>,
     pub vertices: Allocation<vk::Buffer>,
     pub n_indices: u32,
 }
 
+impl MeshBufferSet {
+    pub fn new(prelude: &VkPrelude, vertices: &[Vertex], indices: &[u16]) -> Result<Self> {
+        let n_indices = indices.len() as u32;
+
+        //TODO: Use staging buffers!
+        let create_info = vk::BufferCreateInfoBuilder::new()
+            .usage(vk::BufferUsageFlags::VERTEX_BUFFER)
+            .sharing_mode(vk::SharingMode::EXCLUSIVE)
+            .size(std::mem::size_of_val(vertices) as u64);
+        let buffer = unsafe { prelude.device.create_buffer(&create_info, None, None) }.result()?;
+        let vertex_buffer = prelude
+            .allocator()?
+            .allocate(
+                &prelude.device,
+                buffer,
+                allocator::MemoryTypeFinder::dynamic(),
+            )
+            .result()?;
+        let mut map = vertex_buffer.map(&prelude.device, ..).result()?;
+        map.import(bytemuck::cast_slice(vertices));
+        map.unmap(&prelude.device).result()?;
+
+        let create_info = vk::BufferCreateInfoBuilder::new()
+            .usage(vk::BufferUsageFlags::INDEX_BUFFER)
+            .sharing_mode(vk::SharingMode::EXCLUSIVE)
+            .size(std::mem::size_of_val(indices) as u64);
+        let buffer = unsafe { prelude.device.create_buffer(&create_info, None, None) }.result()?;
+        let index_buffer = prelude
+            .allocator()?
+            .allocate(
+                &prelude.device,
+                buffer,
+                allocator::MemoryTypeFinder::dynamic(),
+            )
+            .result()?;
+        let mut map = index_buffer.map(&prelude.device, ..).result()?;
+        map.import(bytemuck::cast_slice(indices));
+        map.unmap(&prelude.device).result()?;
+
+        Ok(Self {
+            indices: index_buffer,
+            vertices: vertex_buffer,
+            n_indices,
+        })
+    }
+
+    pub fn free(self, prelude: &VkPrelude) -> Result<()> {
+        prelude.allocator()?.free(&prelude.device, self.vertices);
+        prelude.allocator()?.free(&prelude.device, self.indices);
+        Ok(())
+    }
+}
+
+// TODO: If only one frame (non-dynamic mode) then always just return that frame and DO NOT ALLOW
+// WRITES
+pub struct Mesh {
+    pub frames: Vec<MeshBufferSet>,
+    prelude: Arc<VkPrelude>,
+}
+
+impl Mesh {
+    pub fn new(
+        prelude: Arc<VkPrelude>,
+        vertices: &[Vertex],
+        indices: &[u16],
+        frames: usize,
+        _dynamic: bool,
+    ) -> Result<Self> {
+        Ok(Self {
+            frames: (0..frames)
+                .map(|_| MeshBufferSet::new(&prelude, vertices, indices))
+                .collect::<Result<_>>()?,
+            prelude,
+        })
+    }
+}
+
+impl Drop for Mesh {
+    fn drop(&mut self) {
+        for set in self.frames.drain(..) {
+            set.free(&self.prelude).unwrap();
+        }
+    }
+}
+
 pub struct Core {
-    pub allocator: Allocator,
     pub materials: GenMap<Material>,
     pub meshes: GenMap<Mesh>,
     pub render_pass: vk::RenderPass,
@@ -68,14 +162,6 @@ impl Core {
 
         let command_buffers =
             unsafe { prelude.device.allocate_command_buffers(&allocate_info) }.result()?;
-
-        // Device memory allocator
-        let mut allocator = Allocator::new(
-            &prelude.instance,
-            prelude.physical_device,
-            allocator::AllocatorCreateInfo::default(),
-        )
-        .result()?;
 
         // Create descriptor layout
         let bindings = [
@@ -135,7 +221,8 @@ impl Core {
         for _ in 0..FRAMES_IN_FLIGHT {
             let buffer =
                 unsafe { prelude.device.create_buffer(&ubo_create_info, None, None) }.result()?;
-            let memory = allocator
+            let memory = prelude
+                .allocator()?
                 .allocate(
                     &prelude.device,
                     buffer,
@@ -150,7 +237,8 @@ impl Core {
         for _ in 0..FRAMES_IN_FLIGHT {
             let buffer =
                 unsafe { prelude.device.create_buffer(&ubo_create_info, None, None) }.result()?;
-            let memory = allocator
+            let memory = prelude
+                .allocator()?
                 .allocate(
                     &prelude.device,
                     buffer,
@@ -209,7 +297,6 @@ impl Core {
             descriptor_sets,
             command_pool,
             frame_sync,
-            allocator,
             command_buffers,
             render_pass,
             swapchain_images: None,
@@ -244,53 +331,19 @@ impl Core {
         Ok(())
     }
 
-    pub fn add_mesh(&mut self, vertices: &[Vertex], indices: &[u16]) -> Result<crate::Mesh> {
-        let n_indices = indices.len() as u32;
-
-        //TODO: Use staging buffers!
-        let create_info = vk::BufferCreateInfoBuilder::new()
-            .usage(vk::BufferUsageFlags::VERTEX_BUFFER)
-            .sharing_mode(vk::SharingMode::EXCLUSIVE)
-            .size(std::mem::size_of_val(vertices) as u64);
-        let buffer =
-            unsafe { self.prelude.device.create_buffer(&create_info, None, None) }.result()?;
-        let vertex_buffer = self
-            .allocator
-            .allocate(
-                &self.prelude.device,
-                buffer,
-                allocator::MemoryTypeFinder::dynamic(),
-            )
-            .result()?;
-        let mut map = vertex_buffer.map(&self.prelude.device, ..).result()?;
-        map.import(bytemuck::cast_slice(vertices));
-        map.unmap(&self.prelude.device).result()?;
-
-        let create_info = vk::BufferCreateInfoBuilder::new()
-            .usage(vk::BufferUsageFlags::INDEX_BUFFER)
-            .sharing_mode(vk::SharingMode::EXCLUSIVE)
-            .size(std::mem::size_of_val(indices) as u64);
-        let buffer =
-            unsafe { self.prelude.device.create_buffer(&create_info, None, None) }.result()?;
-        let index_buffer = self
-            .allocator
-            .allocate(
-                &self.prelude.device,
-                buffer,
-                allocator::MemoryTypeFinder::dynamic(),
-            )
-            .result()?;
-        let mut map = index_buffer.map(&self.prelude.device, ..).result()?;
-        map.import(bytemuck::cast_slice(indices));
-        map.unmap(&self.prelude.device).result()?;
-
-        let mesh = Mesh {
-            indices: index_buffer,
-            vertices: vertex_buffer,
-            n_indices,
-        };
-
-        Ok(crate::Mesh(self.meshes.insert(mesh)))
+    pub fn add_mesh(
+        &mut self,
+        vertices: &[Vertex],
+        indices: &[u16],
+        dynamic: bool,
+    ) -> Result<crate::Mesh> {
+        Ok(crate::Mesh(self.meshes.insert(Mesh::new(
+            self.prelude.clone(),
+            vertices,
+            indices,
+            if dynamic { FRAMES_IN_FLIGHT } else { 1 },
+            dynamic,
+        )?)))
     }
 
     pub fn remove_mesh(&mut self, id: crate::Mesh) -> Result<()> {
@@ -298,10 +351,7 @@ impl Core {
         unsafe {
             self.prelude.device.device_wait_idle().result()?;
         }
-        if let Some(mesh) = self.meshes.remove(id.0) {
-            self.allocator.free(&self.prelude.device, mesh.vertices);
-            self.allocator.free(&self.prelude.device, mesh.indices);
-        }
+        if let Some(mesh) = self.meshes.remove(id.0) {}
         Ok(())
     }
 
@@ -412,13 +462,13 @@ impl Core {
                     self.prelude.device.cmd_bind_vertex_buffers(
                         command_buffer,
                         0,
-                        &[*mesh.vertices.object()],
+                        &[*mesh.frames[frame_idx].vertices.object()],
                         &[0],
                     );
 
                     self.prelude.device.cmd_bind_index_buffer(
                         command_buffer,
-                        *mesh.indices.object(),
+                        *mesh.frames[frame_idx].indices.object(),
                         0,
                         vk::IndexType::UINT16,
                     );
@@ -445,7 +495,7 @@ impl Core {
 
                     self.prelude.device.cmd_draw_indexed(
                         command_buffer,
-                        mesh.n_indices,
+                        mesh.frames[frame_idx].n_indices,
                         1,
                         0,
                         0,
@@ -559,14 +609,12 @@ impl Drop for Core {
             let handles = self.meshes.iter().collect::<Vec<_>>();
             for mesh in handles {
                 let mesh = self.meshes.remove(mesh).unwrap();
-                self.allocator.free(&self.prelude.device, mesh.vertices);
-                self.allocator.free(&self.prelude.device, mesh.indices);
             }
             for ubo in self.camera_ubos.drain(..) {
-                self.allocator.free(&self.prelude.device, ubo);
+                self.prelude.allocator().unwrap().free(&self.prelude.device, ubo);
             }
             for ubo in self.time_ubos.drain(..) {
-                self.allocator.free(&self.prelude.device, ubo);
+                self.prelude.allocator().unwrap().free(&self.prelude.device, ubo);
             }
             self.prelude
                 .device

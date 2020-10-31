@@ -3,11 +3,13 @@ use crate::core::{Core, VkPrelude};
 use crate::swapchain_images::SwapchainImages;
 use crate::{DrawType, Engine, FramePacket, Material, Mesh, Vertex};
 use anyhow::{bail, Result};
-use erupt::{vk1_0 as vk, DeviceLoader, EntryLoader, InstanceLoader};
+use erupt::{vk1_0 as vk, DeviceLoader, EntryLoader, InstanceLoader,
+    utils::allocator::{self, Allocator},
+};
 use log::info;
 use nalgebra::{Matrix4, Unit, Vector3};
 use std::ffi::CString;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use xr_prelude::{load_openxr, XrPrelude};
 
 /// VR Capable OpenXR engine backend
@@ -187,11 +189,20 @@ impl OpenXrBackend {
             .create_reference_space(xr::ReferenceSpaceType::STAGE, xr::Posef::IDENTITY)
             .unwrap();
 
+        // Device memory allocator
+        let mut allocator = Allocator::new(
+            &vk_instance,
+            vk_physical_device,
+            allocator::AllocatorCreateInfo::default(),
+        )
+        .result()?;
+
         let prelude = Arc::new(VkPrelude {
             queue,
             queue_family_index,
             device: vk_device,
             physical_device: vk_physical_device,
+            allocator: Mutex::new(allocator),
             instance: vk_instance,
             entry: vk_entry,
         });
@@ -332,7 +343,7 @@ impl OpenXrBackend {
 
     fn recreate_swapchain(&mut self) -> Result<()> {
         if let Some(mut images) = self.core.swapchain_images.take() {
-            images.free(&mut self.core.allocator)?;
+            images.free(&mut *self.prelude.allocator()?)?;
         }
         self.swapchain = None;
 
@@ -378,7 +389,7 @@ impl OpenXrBackend {
 
         self.core.swapchain_images = Some(SwapchainImages::new(
             self.prelude.clone(),
-            &mut self.core.allocator,
+            &mut *self.prelude.allocator()?,
             extent,
             self.core.render_pass,
             swapchain_images,
@@ -399,8 +410,13 @@ impl Engine for OpenXrBackend {
     ) -> Result<Material> {
         self.core.add_material(vertex, fragment, draw_type)
     }
-    fn add_mesh(&mut self, vertices: &[Vertex], indices: &[u16]) -> Result<Mesh> {
-        self.core.add_mesh(vertices, indices)
+    fn add_mesh(
+        &mut self,
+        vertices: &[Vertex],
+        indices: &[u16],
+        dynamic: bool,
+    ) -> Result<Mesh> {
+        self.core.add_mesh(vertices, indices, dynamic)
     }
     fn remove_material(&mut self, material: Material) -> Result<()> {
         self.core.remove_material(material)
