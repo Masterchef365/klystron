@@ -1,7 +1,5 @@
 use anyhow::Result;
-use klystron::{
-    Camera, DrawType, Engine, FramePacket, Object, Vertex, WinitBackend,
-};
+use klystron::{Camera, DrawType, Engine, FramePacket, Object, Vertex, WinitBackend};
 use nalgebra::{Matrix4, Point3, Vector3};
 use std::fs;
 use std::time::Duration;
@@ -21,7 +19,7 @@ fn main() -> Result<()> {
 
     let unlit_vert = fs::read("./examples/shaders/unlit.vert.spv")?;
     let unlit_frag = fs::read("./examples/shaders/unlit.frag.spv")?;
-    let tri_mat = engine.add_material(&unlit_vert, &unlit_frag, DrawType::Triangles)?;
+    let tri_mat = engine.add_material(&unlit_vert, &unlit_frag, DrawType::Lines)?;
 
     // Draw a colored grid for now
     let width = 8;
