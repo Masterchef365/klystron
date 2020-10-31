@@ -1,6 +1,7 @@
 use anyhow::Result;
 use klystron::{Camera, DrawType, Engine, FramePacket, Object, Vertex, WinitBackend};
 use nalgebra::{Matrix4, Point3, Vector3};
+use std::collections::VecDeque;
 use std::fs;
 use std::time::Duration;
 use winit::{
@@ -21,21 +22,30 @@ fn main() -> Result<()> {
     let unlit_frag = fs::read("./examples/shaders/unlit.frag.spv")?;
     let tri_mat = engine.add_material(&unlit_vert, &unlit_frag, DrawType::Lines)?;
 
-    // Draw a colored grid for now
-    let width = 8;
-    let height = 8;
-    let mut cells = Vec::with_capacity(width * height);
-    for y in 0..height {
-        for x in 0..width {
-            cells.push([
-                x as f32 / (width - 1) as f32,
-                y as f32 / (height - 1) as f32,
-                1.,
-            ]);
-        }
-    }
+    let mut theta = 0.0f32;
+    const SAMPLES: usize = 50;
+    let mut update_sinewave = move || {
+        theta += 0.05;
+        theta.cos()
+    };
+    let mut rt_data = std::iter::repeat(0.)
+        .take(SAMPLES)
+        .collect::<VecDeque<f32>>();
 
-    let (mut vertices, indices) = grid(20., 5., &cells, width);
+    let indices = std::iter::successors(Some((0u16, true)), |&(v, b)| {
+        Some((if b { v + 1 } else { v }, !b))
+    })
+    .map(|(v, _)| v)
+    .take(SAMPLES * 2 - 1)
+    .collect::<Vec<_>>();
+
+    let mut vertices = std::iter::repeat(Vertex {
+        pos: [0., 0., 0.],
+        color: [0., 0., 0.],
+    })
+    .take(SAMPLES)
+    .collect::<Vec<_>>();
+
     let grid_mesh = engine.add_mesh(&vertices, &indices, true)?;
 
     // Main loop
@@ -52,13 +62,20 @@ fn main() -> Result<()> {
         Event::MainEventsCleared => {
             let frame_start_time = std::time::Instant::now();
 
-            for vert in &mut vertices {
-                vert.pos[0] *= 1.01;
-                vert.pos[1] *= 1.01;
-                vert.pos[2] *= 1.01;
+            rt_data.pop_back();
+            rt_data.push_front(update_sinewave());
+
+            for (idx, (vert, sample)) in vertices.iter_mut().zip(rt_data.iter()).enumerate() {
+                let x = (idx as f32 * 2. / SAMPLES as f32) - 1.;
+                *vert = Vertex {
+                    pos: [x, *sample, 0.],
+                    color: [1., x.abs(), *sample],
+                };
             }
 
-            engine.update_verts(grid_mesh, &vertices).expect("Failed to update verts");
+            engine
+                .update_verts(grid_mesh, &vertices)
+                .expect("Failed to update verts");
 
             let grid = Object {
                 material: tri_mat,
@@ -83,54 +100,10 @@ fn main() -> Result<()> {
     })
 }
 
-fn grid(
-    square_size: f32,
-    spacing: f32,
-    cells: &[[f32; 3]],
-    width: usize,
-) -> (Vec<Vertex>, Vec<u16>) {
-    let mut vertices = Vec::new();
-    let mut indices = Vec::new();
-    for (y, row) in cells.chunks_exact(width).enumerate() {
-        let y = y as f32 * (square_size + spacing);
-        for (x, cell) in row.iter().enumerate() {
-            let x = x as f32 * (square_size + spacing);
-            let (verts, idx) = square(Point3::new(x, y, 0.), square_size, *cell);
-            vertices.extend_from_slice(&verts[..]);
-            let off = vertices.len();
-            indices.extend(idx.iter().map(|i| i + off as u16));
-        }
-    }
-    (vertices, indices)
-}
-
-fn square(pos: Point3<f32>, size: f32, color: [f32; 3]) -> ([Vertex; 4], [u16; 6]) {
-    let vertices = [
-        Vertex {
-            pos: *(pos + Vector3::new(0., 0., 0.)).coords.as_ref(),
-            color,
-        },
-        Vertex {
-            pos: *(pos + Vector3::new(size, 0., 0.)).coords.as_ref(),
-            color,
-        },
-        Vertex {
-            pos: *(pos + Vector3::new(0., size, 0.)).coords.as_ref(),
-            color,
-        },
-        Vertex {
-            pos: *(pos + Vector3::new(size, size, 0.)).coords.as_ref(),
-            color,
-        },
-    ];
-    let indices = [2, 1, 0, 1, 2, 3];
-    (vertices, indices)
-}
-
 struct Ortho2DCam;
 
 impl Camera for Ortho2DCam {
     fn matrix(&self, width: u32, height: u32) -> Matrix4<f32> {
-        Matrix4::new_orthographic(0., width as _, 0., height as _, -1., 1.)
+        Matrix4::identity()
     }
 }
