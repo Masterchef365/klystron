@@ -35,8 +35,8 @@ fn main() -> Result<()> {
         }
     }
 
-    let (vertices, indices) = grid(20., 5., &cells, width);
-    let grid_mesh = engine.add_mesh(&vertices, &indices)?;
+    let (mut vertices, indices) = grid(20., 5., &cells, width);
+    let grid_mesh = engine.add_mesh(&vertices, &indices, true)?;
 
     // Main loop
     let target_frame_time = Duration::from_micros(1_000_000 / 60);
@@ -51,6 +51,14 @@ fn main() -> Result<()> {
         },
         Event::MainEventsCleared => {
             let frame_start_time = std::time::Instant::now();
+
+            for vert in &mut vertices {
+                vert.pos[0] *= 1.01;
+                vert.pos[1] *= 1.01;
+                vert.pos[2] *= 1.01;
+            }
+
+            engine.update_verts(grid_mesh, &vertices).expect("Failed to update verts");
 
             let grid = Object {
                 material: tri_mat,

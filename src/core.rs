@@ -95,6 +95,13 @@ impl MeshBufferSet {
         prelude.allocator()?.free(&prelude.device, self.indices);
         Ok(())
     }
+
+    pub fn update_verts(&mut self, prelude: &VkPrelude, vertices: &[Vertex]) -> Result<()> {
+        let mut map = self.vertices.map(&prelude.device, ..).result()?;
+        map.import(bytemuck::cast_slice(vertices));
+        map.unmap(&prelude.device).result()?;
+        Ok(())
+    }
 }
 
 // TODO: If only one frame (non-dynamic mode) then always just return that frame and DO NOT ALLOW
@@ -125,6 +132,14 @@ impl Mesh {
             &self.frames[0]
         } else {
             self.frames.get(frame_idx).unwrap()
+        }
+    }
+
+    pub fn frame_mut(&mut self, frame_idx: usize) -> &mut MeshBufferSet {
+        if frame_idx >= self.frames.len() {
+            panic!("Mesh was not created dynamically!")
+        } else {
+            self.frames.get_mut(frame_idx).unwrap()
         }
     }
 }
@@ -544,7 +559,11 @@ impl Core {
 
     /// Update mesh vertices
     pub fn update_verts(&mut self, mesh: crate::Mesh, vertices: &[Vertex]) -> Result<()> {
-        todo!()
+        if let Some(mesh) = self.meshes.get_mut(mesh.0) {
+            mesh.frame_mut(self.frame_sync.current_frame()).update_verts(&*self.prelude, vertices)
+        } else {
+            Err(format_err!("Mesh was deleted"))
+        }
     }
 }
 
