@@ -18,3 +18,4 @@ genmap = "1.0"
 
 [dev-dependencies]
 env_logger = "0.7"
+pulse-simple = "1.0.1"

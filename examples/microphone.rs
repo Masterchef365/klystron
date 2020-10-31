@@ -10,6 +10,8 @@ use winit::{
     window::WindowBuilder,
 };
 
+use pulse_simple::Record;
+const RATE: u32 = 48000;
 const NAME: &str = "Test app";
 
 fn main() -> Result<()> {
@@ -23,11 +25,7 @@ fn main() -> Result<()> {
     let tri_mat = engine.add_material(&unlit_vert, &unlit_frag, DrawType::Lines)?;
 
     let mut theta = 0.0f32;
-    const SAMPLES: usize = 50;
-    let mut update_sinewave = move || {
-        theta += 0.05;
-        theta.cos()
-    };
+    const SAMPLES: usize = 500;
     let mut rt_data = std::iter::repeat(0.)
         .take(SAMPLES)
         .collect::<VecDeque<f32>>();
@@ -48,6 +46,9 @@ fn main() -> Result<()> {
 
     let grid_mesh = engine.add_mesh(&vertices, &indices, true)?;
 
+    let p = Record::new("Example", "Record", None, RATE);
+    let mut audio_samples = vec![[0]; 40];
+
     // Main loop
     let target_frame_time = Duration::from_micros(1_000_000 / 60);
     let mut time = 0.;
@@ -62,8 +63,12 @@ fn main() -> Result<()> {
         Event::MainEventsCleared => {
             let frame_start_time = std::time::Instant::now();
 
+            p.read(&mut audio_samples[..]);
+            //let sum = dbg!(audio_samples.iter().map(|[v]| v).sum::<i32>()) as f32 / 10027008.0;
+            let sum = dbg!(audio_samples[0][0]) as f32 / 12582912.;
+
             rt_data.pop_back();
-            rt_data.push_front(update_sinewave());
+            rt_data.push_front(sum);
 
             for (idx, (vert, sample)) in vertices.iter_mut().zip(rt_data.iter()).enumerate() {
                 let x = (idx as f32 * 2. / SAMPLES as f32) - 1.;
