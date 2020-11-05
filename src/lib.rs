@@ -27,6 +27,7 @@ pub struct FramePacket {
 }
 
 /// A single object in the scene
+#[derive(Copy, Clone)]
 pub struct Object {
     /// How to draw this object
     pub material: Material,
