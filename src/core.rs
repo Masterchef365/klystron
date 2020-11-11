@@ -445,7 +445,7 @@ impl Core {
 
                     self.prelude.device.cmd_draw_indexed(
                         command_buffer,
-                        mesh.n_indices,
+                        object.subset.unwrap_or(mesh.n_indices),
                         1,
                         0,
                         0,
