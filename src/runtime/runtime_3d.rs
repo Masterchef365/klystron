@@ -18,6 +18,7 @@ use winit::{
     event_loop::{ControlFlow, EventLoop},
     window::WindowBuilder,
 };
+use super::target_time::TargetTime;
 
 /// An app that can be run on the runtime
 pub trait App: Sized {
@@ -59,9 +60,8 @@ pub fn windowed_backend<A: App + 'static>(args: A::Args) -> Result<()> {
 
     let mut app = A::new(&mut engine, args)?;
 
-    let target_frame_time = Duration::from_micros(1_000_000 / 60);
     let mut mouse_camera = MouseCamera::new(PerspectiveCamera::default(), 0.001, 0.004);
-
+    let mut target_time = TargetTime::default();
     event_loop.run(move |event, _, control_flow| match event {
         Event::NewEvents(StartCause::Init) => {
             *control_flow = ControlFlow::Poll;
@@ -71,14 +71,10 @@ pub fn windowed_backend<A: App + 'static>(args: A::Args) -> Result<()> {
             _ => mouse_camera.handle_events(&event),
         },
         Event::MainEventsCleared => {
-            let frame_start_time = std::time::Instant::now();
+            target_time.start_frame();
             let packet = app.next_frame(&mut engine).unwrap();
             engine.next_frame(&packet, &mouse_camera.inner).unwrap();
-            let frame_end_time = std::time::Instant::now();
-            let frame_duration = frame_end_time - frame_start_time;
-            if frame_duration < target_frame_time {
-                std::thread::sleep(target_frame_time - frame_duration);
-            }
+            target_time.end_frame();
         }
         _ => (),
     })

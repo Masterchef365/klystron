@@ -1,6 +1,6 @@
 use anyhow::Result;
 use klystron::{
-    runtime::{launch, App},
+    runtime_3d::{launch, App},
     DrawType, Engine, FramePacket, Material, Mesh, Object, Vertex,
 };
 use nalgebra::{Matrix4, Point3};

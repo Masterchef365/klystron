@@ -7,7 +7,8 @@ mod extensions;
 mod frame_sync;
 mod hardware_query;
 mod material;
-pub mod runtime;
+mod runtime;
+pub use runtime::{runtime_2d, runtime_3d};
 mod swapchain_images;
 mod vertex;
 mod vr;
@@ -27,6 +28,7 @@ pub struct FramePacket {
 }
 
 /// A single object in the scene
+#[derive(Copy, Clone)]
 pub struct Object {
     /// How to draw this object
     pub material: Material,

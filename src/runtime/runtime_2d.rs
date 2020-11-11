@@ -1,9 +1,10 @@
 use anyhow::Result;
+use super::target_time::TargetTime;
 use crate::{
-    Camera, Engine, FramePacket, Object, WinitBackend,
+    Camera, Engine, FramePacket, WinitBackend,
 };
-use std::time::Duration;
 use nalgebra::{Matrix4, Vector4};
+pub use winit::event;
 use winit::{
     event::{Event, StartCause, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
@@ -11,6 +12,8 @@ use winit::{
 };
 
 // TODO: Optional event-driven option? Like `event()` -> Result<bool> where true means call `frame()` again
+// TODO: This should probably be renamed WindowedApp and have an optional `camera()` function, so
+// that users can supply their own camera
 
 /// A 2D, windowed application
 pub trait App2D: Sized {
@@ -27,7 +30,7 @@ pub trait App2D: Sized {
 }
 
 /// Run a 2D app given these args
-pub fn run_app<App: App2D + 'static>(args: App::Args) -> Result<()> {
+pub fn launch<App: App2D + 'static>(args: App::Args) -> Result<()> {
     // 2D engine setup boilerplate
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new().with_title(App::TITLE).build(&event_loop)?;
@@ -36,8 +39,8 @@ pub fn run_app<App: App2D + 'static>(args: App::Args) -> Result<()> {
     let mut app = App::new(&mut engine, args)?;
 
     // Main loop
-    let target_frame_time = Duration::from_micros(1_000_000 / 60);
     let mut time = 0.;
+    let mut target_time = TargetTime::default();
     event_loop.run(move |event, _, control_flow| match event {
         Event::NewEvents(StartCause::Init) => {
             *control_flow = ControlFlow::Poll;
@@ -47,19 +50,12 @@ pub fn run_app<App: App2D + 'static>(args: App::Args) -> Result<()> {
             _ => app.event(&event, &mut engine).unwrap(),
         },
         Event::MainEventsCleared => {
-            let frame_start_time = std::time::Instant::now();
-
             engine.update_time_value(time).unwrap();
             time += 0.01;
-
+            target_time.start_frame();
             let packet = app.frame();
-
-            engine.next_frame(&packet, &Dummy2DCam).unwrap();
-            let frame_end_time = std::time::Instant::now();
-            let frame_duration = frame_end_time - frame_start_time;
-            if frame_duration < target_frame_time {
-                std::thread::sleep(target_frame_time - frame_duration);
-            }
+            engine.next_frame(&packet, &Dummy2DCam).expect("Engine frame failed");
+            target_time.end_frame();
         }
         _ => (),
     })
