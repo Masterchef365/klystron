@@ -4,7 +4,7 @@ use nalgebra::Point3;
 
 /// Vertex suitable for use from vertex shaders
 #[repr(C)]
-#[derive(Default, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone)]
 pub struct Vertex {
     pub pos: [f32; 3],
     pub color: [f32; 3],
