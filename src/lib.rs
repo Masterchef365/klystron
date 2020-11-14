@@ -82,3 +82,8 @@ pub(crate) const ENGINE_NAME: &'static str = "Klystron";
 pub(crate) fn engine_version() -> u32 {
     erupt::vk1_0::make_version(1, 0, 0)
 }
+
+//#[cfg(feature = "builtin_shaders")]
+pub const UNLIT_FRAG: &[u8] = include_bytes!("../shaders/unlit.frag.spv");
+//#[cfg(feature = "builtin_shaders")]
+pub const UNLIT_VERT: &[u8] = include_bytes!("../shaders/unlit.vert.spv");

@@ -2,8 +2,8 @@ use anyhow::Result;
 use klystron::{
     runtime_2d::{event::WindowEvent, launch, App2D},
     DrawType, Engine, FramePacket, Matrix4, Object, Vertex, WinitBackend,
+    UNLIT_VERT, UNLIT_FRAG,
 };
-use std::fs;
 
 struct MyApp {
      object: Object,
@@ -16,8 +16,8 @@ impl App2D for MyApp {
 
     fn new(engine: &mut WinitBackend, _args: Self::Args) -> Result<Self> {
         let material = engine.add_material(
-            &fs::read("./examples/shaders/unlit.vert.spv")?,
-            &fs::read("./examples/shaders/unlit.frag.spv")?,
+            UNLIT_VERT,
+            UNLIT_FRAG,
             DrawType::Lines,
         )?;
 

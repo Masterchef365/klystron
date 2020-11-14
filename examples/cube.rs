@@ -2,9 +2,9 @@ use anyhow::Result;
 use klystron::{
     runtime_3d::{launch, App},
     DrawType, Engine, FramePacket, Material, Mesh, Object, Vertex,
+    UNLIT_FRAG, UNLIT_VERT,
 };
 use nalgebra::{Matrix4, Point3};
-use std::fs;
 
 struct MyApp {
     material: Material,
@@ -19,8 +19,8 @@ impl App for MyApp {
 
     fn new(engine: &mut dyn Engine, _args: Self::Args) -> Result<Self> {
         let material = engine.add_material(
-            &fs::read("./examples/shaders/unlit.vert.spv")?,
-            &fs::read("./examples/shaders/unlit.frag.spv")?,
+            UNLIT_VERT,
+            UNLIT_FRAG,
             DrawType::Triangles,
         )?;
 

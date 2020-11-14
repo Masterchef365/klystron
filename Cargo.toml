@@ -4,6 +4,9 @@ version = "0.1.0"
 authors = ["Masterchef365 <duncan.freeman1@gmail.com>"]
 edition = "2018"
 
+[features]
+builtin_shaders = []
+
 [dependencies]
 erupt = "0.14.0"
 winit = "0.22"
