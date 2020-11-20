@@ -51,7 +51,6 @@ impl App for MyApp {
 
 fn main() -> Result<()> {
     let vr = std::env::args().skip(1).next().is_some();
-    env_logger::init();
     launch::<MyApp>(vr, ())
 }
 
@@ -68,8 +67,18 @@ fn rainbow_cube() -> (Vec<Vertex>, Vec<u16>) {
     ];
 
     let indices = vec![
-        0, 1, 3, 3, 1, 2, 1, 5, 2, 2, 5, 6, 5, 4, 6, 6, 4, 7, 4, 0, 7, 7, 0, 3, 3, 2, 7, 7, 2, 6,
-        4, 5, 0, 0, 5, 1,
+        3, 1, 0,
+        2, 1, 3,
+        2, 5, 1,
+        6, 5, 2,
+        6, 4, 5,
+        7, 4, 6,
+        7, 0, 4,
+        3, 0, 7,
+        7, 2, 3,
+        6, 2, 7,
+        0, 5, 4,
+        1, 5, 0,
     ];
 
     (vertices, indices)
