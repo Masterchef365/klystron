@@ -34,6 +34,9 @@ pub struct Mesh {
     pub n_indices: u32,
 }
 
+// TODO: Turn the Vec<T>'s into [T; FRAMES_IN_FLIGHT]! 
+// Do this when you switch over to gpu-alloc
+
 pub struct Core {
     pub allocator: Allocator,
     pub materials: GenMap<Material>,
