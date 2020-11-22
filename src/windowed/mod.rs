@@ -301,8 +301,9 @@ impl Engine for WinitBackend {
         vertex: &[u8],
         fragment: &[u8],
         draw_type: DrawType,
+        overdraw: bool,
     ) -> Result<Material> {
-        self.core.add_material(vertex, fragment, draw_type)
+        self.core.add_material(vertex, fragment, draw_type, overdraw)
     }
     fn add_mesh(&mut self, vertices: &[Vertex], indices: &[u16]) -> Result<Mesh> {
         self.core.add_mesh(vertices, indices)

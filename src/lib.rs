@@ -67,6 +67,7 @@ pub trait Engine {
         vertex: &[u8],
         fragment: &[u8],
         draw_type: DrawType,
+        overdraw: bool,
     ) -> Result<Material>;
     /// Add a mesh, given vertices and indices
     fn add_mesh(&mut self, vertices: &[Vertex], indices: &[u16]) -> Result<Mesh>;

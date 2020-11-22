@@ -226,12 +226,14 @@ impl Core {
         vertex: &[u8],
         fragment: &[u8],
         draw_type: crate::DrawType,
+        overdraw: bool,
     ) -> Result<crate::Material> {
         let material = Material::new(
             self.prelude.clone(),
             vertex,
             fragment,
             draw_type,
+            overdraw,
             self.render_pass,
             self.descriptor_set_layout,
         )?;

@@ -20,6 +20,7 @@ impl Material {
         vertex_src: &[u8],
         fragment_src: &[u8],
         draw_type: DrawType,
+        overdraw: bool,
         render_pass: vk::RenderPass,
         descriptor_set_layout: vk::DescriptorSetLayout,
     ) -> Result<Self> {
@@ -69,13 +70,15 @@ impl Material {
             vk::PipelineDynamicStateCreateInfoBuilder::new().dynamic_states(&dynamic_states);
 
         let rasterizer = vk::PipelineRasterizationStateCreateInfoBuilder::new()
+            .depth_bias_enable(false)
+            .depth_bias_constant_factor(0.1)
+            .depth_bias_slope_factor(1.)
             .depth_clamp_enable(false)
-            .rasterizer_discard_enable(false)
+            .rasterizer_discard_enable(overdraw)
             .polygon_mode(vk::PolygonMode::FILL)
             .line_width(1.0)
             .cull_mode(vk::CullModeFlags::BACK)
-            .front_face(vk::FrontFace::CLOCKWISE)
-            .depth_clamp_enable(false);
+            .front_face(vk::FrontFace::CLOCKWISE);
 
         let multisampling = vk::PipelineMultisampleStateCreateInfoBuilder::new()
             .sample_shading_enable(false)
