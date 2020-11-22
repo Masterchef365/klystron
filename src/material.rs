@@ -70,11 +70,11 @@ impl Material {
             vk::PipelineDynamicStateCreateInfoBuilder::new().dynamic_states(&dynamic_states);
 
         let rasterizer = vk::PipelineRasterizationStateCreateInfoBuilder::new()
-            .depth_bias_enable(false)
-            .depth_bias_constant_factor(0.1)
-            .depth_bias_slope_factor(1.)
+            .depth_bias_enable(overdraw)
+            .depth_bias_constant_factor(5000.0)
+            .depth_bias_slope_factor(0.)
             .depth_clamp_enable(false)
-            .rasterizer_discard_enable(overdraw)
+            .rasterizer_discard_enable(false)
             .polygon_mode(vk::PolygonMode::FILL)
             .line_width(1.0)
             .cull_mode(vk::CullModeFlags::BACK)
