@@ -37,7 +37,6 @@ impl HardwareSelection {
                                     None,
                                 )
                                 .unwrap()
-                                == true
                     }) {
                     Some(queue_family) => queue_family as u32,
                     None => return None,
@@ -94,8 +93,6 @@ impl HardwareSelection {
                 vk::PhysicalDeviceType::INTEGRATED_GPU => 1,
                 _ => 0,
             })
-            .ok_or(anyhow::format_err!(
-                "No suitable hardware found for this configuration"
-            ))
+            .ok_or_else(|| anyhow::format_err!("No suitable hardware found for this configuration"))
     }
 }

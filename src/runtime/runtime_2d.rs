@@ -1,8 +1,6 @@
-use anyhow::Result;
 use super::target_time::TargetTime;
-use crate::{
-    Camera, Engine, FramePacket, WinitBackend,
-};
+use crate::{Camera, Engine, FramePacket, WinitBackend};
+use anyhow::Result;
 use nalgebra::{Matrix4, Vector4};
 pub use winit::event;
 use winit::{
@@ -33,7 +31,9 @@ pub trait App2D: Sized {
 pub fn launch<App: App2D + 'static>(args: App::Args) -> Result<()> {
     // 2D engine setup boilerplate
     let event_loop = EventLoop::new();
-    let window = WindowBuilder::new().with_title(App::TITLE).build(&event_loop)?;
+    let window = WindowBuilder::new()
+        .with_title(App::TITLE)
+        .build(&event_loop)?;
     let mut engine = WinitBackend::new(&window, App::TITLE)?;
 
     let mut app = App::new(&mut engine, args)?;
@@ -54,7 +54,9 @@ pub fn launch<App: App2D + 'static>(args: App::Args) -> Result<()> {
             time += 0.01;
             target_time.start_frame();
             let packet = app.frame();
-            engine.next_frame(&packet, &Dummy2DCam).expect("Engine frame failed");
+            engine
+                .next_frame(&packet, &Dummy2DCam)
+                .expect("Engine frame failed");
             target_time.end_frame();
         }
         _ => (),
@@ -70,5 +72,3 @@ impl Camera for Dummy2DCam {
         Matrix4::from_diagonal(&Vector4::new(1., aspect, 0., 1.))
     }
 }
-
-

@@ -1,8 +1,7 @@
 use anyhow::Result;
 use klystron::{
     runtime_3d::{launch, App},
-    DrawType, Engine, FramePacket, Material, Mesh, Object, Vertex,
-    UNLIT_FRAG, UNLIT_VERT,
+    DrawType, Engine, FramePacket, Material, Mesh, Object, Vertex, UNLIT_FRAG, UNLIT_VERT,
 };
 use nalgebra::{Matrix4, Point3};
 
@@ -18,11 +17,7 @@ impl App for MyApp {
     type Args = ();
 
     fn new(engine: &mut dyn Engine, _args: Self::Args) -> Result<Self> {
-        let material = engine.add_material(
-            UNLIT_VERT,
-            UNLIT_FRAG,
-            DrawType::Triangles,
-        )?;
+        let material = engine.add_material(UNLIT_VERT, UNLIT_FRAG, DrawType::Triangles)?;
 
         let (vertices, indices) = rainbow_cube();
         let mesh = engine.add_mesh(&vertices, &indices)?;
@@ -67,18 +62,8 @@ fn rainbow_cube() -> (Vec<Vertex>, Vec<u16>) {
     ];
 
     let indices = vec![
-        3, 1, 0,
-        2, 1, 3,
-        2, 5, 1,
-        6, 5, 2,
-        6, 4, 5,
-        7, 4, 6,
-        7, 0, 4,
-        3, 0, 7,
-        7, 2, 3,
-        6, 2, 7,
-        0, 5, 4,
-        1, 5, 0,
+        3, 1, 0, 2, 1, 3, 2, 5, 1, 6, 5, 2, 6, 4, 5, 7, 4, 6, 7, 0, 4, 3, 0, 7, 7, 2, 3, 6, 2, 7,
+        0, 5, 4, 1, 5, 0,
     ];
 
     (vertices, indices)

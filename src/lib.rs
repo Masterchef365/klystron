@@ -14,11 +14,11 @@ mod vertex;
 mod vr;
 mod windowed;
 use anyhow::Result;
+use genmap::Handle;
 pub use nalgebra::Matrix4;
 pub use vertex::Vertex;
 pub use vr::{xr_prelude::XrPrelude, OpenXrBackend};
 pub use windowed::{Camera, PerspectiveCamera, WinitBackend};
-use genmap::Handle;
 
 /// All information necessary to define a frame of video (besides camera, which is passed in a
 /// special camera for windowed mode and implicitly in OpenXR)
@@ -78,7 +78,7 @@ pub trait Engine {
     fn update_time_value(&self, data: f32) -> Result<()>;
 }
 
-pub(crate) const ENGINE_NAME: &'static str = "Klystron";
+pub(crate) const ENGINE_NAME: &str = "Klystron";
 pub(crate) fn engine_version() -> u32 {
     erupt::vk1_0::make_version(1, 0, 0)
 }

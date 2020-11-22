@@ -1,5 +1,4 @@
 use crate::frame_sync::FrameSync;
-use genmap::GenMap;
 use crate::material::Material;
 use crate::swapchain_images::{SwapChainImage, SwapchainImages};
 use crate::vertex::Vertex;
@@ -11,6 +10,7 @@ use erupt::{
     },
     vk1_0 as vk, vk1_1, DeviceLoader, InstanceLoader,
 };
+use genmap::GenMap;
 use std::sync::Arc;
 
 pub struct VkPrelude {
@@ -34,7 +34,7 @@ pub struct Mesh {
     pub n_indices: u32,
 }
 
-// TODO: Turn the Vec<T>'s into [T; FRAMES_IN_FLIGHT]! 
+// TODO: Turn the Vec<T>'s into [T; FRAMES_IN_FLIGHT]!
 // Do this when you switch over to gpu-alloc
 
 pub struct Core {
