@@ -1,11 +1,13 @@
 use anyhow::Result;
 use klystron::{
     runtime_3d::{launch, App},
-    DrawType, Engine, FramePacket, Material, Mesh, Object, Vertex, UNLIT_FRAG, UNLIT_VERT,
+    DrawType, Engine, FramePacket, Material, Mesh, Object, Texture, Vertex, UNLIT_FRAG, UNLIT_VERT,
 };
 use nalgebra::{Matrix4, Point3};
+use std::fs::File;
 
 struct MyApp {
+    texture: Texture,
     material: Material,
     mesh: Mesh,
     time: f32,
@@ -17,12 +19,24 @@ impl App for MyApp {
     type Args = ();
 
     fn new(engine: &mut dyn Engine, _args: Self::Args) -> Result<Self> {
+        // Read important image data
+        let img = png::Decoder::new(File::open("./examples/obama.png")?);
+        let (info, mut reader) = img.read_info()?;
+        assert!(info.color_type == png::ColorType::RGB);
+        assert!(info.bit_depth == png::BitDepth::Eight);
+        let mut img_buffer = vec![0; info.buffer_size()];
+        assert_eq!(info.buffer_size(), (info.width * info.height * 3) as _);
+        reader.next_frame(&mut img_buffer)?;
+
+        let texture = engine.add_texture(&img_buffer, info.width)?;
+
         let material = engine.add_material(UNLIT_VERT, UNLIT_FRAG, DrawType::Triangles)?;
 
         let (vertices, indices) = rainbow_cube();
         let mesh = engine.add_mesh(&vertices, &indices)?;
 
         Ok(Self {
+            texture,
             mesh,
             material,
             time: 0.0,
@@ -34,6 +48,7 @@ impl App for MyApp {
         let object = Object {
             material: self.material,
             mesh: self.mesh,
+            texture: Some(self.texture),
             transform,
         };
         engine.update_time_value(self.time)?;
