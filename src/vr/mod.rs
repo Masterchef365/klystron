@@ -1,7 +1,7 @@
 pub mod xr_prelude;
 use crate::core::{Core, VkPrelude};
 use crate::swapchain_images::SwapchainImages;
-use crate::{DrawType, Engine, FramePacket, Material, Mesh, Vertex};
+use crate::{DrawType, Engine, FramePacket, Material, Mesh, Vertex, Texture};
 use anyhow::{bail, Result};
 use erupt::{vk1_0 as vk, DeviceLoader, EntryLoader, InstanceLoader};
 use log::info;
@@ -410,6 +410,12 @@ impl Engine for OpenXrBackend {
     }
     fn update_time_value(&self, data: f32) -> Result<()> {
         self.core.update_time_value(data)
+    }
+    fn add_texture(&mut self, data: &[u8], width: u32) -> Result<Texture> {
+        self.core.add_texture(data, width)
+    }
+    fn remove_texture(&mut self, texture: Texture) -> Result<()> {
+        self.core.remove_texture(texture)
     }
 }
 

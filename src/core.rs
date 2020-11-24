@@ -34,6 +34,11 @@ pub struct Mesh {
     pub n_indices: u32,
 }
 
+pub struct Texture {
+    pub alloc: Allocation<vk::Image>,
+    pub width: u32,
+}
+
 // TODO: Turn the Vec<T>'s into [T; FRAMES_IN_FLIGHT]!
 // Do this when you switch over to gpu-alloc
 
@@ -41,6 +46,7 @@ pub struct Core {
     pub allocator: Allocator,
     pub materials: GenMap<Material>,
     pub meshes: GenMap<Mesh>,
+    pub textures: GenMap<Texture>,
     pub render_pass: vk::RenderPass,
     pub frame_sync: FrameSync,
     pub swapchain_images: Option<SwapchainImages>,
@@ -218,6 +224,7 @@ impl Core {
             swapchain_images: None,
             materials: GenMap::with_capacity(10),
             meshes: GenMap::with_capacity(10),
+            textures: GenMap::with_capacity(10),
         })
     }
 
@@ -485,6 +492,16 @@ impl Core {
         map.import(bytemuck::cast_slice(&[time]));
         map.unmap(&self.prelude.device).result()?;
         Ok(())
+    }
+
+    /// Add a new texture
+    pub fn add_texture(&mut self, data: &[u8], width: u32) -> Result<crate::Texture> {
+        todo!()
+    }
+
+    /// Remove the given mesh
+    pub fn remove_texture(&mut self, texture: crate::Texture) -> Result<()> {
+        todo!()
     }
 }
 

@@ -48,6 +48,10 @@ pub struct Material(pub(crate) Handle);
 #[derive(Copy, Clone)]
 pub struct Mesh(pub(crate) Handle);
 
+/// Handle for a Mesh (Draw content)
+#[derive(Copy, Clone)]
+pub struct Texture(pub(crate) Handle);
+
 /// Material rasterization method
 pub enum DrawType {
     /// Lines in between each pair of indices
@@ -68,12 +72,22 @@ pub trait Engine {
         fragment: &[u8],
         draw_type: DrawType,
     ) -> Result<Material>;
-    /// Add a mesh, given vertices and indices
-    fn add_mesh(&mut self, vertices: &[Vertex], indices: &[u16]) -> Result<Mesh>;
+
     /// Remove the given material
     fn remove_material(&mut self, material: Material) -> Result<()>;
+
+    /// Add a mesh, given vertices and indices
+    fn add_mesh(&mut self, vertices: &[Vertex], indices: &[u16]) -> Result<Mesh>;
+
     /// Remove the given mesh
     fn remove_mesh(&mut self, mesh: Mesh) -> Result<()>;
+
+    /// Add a new texture
+    fn add_texture(&mut self, data: &[u8], width: u32) -> Result<Texture>;
+
+    /// Remove the given mesh
+    fn remove_texture(&mut self, texture: Texture) -> Result<()>;
+
     /// Update the animation value
     fn update_time_value(&self, data: f32) -> Result<()>;
 }
