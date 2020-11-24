@@ -6,7 +6,7 @@ use anyhow::{Result, ensure};
 use erupt::{
     utils::{
         self,
-        allocator::{self, Allocation, Allocator},
+        allocator::{self, Allocation, Allocator, MemoryTypeFinder},
     },
     vk1_0 as vk, vk1_1, DeviceLoader, InstanceLoader,
 };
@@ -148,7 +148,7 @@ impl Core {
                 .allocate(
                     &prelude.device,
                     buffer,
-                    allocator::MemoryTypeFinder::dynamic(),
+                    MemoryTypeFinder::dynamic(),
                 )
                 .result()?;
             camera_ubos.push(memory);
@@ -163,7 +163,7 @@ impl Core {
                 .allocate(
                     &prelude.device,
                     buffer,
-                    allocator::MemoryTypeFinder::dynamic(),
+                    MemoryTypeFinder::dynamic(),
                 )
                 .result()?;
             time_ubos.push(memory);
@@ -500,7 +500,9 @@ impl Core {
         ensure!(data.len() % width as usize == 0, "Image data must be a multiple of its width");
         ensure!(data.len() % 3 == 0, "Image data must be RGB");
 
-        //TODO: Use staging buffers!
+        let height = data.len() as u32 / width;
+
+        // Staging buffers!
         let create_info = vk::BufferCreateInfoBuilder::new()
             .usage(vk::BufferUsageFlags::TRANSFER_SRC)
             .sharing_mode(vk::SharingMode::EXCLUSIVE)
@@ -519,7 +521,33 @@ impl Core {
         map.import(data);
         map.unmap(&self.prelude.device).result()?;
 
-        todo!()
+        // Create texture image
+        let extent = vk::Extent3DBuilder::new()
+            .width(width)
+            .height(height)
+            .depth(1)
+            .build();
+        let create_info = vk::ImageCreateInfoBuilder::new()
+            .image_type(vk::ImageType::_2D)
+            .extent(extent)
+            .mip_levels(1)
+            .array_layers(1)
+            .format(vk::Format::R8G8B8_SRGB)
+            .tiling(vk::ImageTiling::OPTIMAL)
+            .initial_layout(vk::ImageLayout::UNDEFINED)
+            .usage(vk::ImageUsageFlags::TRANSFER_DST | vk::ImageUsageFlags::SAMPLED)
+            .sharing_mode(vk::SharingMode::EXCLUSIVE)
+            .samples(vk::SampleCountFlagBits::_1)
+            .build();
+        let image = unsafe { self.prelude.device.create_image(&create_info, None, None) }.result()?;
+        let image_allocation = self.allocator.allocate(&self.prelude.device, image, MemoryTypeFinder::gpu_only()).result()?;
+
+        let texture = Texture {
+            alloc: image_allocation,
+            width,
+        };
+
+        Ok(crate::Texture(self.textures.insert(texture)))
     }
 
     /// Remove the given mesh
