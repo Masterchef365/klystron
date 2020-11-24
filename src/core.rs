@@ -2,7 +2,7 @@ use crate::frame_sync::FrameSync;
 use crate::material::Material;
 use crate::swapchain_images::{SwapChainImage, SwapchainImages};
 use crate::vertex::Vertex;
-use anyhow::Result;
+use anyhow::{Result, ensure};
 use erupt::{
     utils::{
         self,
@@ -496,6 +496,29 @@ impl Core {
 
     /// Add a new texture
     pub fn add_texture(&mut self, data: &[u8], width: u32) -> Result<crate::Texture> {
+        ensure!(width > 0, "Width must be >0");
+        ensure!(data.len() % width as usize == 0, "Image data must be a multiple of its width");
+        ensure!(data.len() % 3 == 0, "Image data must be RGB");
+
+        //TODO: Use staging buffers!
+        let create_info = vk::BufferCreateInfoBuilder::new()
+            .usage(vk::BufferUsageFlags::TRANSFER_SRC)
+            .sharing_mode(vk::SharingMode::EXCLUSIVE)
+            .size(data.len() as _);
+        let image_buffer =
+            unsafe { self.prelude.device.create_buffer(&create_info, None, None) }.result()?;
+        let image_buffer_alloc = self
+            .allocator
+            .allocate(
+                &self.prelude.device,
+                image_buffer,
+                allocator::MemoryTypeFinder::upload(),
+            )
+            .result()?;
+        let mut map = image_buffer_alloc.map(&self.prelude.device, ..).result()?;
+        map.import(data);
+        map.unmap(&self.prelude.device).result()?;
+
         todo!()
     }
 
@@ -603,7 +626,7 @@ impl Drop for Core {
             self.prelude
                 .device
                 .destroy_command_pool(Some(self.command_pool), None);
-        }
+            }
     }
 }
 
