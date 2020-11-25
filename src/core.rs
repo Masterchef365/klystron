@@ -2,7 +2,7 @@ use crate::frame_sync::FrameSync;
 use crate::material::Material;
 use crate::swapchain_images::{SwapChainImage, SwapchainImages};
 use crate::vertex::Vertex;
-use anyhow::{Result, ensure};
+use anyhow::{ensure, Result};
 use erupt::{
     utils::{
         self,
@@ -52,6 +52,7 @@ pub struct Core {
     pub swapchain_images: Option<SwapchainImages>,
     pub command_pool: vk::CommandPool,
     pub command_buffers: Vec<vk::CommandBuffer>,
+    pub transfer_cmd_buf: vk::CommandBuffer,
     pub descriptor_pool: vk::DescriptorPool,
     pub descriptor_set_layout: vk::DescriptorSetLayout,
     pub descriptor_sets: Vec<vk::DescriptorSet>,
@@ -73,10 +74,12 @@ impl Core {
         let allocate_info = vk::CommandBufferAllocateInfoBuilder::new()
             .command_pool(command_pool)
             .level(vk::CommandBufferLevel::PRIMARY)
-            .command_buffer_count(FRAMES_IN_FLIGHT as u32);
+            .command_buffer_count(FRAMES_IN_FLIGHT as u32 + 1);
 
-        let command_buffers =
+        let mut command_buffers =
             unsafe { prelude.device.allocate_command_buffers(&allocate_info) }.result()?;
+
+        let transfer_cmd_buf = command_buffers.pop().unwrap();
 
         // Device memory allocator
         let mut allocator = Allocator::new(
@@ -145,11 +148,7 @@ impl Core {
             let buffer =
                 unsafe { prelude.device.create_buffer(&ubo_create_info, None, None) }.result()?;
             let memory = allocator
-                .allocate(
-                    &prelude.device,
-                    buffer,
-                    MemoryTypeFinder::dynamic(),
-                )
+                .allocate(&prelude.device, buffer, MemoryTypeFinder::dynamic())
                 .result()?;
             camera_ubos.push(memory);
         }
@@ -160,11 +159,7 @@ impl Core {
             let buffer =
                 unsafe { prelude.device.create_buffer(&ubo_create_info, None, None) }.result()?;
             let memory = allocator
-                .allocate(
-                    &prelude.device,
-                    buffer,
-                    MemoryTypeFinder::dynamic(),
-                )
+                .allocate(&prelude.device, buffer, MemoryTypeFinder::dynamic())
                 .result()?;
             time_ubos.push(memory);
         }
@@ -220,6 +215,7 @@ impl Core {
             frame_sync,
             allocator,
             command_buffers,
+            transfer_cmd_buf,
             render_pass,
             swapchain_images: None,
             materials: GenMap::with_capacity(10),
@@ -497,12 +493,15 @@ impl Core {
     /// Add a new texture
     pub fn add_texture(&mut self, data: &[u8], width: u32) -> Result<crate::Texture> {
         ensure!(width > 0, "Width must be >0");
-        ensure!(data.len() % width as usize == 0, "Image data must be a multiple of its width");
+        ensure!(
+            data.len() % width as usize == 0,
+            "Image data must be a multiple of its width"
+        );
         ensure!(data.len() % 3 == 0, "Image data must be RGB");
 
-        let height = data.len() as u32 / width;
+        let height = data.len() as u32 / (width * 3);
 
-        // Staging buffers!
+        // Staging buffer
         let create_info = vk::BufferCreateInfoBuilder::new()
             .usage(vk::BufferUsageFlags::TRANSFER_SRC)
             .sharing_mode(vk::SharingMode::EXCLUSIVE)
@@ -521,6 +520,8 @@ impl Core {
         map.import(data);
         map.unmap(&self.prelude.device).result()?;
 
+        const FORMAT: vk::Format = vk::Format::R8G8B8_SRGB;
+
         // Create texture image
         let extent = vk::Extent3DBuilder::new()
             .width(width)
@@ -532,20 +533,98 @@ impl Core {
             .extent(extent)
             .mip_levels(1)
             .array_layers(1)
-            .format(vk::Format::R8G8B8_SRGB)
+            .format(FORMAT)
             .tiling(vk::ImageTiling::OPTIMAL)
             .initial_layout(vk::ImageLayout::UNDEFINED)
             .usage(vk::ImageUsageFlags::TRANSFER_DST | vk::ImageUsageFlags::SAMPLED)
             .sharing_mode(vk::SharingMode::EXCLUSIVE)
             .samples(vk::SampleCountFlagBits::_1)
             .build();
-        let image = unsafe { self.prelude.device.create_image(&create_info, None, None) }.result()?;
-        let image_allocation = self.allocator.allocate(&self.prelude.device, image, MemoryTypeFinder::gpu_only()).result()?;
+        let image =
+            unsafe { self.prelude.device.create_image(&create_info, None, None) }.result()?;
+        let image_allocation = self
+            .allocator
+            .allocate(&self.prelude.device, image, MemoryTypeFinder::gpu_only())
+            .result()?;
 
         let texture = Texture {
             alloc: image_allocation,
             width,
         };
+
+        self.begin_transfer_cmds()?;
+        unsafe {
+            // Barrier 
+            let subresource_range = vk::ImageSubresourceRangeBuilder::new()
+                .aspect_mask(vk::ImageAspectFlags::COLOR)
+                .base_mip_level(0)
+                .level_count(1)
+                .base_array_layer(0)
+                .layer_count(1)
+                .build();
+
+            // TODO: Src/DstAspectMask
+            let barrier = vk::ImageMemoryBarrierBuilder::new()
+                .old_layout(vk::ImageLayout::UNDEFINED)
+                .new_layout(vk::ImageLayout::TRANSFER_DST_OPTIMAL)
+                .src_queue_family_index(vk::QUEUE_FAMILY_IGNORED)
+                .dst_queue_family_index(vk::QUEUE_FAMILY_IGNORED)
+                .image(image)
+                .subresource_range(subresource_range);
+            self.prelude.device.cmd_pipeline_barrier(
+                self.transfer_cmd_buf,
+                vk::PipelineStageFlags::empty(),
+                vk::PipelineStageFlags::empty(),
+                None,
+                &[],
+                &[],
+                &[barrier],
+            );
+
+            let offset = vk::Offset3DBuilder::new().x(0).y(0).z(0).build();
+            let image_subresources = vk::ImageSubresourceLayersBuilder::new()
+                .aspect_mask(vk::ImageAspectFlags::COLOR)
+                .mip_level(0)
+                .base_array_layer(0)
+                .layer_count(1)
+
+                .build();
+            let copy = vk::BufferImageCopyBuilder::new()
+                .buffer_offset(0)
+                .buffer_row_length(0)
+                .buffer_image_height(0)
+                .image_subresource(image_subresources)
+                .image_offset(offset)
+                .image_extent(extent);
+
+            self.prelude.device.cmd_copy_buffer_to_image(
+                self.transfer_cmd_buf,
+                image_buffer,
+                image,
+                vk::ImageLayout::TRANSFER_DST_OPTIMAL,
+                &[copy],
+            );
+
+            // TODO: Src/DstAspectMask
+            let barrier = vk::ImageMemoryBarrierBuilder::new()
+                .old_layout(vk::ImageLayout::TRANSFER_DST_OPTIMAL)
+                .new_layout(vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL)
+                .src_queue_family_index(vk::QUEUE_FAMILY_IGNORED)
+                .dst_queue_family_index(vk::QUEUE_FAMILY_IGNORED)
+                .image(image)
+                .subresource_range(subresource_range);
+            self.prelude.device.cmd_pipeline_barrier(
+                self.transfer_cmd_buf,
+                vk::PipelineStageFlags::empty(),
+                vk::PipelineStageFlags::empty(),
+                None,
+                &[],
+                &[],
+                &[barrier],
+            );
+
+        }
+        self.end_transfer_cmds()?;
 
         Ok(crate::Texture(self.textures.insert(texture)))
     }
@@ -553,6 +632,41 @@ impl Core {
     /// Remove the given mesh
     pub fn remove_texture(&mut self, texture: crate::Texture) -> Result<()> {
         todo!()
+    }
+
+    fn begin_transfer_cmds(&mut self) -> Result<()> {
+        unsafe {
+            self.prelude
+                .device
+                .reset_command_buffer(self.transfer_cmd_buf, None)
+                .result()?;
+            let begin_info = vk::CommandBufferBeginInfoBuilder::new();
+            self.prelude
+                .device
+                .begin_command_buffer(self.transfer_cmd_buf, &begin_info)
+                .result()?;
+        };
+        Ok(())
+    }
+
+    fn end_transfer_cmds(&mut self) -> Result<()> {
+        unsafe {
+            self.prelude
+                .device
+                .end_command_buffer(self.transfer_cmd_buf)
+                .result()?;
+            let command_buffers = [self.transfer_cmd_buf];
+            let submit_info = vk::SubmitInfoBuilder::new().command_buffers(&command_buffers);
+            self.prelude
+                .device
+                .queue_submit(self.prelude.queue, &[submit_info], None)
+                .result()?;
+            self.prelude
+                .device
+                .queue_wait_idle(self.prelude.queue)
+                .result()?;
+        }
+        Ok(())
     }
 }
 
@@ -654,7 +768,7 @@ impl Drop for Core {
             self.prelude
                 .device
                 .destroy_command_pool(Some(self.command_pool), None);
-            }
+        }
     }
 }
 
