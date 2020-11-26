@@ -154,16 +154,19 @@ impl OpenXrBackend {
         let queues = [vk::DeviceQueueCreateInfoBuilder::new()
             .queue_family_index(queue_family_index)
             .queue_priorities(&priorities)];
+
+        let phys_device_features = vk::PhysicalDeviceFeaturesBuilder::new()
+            .sampler_anisotropy(true);
+
         let mut create_info = vk::DeviceCreateInfoBuilder::new()
             .queue_create_infos(&queues)
             .enabled_layer_names(&vk_device_layers_ptrs)
             .enabled_extension_names(&vk_device_ext_ptrs)
+            .enabled_features(&phys_device_features)
             .build();
 
-        let mut phys_device_features = erupt::vk1_2::PhysicalDeviceVulkan11Features {
-            multiview: vk::TRUE,
-            ..Default::default()
-        };
+        let mut phys_device_features = erupt::vk1_2::PhysicalDeviceVulkan11FeaturesBuilder::new()
+            .multiview(true);
 
         create_info.p_next = &mut phys_device_features as *mut _ as _;
 

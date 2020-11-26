@@ -36,6 +36,8 @@ pub struct Mesh {
 
 pub struct Texture {
     pub alloc: Allocation<vk::Image>,
+    pub sampler: vk::Sampler,
+    pub view: vk::ImageView,
     pub width: u32,
 }
 
@@ -547,13 +549,7 @@ impl Core {
             .allocate(&self.prelude.device, image, MemoryTypeFinder::gpu_only())
             .result()?;
 
-        let texture = Texture {
-            alloc: image_allocation,
-            width,
-        };
-
         self.begin_transfer_cmds()?;
-        unsafe {
             // Barrier 
             let subresource_range = vk::ImageSubresourceRangeBuilder::new()
                 .aspect_mask(vk::ImageAspectFlags::COLOR)
@@ -563,6 +559,8 @@ impl Core {
                 .layer_count(1)
                 .build();
 
+        // Copy the staging buffer into the image
+        unsafe {
             // TODO: Src/DstAspectMask
             let barrier = vk::ImageMemoryBarrierBuilder::new()
                 .old_layout(vk::ImageLayout::UNDEFINED)
@@ -625,6 +623,44 @@ impl Core {
 
         }
         self.end_transfer_cmds()?;
+
+        self.allocator.free(&self.prelude.device, image_buffer_alloc);
+
+        // Create image view
+        let create_info = vk::ImageViewCreateInfoBuilder::new()
+            .image(image)
+            .view_type(vk::ImageViewType::_2D)
+            .format(FORMAT)
+            .subresource_range(subresource_range)
+            .build();
+        let image_view = unsafe { self.prelude.device.create_image_view(&create_info, None, None) }.result()?;
+
+        // Create sampler
+        let create_info = vk::SamplerCreateInfoBuilder::new()
+            .mag_filter(vk::Filter::LINEAR)
+            .min_filter(vk::Filter::LINEAR)
+            .address_mode_u(vk::SamplerAddressMode::REPEAT)
+            .address_mode_v(vk::SamplerAddressMode::REPEAT)
+            .address_mode_w(vk::SamplerAddressMode::REPEAT)
+            .anisotropy_enable(true)
+            .max_anisotropy(16.)
+            .border_color(vk::BorderColor::INT_OPAQUE_BLACK)
+            .unnormalized_coordinates(false)
+            .compare_enable(false)
+            .compare_op(vk::CompareOp::ALWAYS)
+            .mipmap_mode(vk::SamplerMipmapMode::LINEAR)
+            .mip_lod_bias(0.)
+            .min_lod(0.)
+            .max_lod(0.)
+            .build();
+        let sampler = unsafe { self.prelude.device.create_sampler(&create_info, None, None) }.result()?;
+
+        let texture = Texture {
+            alloc: image_allocation,
+            view: image_view,
+            sampler,
+            width,
+        };
 
         Ok(crate::Texture(self.textures.insert(texture)))
     }

@@ -72,7 +72,8 @@ impl WinitBackend {
             .queue_family_index(hardware.queue_family)
             .queue_priorities(&[1.0])];
 
-        let physical_device_features = vk::PhysicalDeviceFeaturesBuilder::new();
+        let physical_device_features = vk::PhysicalDeviceFeaturesBuilder::new()
+            .sampler_anisotropy(true);
         let create_info = vk::DeviceCreateInfoBuilder::new()
             .queue_create_infos(&create_info)
             .enabled_features(&physical_device_features)
