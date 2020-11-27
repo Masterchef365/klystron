@@ -3,10 +3,6 @@
 
 layout(location = 0) in vec3 fragColor;
 
-layout(push_constant) uniform Model {
-    mat4 matrix;
-};
-
 layout(binding = 1) uniform Animation {
     float anim;
 };

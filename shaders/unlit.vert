@@ -13,7 +13,6 @@ layout(binding = 1) uniform Animation {
 
 layout(push_constant) uniform Model {
     mat4 model_matrix;
-    uint texture_idx;
 };
 
 layout(location = 0) in vec3 inPosition;
