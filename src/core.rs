@@ -103,6 +103,11 @@ impl Core {
                 .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
                 .descriptor_count(1)
                 .stage_flags(vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT),
+            vk::DescriptorSetLayoutBindingBuilder::new()
+                .binding(2)
+                .descriptor_type(vk::DescriptorType::COMBINED_IMAGE_SAMPLER)
+                .descriptor_count(1)
+                .stage_flags(vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT),
         ];
 
         let descriptor_set_layout_ci =
@@ -116,9 +121,14 @@ impl Core {
         .result()?;
 
         // Create descriptor pool
-        let pool_sizes = [vk::DescriptorPoolSizeBuilder::new()
+        let pool_sizes = [
+            vk::DescriptorPoolSizeBuilder::new()
             ._type(vk::DescriptorType::UNIFORM_BUFFER)
-            .descriptor_count((FRAMES_IN_FLIGHT * 2) as u32)];
+            .descriptor_count((FRAMES_IN_FLIGHT * 2) as u32),
+            vk::DescriptorPoolSizeBuilder::new()
+            ._type(vk::DescriptorType::COMBINED_IMAGE_SAMPLER)
+            .descriptor_count(FRAMES_IN_FLIGHT as u32),
+        ];
         let create_info = vk::DescriptorPoolCreateInfoBuilder::new()
             .pool_sizes(&pool_sizes)
             .max_sets(FRAMES_IN_FLIGHT as u32);

@@ -48,7 +48,7 @@ impl App for MyApp {
         let object = Object {
             material: self.material,
             mesh: self.mesh,
-            texture: Some(self.texture),
+            texture: self.texture,
             transform,
         };
         engine.update_time_value(self.time)?;

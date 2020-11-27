@@ -37,7 +37,7 @@ pub struct Object {
     /// Transformation applied to each vertex of this Object
     pub transform: Matrix4<f32>,
     /// Texture
-    pub texture: Option<Texture>,
+    pub texture: Texture,
 }
 
 /// Handle for a Material (Draw commands)
