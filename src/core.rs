@@ -543,12 +543,14 @@ impl Core {
                 .new_layout(vk::ImageLayout::TRANSFER_DST_OPTIMAL)
                 .src_queue_family_index(vk::QUEUE_FAMILY_IGNORED)
                 .dst_queue_family_index(vk::QUEUE_FAMILY_IGNORED)
+                .src_access_mask(vk::AccessFlags::empty())
+                .dst_access_mask(vk::AccessFlags::TRANSFER_WRITE)
                 .image(image)
                 .subresource_range(subresource_range);
             self.prelude.device.cmd_pipeline_barrier(
                 self.transfer_cmd_buf,
-                vk::PipelineStageFlags::empty(),
-                vk::PipelineStageFlags::empty(),
+                vk::PipelineStageFlags::TOP_OF_PIPE,
+                vk::PipelineStageFlags::TRANSFER,
                 None,
                 &[],
                 &[],
@@ -585,12 +587,14 @@ impl Core {
                 .new_layout(vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL)
                 .src_queue_family_index(vk::QUEUE_FAMILY_IGNORED)
                 .dst_queue_family_index(vk::QUEUE_FAMILY_IGNORED)
+                .src_access_mask(vk::AccessFlags::TRANSFER_WRITE)
+                .dst_access_mask(vk::AccessFlags::empty())
                 .image(image)
                 .subresource_range(subresource_range);
             self.prelude.device.cmd_pipeline_barrier(
                 self.transfer_cmd_buf,
-                vk::PipelineStageFlags::empty(),
-                vk::PipelineStageFlags::empty(),
+                vk::PipelineStageFlags::TRANSFER,
+                vk::PipelineStageFlags::BOTTOM_OF_PIPE,
                 None,
                 &[],
                 &[],
