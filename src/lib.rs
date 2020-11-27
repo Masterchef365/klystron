@@ -13,6 +13,7 @@ mod swapchain_images;
 mod vertex;
 mod vr;
 mod windowed;
+mod desc_set_allocator;
 use anyhow::Result;
 use genmap::Handle;
 pub use nalgebra::Matrix4;

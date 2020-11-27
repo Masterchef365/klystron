@@ -12,6 +12,7 @@ use erupt::{
 };
 use genmap::GenMap;
 use std::sync::Arc;
+use crate::desc_set_allocator::DescriptorSetAllocator;
 
 pub struct VkPrelude {
     pub queue: vk::Queue,
@@ -39,6 +40,7 @@ pub struct Texture {
     pub sampler: vk::Sampler,
     pub view: vk::ImageView,
     pub width: u32,
+    pub descriptor_sets: Vec<vk::DescriptorSet>,
 }
 
 // TODO: Turn the Vec<T>'s into [T; FRAMES_IN_FLIGHT]!
@@ -55,9 +57,8 @@ pub struct Core {
     pub command_pool: vk::CommandPool,
     pub command_buffers: Vec<vk::CommandBuffer>,
     pub transfer_cmd_buf: vk::CommandBuffer,
-    pub descriptor_pool: vk::DescriptorPool,
+    pub desc_set_allocator: DescriptorSetAllocator,
     pub descriptor_set_layout: vk::DescriptorSetLayout,
-    pub descriptor_sets: Vec<vk::DescriptorSet>,
     pub camera_ubos: Vec<Allocation<vk::Buffer>>,
     pub time_ubos: Vec<Allocation<vk::Buffer>>,
     pub prelude: Arc<VkPrelude>,
@@ -121,7 +122,7 @@ impl Core {
         .result()?;
 
         // Create descriptor pool
-        let pool_sizes = [
+        let pool_sizes = vec![
             vk::DescriptorPoolSizeBuilder::new()
             ._type(vk::DescriptorType::UNIFORM_BUFFER)
             .descriptor_count((FRAMES_IN_FLIGHT * 2) as u32),
@@ -129,6 +130,9 @@ impl Core {
             ._type(vk::DescriptorType::COMBINED_IMAGE_SAMPLER)
             .descriptor_count(FRAMES_IN_FLIGHT as u32),
         ];
+
+        let desc_set_allocator = DescriptorSetAllocator::new(pool_sizes, descriptor_set_layout, prelude.clone());
+            /*
         let create_info = vk::DescriptorPoolCreateInfoBuilder::new()
             .pool_sizes(&pool_sizes)
             .max_sets(FRAMES_IN_FLIGHT as u32);
@@ -147,6 +151,7 @@ impl Core {
 
         let descriptor_sets =
             unsafe { prelude.device.allocate_descriptor_sets(&create_info) }.result()?;
+            */
 
         // UBOs
         let ubo_create_info = vk::BufferCreateInfoBuilder::new()
@@ -176,41 +181,6 @@ impl Core {
             time_ubos.push(memory);
         }
 
-        // Bind buffers to descriptors
-        for (animation_ubo, (camera_ubo, descriptor)) in time_ubos
-            .iter()
-            .zip(camera_ubos.iter().zip(descriptor_sets.iter()))
-        {
-            let camera_buffer_infos = [vk::DescriptorBufferInfoBuilder::new()
-                .buffer(*camera_ubo.object())
-                .offset(0)
-                .range(std::mem::size_of::<CameraUbo>() as u64)];
-
-            let animation_buffer_infos = [vk::DescriptorBufferInfoBuilder::new()
-                .buffer(*animation_ubo.object())
-                .offset(0)
-                .range(std::mem::size_of::<f32>() as u64)];
-
-            let writes = [
-                vk::WriteDescriptorSetBuilder::new()
-                    .buffer_info(&camera_buffer_infos)
-                    .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
-                    .dst_set(*descriptor)
-                    .dst_binding(0)
-                    .dst_array_element(0),
-                vk::WriteDescriptorSetBuilder::new()
-                    .buffer_info(&animation_buffer_infos)
-                    .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
-                    .dst_set(*descriptor)
-                    .dst_binding(1)
-                    .dst_array_element(0),
-            ];
-
-            unsafe {
-                prelude.device.update_descriptor_sets(&writes, &[]);
-            }
-        }
-
         // Frame synchronization
         let frame_sync = FrameSync::new(prelude.clone(), FRAMES_IN_FLIGHT)?;
 
@@ -220,9 +190,8 @@ impl Core {
             prelude,
             camera_ubos,
             time_ubos,
+            desc_set_allocator,
             descriptor_set_layout,
-            descriptor_pool,
-            descriptor_sets,
             command_pool,
             frame_sync,
             allocator,
@@ -331,7 +300,6 @@ impl Core {
     ) -> Result<vk::CommandBuffer> {
         // Reset and write command buffers for this frame
         let command_buffer = self.command_buffers[frame_idx];
-        let descriptor_set = self.descriptor_sets[frame_idx];
         unsafe {
             self.prelude
                 .device
@@ -406,15 +374,6 @@ impl Core {
                     .device
                     .cmd_set_scissor(command_buffer, 0, &scissors);
 
-                self.prelude.device.cmd_bind_descriptor_sets(
-                    command_buffer,
-                    vk::PipelineBindPoint::GRAPHICS,
-                    material.pipeline_layout,
-                    0,
-                    &[descriptor_set],
-                    &[],
-                );
-
                 for object in packet
                     .objects
                     .iter()
@@ -423,10 +382,28 @@ impl Core {
                     let mesh = match self.meshes.get(object.mesh.0) {
                         Some(m) => m,
                         None => {
-                            log::error!("Object references a mesh that no exists");
+                            log::error!("Object references a mesh that no longer exists");
                             continue;
                         }
                     };
+
+                    let texture = match self.textures.get(object.texture.0) {
+                        Some(m) => m,
+                        None => {
+                            log::error!("Object references a texture that no longer exists");
+                            continue;
+                        }
+                    };
+
+                    self.prelude.device.cmd_bind_descriptor_sets(
+                        command_buffer,
+                        vk::PipelineBindPoint::GRAPHICS,
+                        material.pipeline_layout,
+                        0,
+                        &[texture.descriptor_sets[frame_idx]],
+                        &[],
+                    );
+
                     self.prelude.device.cmd_bind_vertex_buffers(
                         command_buffer,
                         0,
@@ -441,17 +418,6 @@ impl Core {
                         vk::IndexType::UINT16,
                     );
 
-                    let descriptor_sets = [self.descriptor_sets[frame_idx]];
-                    self.prelude.device.cmd_bind_descriptor_sets(
-                        command_buffer,
-                        vk::PipelineBindPoint::GRAPHICS,
-                        material.pipeline_layout,
-                        0,
-                        &descriptor_sets,
-                        &[],
-                    );
-
-                    // TODO: ADD ANIM
                     self.prelude.device.cmd_push_constants(
                         command_buffer,
                         material.pipeline_layout,
@@ -478,7 +444,7 @@ impl Core {
                 .device
                 .end_command_buffer(command_buffer)
                 .result()?;
-        }
+            }
 
         Ok(command_buffer)
     }
@@ -560,14 +526,14 @@ impl Core {
             .result()?;
 
         self.begin_transfer_cmds()?;
-            // Barrier 
-            let subresource_range = vk::ImageSubresourceRangeBuilder::new()
-                .aspect_mask(vk::ImageAspectFlags::COLOR)
-                .base_mip_level(0)
-                .level_count(1)
-                .base_array_layer(0)
-                .layer_count(1)
-                .build();
+        // Barrier 
+        let subresource_range = vk::ImageSubresourceRangeBuilder::new()
+            .aspect_mask(vk::ImageAspectFlags::COLOR)
+            .base_mip_level(0)
+            .level_count(1)
+            .base_array_layer(0)
+            .layer_count(1)
+            .build();
 
         // Copy the staging buffer into the image
         unsafe {
@@ -665,7 +631,56 @@ impl Core {
             .build();
         let sampler = unsafe { self.prelude.device.create_sampler(&create_info, None, None) }.result()?;
 
+        let descriptor_sets = (0..FRAMES_IN_FLIGHT).map(|_| self.desc_set_allocator.pop()).collect::<Result<Vec<_>>>()?;
+
+        // Populate new descriptor set
+        for (animation_ubo, (camera_ubo, descriptor)) in self.time_ubos
+            .iter()
+            .zip(self.camera_ubos.iter().zip(descriptor_sets.iter()))
+        {
+            let camera_buffer_infos = [vk::DescriptorBufferInfoBuilder::new()
+                .buffer(*camera_ubo.object())
+                .offset(0)
+                .range(std::mem::size_of::<CameraUbo>() as u64)];
+
+            let animation_buffer_infos = [vk::DescriptorBufferInfoBuilder::new()
+                .buffer(*animation_ubo.object())
+                .offset(0)
+                .range(std::mem::size_of::<f32>() as u64)];
+
+            let image_info = [vk::DescriptorImageInfoBuilder::new()
+                .image_layout(vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL)
+                .image_view(image_view)
+                .sampler(sampler)];
+
+            let writes = [
+                vk::WriteDescriptorSetBuilder::new()
+                    .buffer_info(&camera_buffer_infos)
+                    .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
+                    .dst_set(*descriptor)
+                    .dst_binding(0)
+                    .dst_array_element(0),
+                vk::WriteDescriptorSetBuilder::new()
+                    .buffer_info(&animation_buffer_infos)
+                    .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
+                    .dst_set(*descriptor)
+                    .dst_binding(1)
+                    .dst_array_element(0),
+                vk::WriteDescriptorSetBuilder::new()
+                    .image_info(&image_info)
+                    .descriptor_type(vk::DescriptorType::COMBINED_IMAGE_SAMPLER)
+                    .dst_set(*descriptor)
+                    .dst_binding(2)
+                    .dst_array_element(0),
+            ];
+
+            unsafe {
+                self.prelude.device.update_descriptor_sets(&writes, &[]);
+            }
+        }
+
         let texture = Texture {
+            descriptor_sets,
             alloc: image_allocation,
             view: image_view,
             sampler,
@@ -676,7 +691,7 @@ impl Core {
     }
 
     /// Remove the given mesh
-    pub fn remove_texture(&mut self, texture: crate::Texture) -> Result<()> {
+    pub fn remove_texture(&mut self, _texture: crate::Texture) -> Result<()> {
         todo!()
     }
 
@@ -691,7 +706,7 @@ impl Core {
                 .device
                 .begin_command_buffer(self.transfer_cmd_buf, &begin_info)
                 .result()?;
-        };
+            };
         Ok(())
     }
 
@@ -711,7 +726,7 @@ impl Core {
                 .device
                 .queue_wait_idle(self.prelude.queue)
                 .result()?;
-        }
+            }
         Ok(())
     }
 }
@@ -807,14 +822,11 @@ impl Drop for Core {
                 .destroy_descriptor_set_layout(Some(self.descriptor_set_layout), None);
             self.prelude
                 .device
-                .destroy_descriptor_pool(Some(self.descriptor_pool), None);
-            self.prelude
-                .device
                 .free_command_buffers(self.command_pool, &self.command_buffers);
             self.prelude
                 .device
                 .destroy_command_pool(Some(self.command_pool), None);
-        }
+            }
     }
 }
 
