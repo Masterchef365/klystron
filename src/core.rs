@@ -1,8 +1,9 @@
+use crate::desc_set_allocator::DescriptorSetAllocator;
 use crate::frame_sync::FrameSync;
 use crate::material::Material;
 use crate::swapchain_images::{SwapChainImage, SwapchainImages};
 use crate::vertex::Vertex;
-use anyhow::{ensure, Result};
+use anyhow::{ensure, Context, Result};
 use erupt::{
     utils::{
         self,
@@ -12,7 +13,6 @@ use erupt::{
 };
 use genmap::GenMap;
 use std::sync::Arc;
-use crate::desc_set_allocator::DescriptorSetAllocator;
 
 pub struct VkPrelude {
     pub queue: vk::Queue,
@@ -26,6 +26,7 @@ pub struct VkPrelude {
 pub(crate) const FRAMES_IN_FLIGHT: usize = 2;
 pub(crate) const COLOR_FORMAT: vk::Format = vk::Format::B8G8R8A8_SRGB;
 pub(crate) const DEPTH_FORMAT: vk::Format = vk::Format::D32_SFLOAT;
+pub(crate) const TEXTURE_FORMAT: vk::Format = vk::Format::R8G8B8_SRGB;
 
 pub type CameraUbo = [f32; 32];
 
@@ -124,15 +125,16 @@ impl Core {
         // Create descriptor pool
         let pool_sizes = vec![
             vk::DescriptorPoolSizeBuilder::new()
-            ._type(vk::DescriptorType::UNIFORM_BUFFER)
-            .descriptor_count((FRAMES_IN_FLIGHT * 2) as u32),
+                ._type(vk::DescriptorType::UNIFORM_BUFFER)
+                .descriptor_count((FRAMES_IN_FLIGHT * 2) as u32),
             vk::DescriptorPoolSizeBuilder::new()
-            ._type(vk::DescriptorType::COMBINED_IMAGE_SAMPLER)
-            .descriptor_count(FRAMES_IN_FLIGHT as u32),
+                ._type(vk::DescriptorType::COMBINED_IMAGE_SAMPLER)
+                .descriptor_count(FRAMES_IN_FLIGHT as u32),
         ];
 
-        let desc_set_allocator = DescriptorSetAllocator::new(pool_sizes, descriptor_set_layout, prelude.clone());
-            /*
+        let desc_set_allocator =
+            DescriptorSetAllocator::new(pool_sizes, descriptor_set_layout, prelude.clone());
+        /*
         let create_info = vk::DescriptorPoolCreateInfoBuilder::new()
             .pool_sizes(&pool_sizes)
             .max_sets(FRAMES_IN_FLIGHT as u32);
@@ -444,7 +446,7 @@ impl Core {
                 .device
                 .end_command_buffer(command_buffer)
                 .result()?;
-            }
+        }
 
         Ok(command_buffer)
     }
@@ -470,35 +472,7 @@ impl Core {
 
     /// Add a new texture
     pub fn add_texture(&mut self, data: &[u8], width: u32) -> Result<crate::Texture> {
-        ensure!(width > 0, "Width must be >0");
-        ensure!(
-            data.len() % width as usize == 0,
-            "Image data must be a multiple of its width"
-        );
-        ensure!(data.len() % 3 == 0, "Image data must be RGB");
-
         let height = data.len() as u32 / (width * 3);
-
-        // Staging buffer
-        let create_info = vk::BufferCreateInfoBuilder::new()
-            .usage(vk::BufferUsageFlags::TRANSFER_SRC)
-            .sharing_mode(vk::SharingMode::EXCLUSIVE)
-            .size(data.len() as _);
-        let image_buffer =
-            unsafe { self.prelude.device.create_buffer(&create_info, None, None) }.result()?;
-        let image_buffer_alloc = self
-            .allocator
-            .allocate(
-                &self.prelude.device,
-                image_buffer,
-                allocator::MemoryTypeFinder::upload(),
-            )
-            .result()?;
-        let mut map = image_buffer_alloc.map(&self.prelude.device, ..).result()?;
-        map.import(data);
-        map.unmap(&self.prelude.device).result()?;
-
-        const FORMAT: vk::Format = vk::Format::R8G8B8_SRGB;
 
         // Create texture image
         let extent = vk::Extent3DBuilder::new()
@@ -511,7 +485,7 @@ impl Core {
             .extent(extent)
             .mip_levels(1)
             .array_layers(1)
-            .format(FORMAT)
+            .format(TEXTURE_FORMAT)
             .tiling(vk::ImageTiling::OPTIMAL)
             .initial_layout(vk::ImageLayout::UNDEFINED)
             .usage(vk::ImageUsageFlags::TRANSFER_DST | vk::ImageUsageFlags::SAMPLED)
@@ -525,8 +499,7 @@ impl Core {
             .allocate(&self.prelude.device, image, MemoryTypeFinder::gpu_only())
             .result()?;
 
-        self.begin_transfer_cmds()?;
-        // Barrier 
+        // Barrier
         let subresource_range = vk::ImageSubresourceRangeBuilder::new()
             .aspect_mask(vk::ImageAspectFlags::COLOR)
             .base_mip_level(0)
@@ -535,85 +508,19 @@ impl Core {
             .layer_count(1)
             .build();
 
-        // Copy the staging buffer into the image
-        unsafe {
-            // TODO: Src/DstAspectMask
-            let barrier = vk::ImageMemoryBarrierBuilder::new()
-                .old_layout(vk::ImageLayout::UNDEFINED)
-                .new_layout(vk::ImageLayout::TRANSFER_DST_OPTIMAL)
-                .src_queue_family_index(vk::QUEUE_FAMILY_IGNORED)
-                .dst_queue_family_index(vk::QUEUE_FAMILY_IGNORED)
-                .src_access_mask(vk::AccessFlags::empty())
-                .dst_access_mask(vk::AccessFlags::TRANSFER_WRITE)
-                .image(image)
-                .subresource_range(subresource_range);
-            self.prelude.device.cmd_pipeline_barrier(
-                self.transfer_cmd_buf,
-                vk::PipelineStageFlags::TOP_OF_PIPE,
-                vk::PipelineStageFlags::TRANSFER,
-                None,
-                &[],
-                &[],
-                &[barrier],
-            );
-
-            let offset = vk::Offset3DBuilder::new().x(0).y(0).z(0).build();
-            let image_subresources = vk::ImageSubresourceLayersBuilder::new()
-                .aspect_mask(vk::ImageAspectFlags::COLOR)
-                .mip_level(0)
-                .base_array_layer(0)
-                .layer_count(1)
-
-                .build();
-            let copy = vk::BufferImageCopyBuilder::new()
-                .buffer_offset(0)
-                .buffer_row_length(0)
-                .buffer_image_height(0)
-                .image_subresource(image_subresources)
-                .image_offset(offset)
-                .image_extent(extent);
-
-            self.prelude.device.cmd_copy_buffer_to_image(
-                self.transfer_cmd_buf,
-                image_buffer,
-                image,
-                vk::ImageLayout::TRANSFER_DST_OPTIMAL,
-                &[copy],
-            );
-
-            // TODO: Src/DstAspectMask
-            let barrier = vk::ImageMemoryBarrierBuilder::new()
-                .old_layout(vk::ImageLayout::TRANSFER_DST_OPTIMAL)
-                .new_layout(vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL)
-                .src_queue_family_index(vk::QUEUE_FAMILY_IGNORED)
-                .dst_queue_family_index(vk::QUEUE_FAMILY_IGNORED)
-                .src_access_mask(vk::AccessFlags::TRANSFER_WRITE)
-                .dst_access_mask(vk::AccessFlags::empty())
-                .image(image)
-                .subresource_range(subresource_range);
-            self.prelude.device.cmd_pipeline_barrier(
-                self.transfer_cmd_buf,
-                vk::PipelineStageFlags::TRANSFER,
-                vk::PipelineStageFlags::BOTTOM_OF_PIPE,
-                None,
-                &[],
-                &[],
-                &[barrier],
-            );
-
-        }
-        self.end_transfer_cmds()?;
-
-        self.allocator.free(&self.prelude.device, image_buffer_alloc);
-
         // Create image view
         let create_info = vk::ImageViewCreateInfoBuilder::new()
             .image(image)
             .view_type(vk::ImageViewType::_2D)
-            .format(FORMAT)
+            .format(TEXTURE_FORMAT)
             .subresource_range(subresource_range)
             .build();
-        let image_view = unsafe { self.prelude.device.create_image_view(&create_info, None, None) }.result()?;
+        let image_view = unsafe {
+            self.prelude
+                .device
+                .create_image_view(&create_info, None, None)
+        }
+        .result()?;
 
         // Create sampler
         let create_info = vk::SamplerCreateInfoBuilder::new()
@@ -633,12 +540,16 @@ impl Core {
             .min_lod(0.)
             .max_lod(0.)
             .build();
-        let sampler = unsafe { self.prelude.device.create_sampler(&create_info, None, None) }.result()?;
+        let sampler =
+            unsafe { self.prelude.device.create_sampler(&create_info, None, None) }.result()?;
 
-        let descriptor_sets = (0..FRAMES_IN_FLIGHT).map(|_| self.desc_set_allocator.pop()).collect::<Result<Vec<_>>>()?;
+        let descriptor_sets = (0..FRAMES_IN_FLIGHT)
+            .map(|_| self.desc_set_allocator.pop())
+            .collect::<Result<Vec<_>>>()?;
 
         // Populate new descriptor set
-        for (animation_ubo, (camera_ubo, descriptor)) in self.time_ubos
+        for (animation_ubo, (camera_ubo, descriptor)) in self
+            .time_ubos
             .iter()
             .zip(self.camera_ubos.iter().zip(descriptor_sets.iter()))
         {
@@ -683,6 +594,8 @@ impl Core {
             }
         }
 
+        self.update_texture_internal(image, data, width)?;
+
         let texture = Texture {
             descriptor_sets,
             alloc: image_allocation,
@@ -694,8 +607,140 @@ impl Core {
         Ok(crate::Texture(self.textures.insert(texture)))
     }
 
-    pub fn update_texture(&mut self, texture: crate::Texture, data: &[u8], width: u32) -> Result<()> {
-        // TODO
+    pub fn update_texture(
+        &mut self,
+        texture: crate::Texture,
+        data: &[u8],
+        width: u32,
+    ) -> Result<()> {
+        let texture = *self
+            .textures
+            .get(texture.0)
+            .context("Texture was deleted")?
+            .alloc
+            .object();
+        self.update_texture_internal(texture, data, width)
+    }
+
+    fn update_texture_internal(&mut self, image: vk::Image, data: &[u8], width: u32) -> Result<()> {
+        ensure!(width > 0, "Width must be >0");
+        ensure!(
+            data.len() % width as usize == 0,
+            "Image data must be a multiple of its width"
+        );
+        ensure!(data.len() % 3 == 0, "Image data must be RGB");
+
+        let height = data.len() as u32 / (width * 3);
+
+        // Staging buffer
+        let create_info = vk::BufferCreateInfoBuilder::new()
+            .usage(vk::BufferUsageFlags::TRANSFER_SRC)
+            .sharing_mode(vk::SharingMode::EXCLUSIVE)
+            .size(data.len() as _);
+        let image_buffer =
+            unsafe { self.prelude.device.create_buffer(&create_info, None, None) }.result()?;
+        let image_buffer_alloc = self
+            .allocator
+            .allocate(
+                &self.prelude.device,
+                image_buffer,
+                allocator::MemoryTypeFinder::upload(),
+            )
+            .result()?;
+
+        // Fill staging buffer
+        let mut map = image_buffer_alloc.map(&self.prelude.device, ..).result()?;
+        map.import(data);
+        map.unmap(&self.prelude.device).result()?;
+
+        self.begin_transfer_cmds()?;
+
+        // Barrier
+        let subresource_range = vk::ImageSubresourceRangeBuilder::new()
+            .aspect_mask(vk::ImageAspectFlags::COLOR)
+            .base_mip_level(0)
+            .level_count(1)
+            .base_array_layer(0)
+            .layer_count(1)
+            .build();
+
+        // Image extent
+        let extent = vk::Extent3DBuilder::new()
+            .width(width)
+            .height(height)
+            .depth(1)
+            .build();
+
+        // Copy the staging buffer into the image
+        unsafe {
+            // TODO: Src/DstAspectMask
+            let barrier = vk::ImageMemoryBarrierBuilder::new()
+                .old_layout(vk::ImageLayout::UNDEFINED)
+                .new_layout(vk::ImageLayout::TRANSFER_DST_OPTIMAL)
+                .src_queue_family_index(vk::QUEUE_FAMILY_IGNORED)
+                .dst_queue_family_index(vk::QUEUE_FAMILY_IGNORED)
+                .src_access_mask(vk::AccessFlags::empty())
+                .dst_access_mask(vk::AccessFlags::TRANSFER_WRITE)
+                .image(image)
+                .subresource_range(subresource_range);
+            self.prelude.device.cmd_pipeline_barrier(
+                self.transfer_cmd_buf,
+                vk::PipelineStageFlags::TOP_OF_PIPE,
+                vk::PipelineStageFlags::TRANSFER,
+                None,
+                &[],
+                &[],
+                &[barrier],
+            );
+
+            let offset = vk::Offset3DBuilder::new().x(0).y(0).z(0).build();
+            let image_subresources = vk::ImageSubresourceLayersBuilder::new()
+                .aspect_mask(vk::ImageAspectFlags::COLOR)
+                .mip_level(0)
+                .base_array_layer(0)
+                .layer_count(1)
+                .build();
+            let copy = vk::BufferImageCopyBuilder::new()
+                .buffer_offset(0)
+                .buffer_row_length(0)
+                .buffer_image_height(0)
+                .image_subresource(image_subresources)
+                .image_offset(offset)
+                .image_extent(extent);
+
+            self.prelude.device.cmd_copy_buffer_to_image(
+                self.transfer_cmd_buf,
+                image_buffer,
+                image,
+                vk::ImageLayout::TRANSFER_DST_OPTIMAL,
+                &[copy],
+            );
+
+            // TODO: Src/DstAspectMask
+            let barrier = vk::ImageMemoryBarrierBuilder::new()
+                .old_layout(vk::ImageLayout::TRANSFER_DST_OPTIMAL)
+                .new_layout(vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL)
+                .src_queue_family_index(vk::QUEUE_FAMILY_IGNORED)
+                .dst_queue_family_index(vk::QUEUE_FAMILY_IGNORED)
+                .src_access_mask(vk::AccessFlags::TRANSFER_WRITE)
+                .dst_access_mask(vk::AccessFlags::empty())
+                .image(image)
+                .subresource_range(subresource_range);
+            self.prelude.device.cmd_pipeline_barrier(
+                self.transfer_cmd_buf,
+                vk::PipelineStageFlags::TRANSFER,
+                vk::PipelineStageFlags::BOTTOM_OF_PIPE,
+                None,
+                &[],
+                &[],
+                &[barrier],
+            );
+        }
+        self.end_transfer_cmds()?;
+
+        self.allocator
+            .free(&self.prelude.device, image_buffer_alloc);
+
         Ok(())
     }
 
@@ -715,7 +760,7 @@ impl Core {
                 .device
                 .begin_command_buffer(self.transfer_cmd_buf, &begin_info)
                 .result()?;
-            };
+        };
         Ok(())
     }
 
@@ -735,7 +780,7 @@ impl Core {
                 .device
                 .queue_wait_idle(self.prelude.queue)
                 .result()?;
-            }
+        }
         Ok(())
     }
 }
@@ -835,7 +880,7 @@ impl Drop for Core {
             self.prelude
                 .device
                 .destroy_command_pool(Some(self.command_pool), None);
-            }
+        }
     }
 }
 
