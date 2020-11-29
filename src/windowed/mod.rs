@@ -320,6 +320,9 @@ impl Engine for WinitBackend {
     fn add_texture(&mut self, data: &[u8], width: u32) -> Result<Texture> {
         self.core.add_texture(data, width)
     }
+    fn update_texture(&mut self, texture: Texture, data: &[u8], width: u32) -> Result<()> {
+        self.core.update_texture(texture, data, width)
+    }
     fn remove_texture(&mut self, texture: Texture) -> Result<()> {
         self.core.remove_texture(texture)
     }

@@ -7,10 +7,24 @@ use nalgebra::{Matrix4, Point3};
 use std::fs::File;
 
 struct MyApp {
+    img_data: Vec<(Vec<u8>, u32)>,
     texture: Texture,
     material: Material,
     mesh: Mesh,
     time: f32,
+    img_frame: u32,
+}
+
+fn read_png(path: &str) -> Result<(Vec<u8>, u32)> {
+    // Read important image data
+    let img = png::Decoder::new(File::open(path)?);
+    let (info, mut reader) = img.read_info()?;
+    assert!(info.color_type == png::ColorType::RGB);
+    assert!(info.bit_depth == png::BitDepth::Eight);
+    let mut img_buffer = vec![0; info.buffer_size()];
+    assert_eq!(info.buffer_size(), (info.width * info.height * 3) as _);
+    reader.next_frame(&mut img_buffer)?;
+    Ok((img_buffer, info.width))
 }
 
 impl App for MyApp {
@@ -19,16 +33,12 @@ impl App for MyApp {
     type Args = ();
 
     fn new(engine: &mut dyn Engine, _args: Self::Args) -> Result<Self> {
-        // Read important image data
-        let img = png::Decoder::new(File::open("./examples/obama.png")?);
-        let (info, mut reader) = img.read_info()?;
-        assert!(info.color_type == png::ColorType::RGB);
-        assert!(info.bit_depth == png::BitDepth::Eight);
-        let mut img_buffer = vec![0; info.buffer_size()];
-        assert_eq!(info.buffer_size(), (info.width * info.height * 3) as _);
-        reader.next_frame(&mut img_buffer)?;
+        let img_data = (0..3)
+            .map(|frame| read_png(&format!("./examples/obama{}.png", frame)))
+            .collect::<Result<Vec<_>>>()?;
 
-        let texture = engine.add_texture(&img_buffer, info.width)?;
+        let (img, width) = &img_data[0];
+        let texture = engine.add_texture(img, *width)?;
 
         let material = engine.add_material(UNLIT_VERT, UNLIT_FRAG, DrawType::Triangles)?;
 
@@ -36,6 +46,8 @@ impl App for MyApp {
         let mesh = engine.add_mesh(&vertices, &indices)?;
 
         Ok(Self {
+            img_frame: 0,
+            img_data,
             texture,
             mesh,
             material,
@@ -44,6 +56,12 @@ impl App for MyApp {
     }
 
     fn next_frame(&mut self, engine: &mut dyn Engine) -> Result<FramePacket> {
+        self.img_frame += 1;
+        if self.img_frame % 9 == 0 {
+            let (img, width) = &self.img_data[(self.img_frame % 3) as usize];
+            engine.update_texture(self.texture, img, *width)?;
+        }
+
         let transform = Matrix4::from_euler_angles(0.0, self.time, 0.0);
         let object = Object {
             material: self.material,

@@ -86,11 +86,17 @@ pub trait Engine {
     /// Add a new texture
     fn add_texture(&mut self, data: &[u8], width: u32) -> Result<Texture>;
 
+    /// Update a texture (Expensive, will completely stall the pipeline!)
+    fn update_texture(&mut self, texture: Texture, data: &[u8], width: u32) -> Result<()>;
+
     /// Remove the given mesh
     fn remove_texture(&mut self, texture: Texture) -> Result<()>;
 
     /// Update the animation value
     fn update_time_value(&self, data: f32) -> Result<()>;
+
+    // fn add_streaming_texture()
+    // fn add_streaming_mesh()
 }
 
 pub(crate) const ENGINE_NAME: &str = "Klystron";

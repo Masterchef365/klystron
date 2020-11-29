@@ -694,6 +694,11 @@ impl Core {
         Ok(crate::Texture(self.textures.insert(texture)))
     }
 
+    pub fn update_texture(&mut self, texture: crate::Texture, data: &[u8], width: u32) -> Result<()> {
+        // TODO
+        Ok(())
+    }
+
     /// Remove the given mesh
     pub fn remove_texture(&mut self, _texture: crate::Texture) -> Result<()> {
         todo!()
