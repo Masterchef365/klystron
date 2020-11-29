@@ -56,11 +56,9 @@ impl App for MyApp {
     }
 
     fn next_frame(&mut self, engine: &mut dyn Engine) -> Result<FramePacket> {
+        let (img, width) = &self.img_data[(self.img_frame % 3) as usize];
+        engine.update_texture(self.texture, img, *width)?;
         self.img_frame += 1;
-        if self.img_frame % 9 == 0 {
-            let (img, width) = &self.img_data[(self.img_frame % 3) as usize];
-            engine.update_texture(self.texture, img, *width)?;
-        }
 
         let transform = Matrix4::from_euler_angles(0.0, self.time, 0.0);
         let object = Object {

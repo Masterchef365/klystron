@@ -653,6 +653,13 @@ impl Core {
         map.import(data);
         map.unmap(&self.prelude.device).result()?;
 
+        unsafe {
+            self.prelude
+                .device
+                .queue_wait_idle(self.prelude.queue)
+                .result()?;
+        }
+
         self.begin_transfer_cmds()?;
 
         // Barrier
