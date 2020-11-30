@@ -26,6 +26,7 @@ pub struct VkPrelude {
 pub(crate) const FRAMES_IN_FLIGHT: usize = 2;
 pub(crate) const COLOR_FORMAT: vk::Format = vk::Format::B8G8R8A8_SRGB;
 pub(crate) const DEPTH_FORMAT: vk::Format = vk::Format::D32_SFLOAT;
+const TEXTURE_FORMAT: vk::Format = vk::Format::R8G8B8A8_SRGB;
 
 pub type CameraUbo = [f32; 32];
 
@@ -475,9 +476,9 @@ impl Core {
             data.len() % width as usize == 0,
             "Image data must be a multiple of its width"
         );
-        ensure!(data.len() % 3 == 0, "Image data must be RGB");
+        ensure!(data.len() % 4 == 0, "Image data must be RGBA");
 
-        let height = data.len() as u32 / (width * 3);
+        let height = data.len() as u32 / (width * 4);
 
         // Staging buffer
         let create_info = vk::BufferCreateInfoBuilder::new()
@@ -498,8 +499,6 @@ impl Core {
         map.import(data);
         map.unmap(&self.prelude.device).result()?;
 
-        const FORMAT: vk::Format = vk::Format::R8G8B8_SRGB;
-
         // Create texture image
         let extent = vk::Extent3DBuilder::new()
             .width(width)
@@ -511,7 +510,7 @@ impl Core {
             .extent(extent)
             .mip_levels(1)
             .array_layers(1)
-            .format(FORMAT)
+            .format(TEXTURE_FORMAT)
             .tiling(vk::ImageTiling::OPTIMAL)
             .initial_layout(vk::ImageLayout::UNDEFINED)
             .usage(vk::ImageUsageFlags::TRANSFER_DST | vk::ImageUsageFlags::SAMPLED)
@@ -610,7 +609,7 @@ impl Core {
         let create_info = vk::ImageViewCreateInfoBuilder::new()
             .image(image)
             .view_type(vk::ImageViewType::_2D)
-            .format(FORMAT)
+            .format(TEXTURE_FORMAT)
             .subresource_range(subresource_range)
             .build();
         let image_view = unsafe { self.prelude.device.create_image_view(&create_info, None, None) }.result()?;
