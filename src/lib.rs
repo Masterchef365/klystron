@@ -69,7 +69,7 @@ pub trait Engine {
         draw_type: DrawType,
     ) -> Result<Material>;
     /// Add a mesh, given vertices and indices
-    fn add_mesh(&mut self, vertices: &[Vertex], indices: &[u16]) -> Result<Mesh>;
+    fn add_mesh(&mut self, vertices: &[Vertex], indices: &[u32]) -> Result<Mesh>;
     /// Remove the given material
     fn remove_material(&mut self, material: Material) -> Result<()>;
     /// Remove the given mesh

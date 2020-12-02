@@ -399,7 +399,7 @@ impl Engine for OpenXrBackend {
     ) -> Result<Material> {
         self.core.add_material(vertex, fragment, draw_type)
     }
-    fn add_mesh(&mut self, vertices: &[Vertex], indices: &[u16]) -> Result<Mesh> {
+    fn add_mesh(&mut self, vertices: &[Vertex], indices: &[u32]) -> Result<Mesh> {
         self.core.add_mesh(vertices, indices)
     }
     fn remove_material(&mut self, material: Material) -> Result<()> {

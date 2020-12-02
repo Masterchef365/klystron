@@ -49,7 +49,7 @@ fn main() -> Result<()> {
     launch::<MyApp>(vr, ())
 }
 
-fn rainbow_cube() -> (Vec<Vertex>, Vec<u16>) {
+fn rainbow_cube() -> (Vec<Vertex>, Vec<u32>) {
     let vertices = vec![
         Vertex::from_nalgebra(Point3::new(-1.0, -1.0, -1.0), Point3::new(0.0, 1.0, 1.0)),
         Vertex::from_nalgebra(Point3::new(1.0, -1.0, -1.0), Point3::new(1.0, 0.0, 1.0)),

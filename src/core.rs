@@ -247,7 +247,7 @@ impl Core {
         Ok(())
     }
 
-    pub fn add_mesh(&mut self, vertices: &[Vertex], indices: &[u16]) -> Result<crate::Mesh> {
+    pub fn add_mesh(&mut self, vertices: &[Vertex], indices: &[u32]) -> Result<crate::Mesh> {
         let n_indices = indices.len() as u32;
 
         //TODO: Use staging buffers!
@@ -423,7 +423,7 @@ impl Core {
                         command_buffer,
                         *mesh.indices.object(),
                         0,
-                        vk::IndexType::UINT16,
+                        vk::IndexType::UINT32,
                     );
 
                     let descriptor_sets = [self.descriptor_sets[frame_idx]];
