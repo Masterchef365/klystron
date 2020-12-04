@@ -9,6 +9,8 @@ struct MyApp {
     material: Material,
     mesh: Mesh,
     time: f32,
+    subset: u32,
+    n_indices: u32,
 }
 
 impl App for MyApp {
@@ -26,6 +28,8 @@ impl App for MyApp {
             mesh,
             material,
             time: 0.0,
+            subset: 0,
+            n_indices: indices.len() as _,
         })
     }
 
@@ -35,9 +39,13 @@ impl App for MyApp {
             material: self.material,
             mesh: self.mesh,
             transform,
+            subset: Some(self.subset),
         };
         engine.update_time_value(self.time)?;
+
         self.time += 0.01;
+        self.subset = (self.subset + 1) % self.n_indices;
+
         Ok(FramePacket {
             objects: vec![object],
         })

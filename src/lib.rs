@@ -36,6 +36,8 @@ pub struct Object {
     pub mesh: Mesh,
     /// Transformation applied to each vertex of this Object
     pub transform: Matrix4<f32>,
+    /// Subset of the mesh to draw
+    pub subset: Option<u32>,
     // /// An additional time uniform passed to the vertex and fragment shaders
     // pub anim: f32,
 }
