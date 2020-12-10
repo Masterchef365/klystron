@@ -54,6 +54,7 @@ pub struct Mesh(pub(crate) Handle);
 pub struct Texture(pub(crate) Handle);
 
 /// Material rasterization method
+#[derive(PartialEq, Eq, Clone, Copy)]
 pub enum DrawType {
     /// Lines in between each pair of indices
     Lines,
@@ -61,6 +62,15 @@ pub enum DrawType {
     Points,
     /// Normal triangular rendering
     Triangles,
+}
+
+/// Texture sampling type
+#[derive(PartialEq, Eq, Clone, Copy)]
+pub enum Sampling {
+    /// Nearest neighbor sampling
+    Nearest,
+    /// Linear sampling
+    Linear,
 }
 
 /// Traits all engines must implement; next_frame() not included because all engines have different
@@ -84,7 +94,7 @@ pub trait Engine {
     fn remove_mesh(&mut self, mesh: Mesh) -> Result<()>;
 
     /// Add a new texture
-    fn add_texture(&mut self, data: &[u8], width: u32) -> Result<Texture>;
+    fn add_texture(&mut self, data: &[u8], width: u32, sampling: Sampling) -> Result<Texture>;
 
     /// Remove the given mesh
     fn remove_texture(&mut self, texture: Texture) -> Result<()>;

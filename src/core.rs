@@ -2,6 +2,7 @@ use crate::frame_sync::FrameSync;
 use crate::material::Material;
 use crate::swapchain_images::{SwapChainImage, SwapchainImages};
 use crate::vertex::Vertex;
+use crate::Sampling;
 use anyhow::{ensure, Result};
 use erupt::{
     utils::{
@@ -470,7 +471,7 @@ impl Core {
     }
 
     /// Add a new texture
-    pub fn add_texture(&mut self, data: &[u8], width: u32) -> Result<crate::Texture> {
+    pub fn add_texture(&mut self, data: &[u8], width: u32, sampling: Sampling) -> Result<crate::Texture> {
         ensure!(width > 0, "Width must be >0");
         ensure!(
             data.len() % width as usize == 0,
@@ -614,20 +615,25 @@ impl Core {
             .build();
         let image_view = unsafe { self.prelude.device.create_image_view(&create_info, None, None) }.result()?;
 
+        let (filter, mipmode) = match sampling {
+            Sampling::Nearest => (vk::Filter::NEAREST, vk::SamplerMipmapMode::NEAREST),
+            Sampling::Linear => (vk::Filter::LINEAR, vk::SamplerMipmapMode::LINEAR),
+        };
+
         // Create sampler
         let create_info = vk::SamplerCreateInfoBuilder::new()
-            .mag_filter(vk::Filter::LINEAR)
-            .min_filter(vk::Filter::LINEAR)
+            .mag_filter(filter)
+            .min_filter(filter)
             .address_mode_u(vk::SamplerAddressMode::REPEAT)
             .address_mode_v(vk::SamplerAddressMode::REPEAT)
             .address_mode_w(vk::SamplerAddressMode::REPEAT)
-            .anisotropy_enable(true)
+            .anisotropy_enable(sampling == Sampling::Linear)
             .max_anisotropy(16.)
             .border_color(vk::BorderColor::INT_OPAQUE_BLACK)
             .unnormalized_coordinates(false)
             .compare_enable(false)
             .compare_op(vk::CompareOp::ALWAYS)
-            .mipmap_mode(vk::SamplerMipmapMode::LINEAR)
+            .mipmap_mode(mipmode)
             .mip_lod_bias(0.)
             .min_lod(0.)
             .max_lod(0.)

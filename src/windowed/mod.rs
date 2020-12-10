@@ -2,7 +2,7 @@ mod camera;
 use crate::core::{Core, VkPrelude};
 use crate::hardware_query::HardwareSelection;
 use crate::swapchain_images::SwapchainImages;
-use crate::{DrawType, Engine, FramePacket, Material, Mesh, Vertex, Texture};
+use crate::{DrawType, Engine, FramePacket, Material, Mesh, Vertex, Texture, Sampling};
 use anyhow::Result;
 pub use camera::*;
 use erupt::{
@@ -317,8 +317,8 @@ impl Engine for WinitBackend {
     fn update_time_value(&self, data: f32) -> Result<()> {
         self.core.update_time_value(data)
     }
-    fn add_texture(&mut self, data: &[u8], width: u32) -> Result<Texture> {
-        self.core.add_texture(data, width)
+    fn add_texture(&mut self, data: &[u8], width: u32, sampling: Sampling) -> Result<Texture> {
+        self.core.add_texture(data, width, sampling)
     }
     fn remove_texture(&mut self, texture: Texture) -> Result<()> {
         self.core.remove_texture(texture)
