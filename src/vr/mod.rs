@@ -436,7 +436,7 @@ fn view_from_pose(pose: &xr::Posef) -> Matrix4<f32> {
     inv
 }
 
-fn projection_from_fov(fov: &xr::Fovf, near: f32, far: f32) -> Matrix4<f32> {
+fn projection_from_fov(fov: &xr::Fovf, _near: f32, _far: f32) -> Matrix4<f32> {
     let tan_left = fov.angle_left.tan();
     let tan_right = fov.angle_right.tan();
 
@@ -449,12 +449,16 @@ fn projection_from_fov(fov: &xr::Fovf, near: f32, far: f32) -> Matrix4<f32> {
     let a11 = 2.0 / tan_width;
     let a22 = 2.0 / tan_height;
 
-    let a31 = (tan_right + tan_left) / tan_width;
-    let a32 = (tan_up + tan_down) / tan_height;
-    let a33 = -far / (far - near);
+    //let a31 = (tan_right + tan_left) / tan_width;
+    //let a32 = (tan_up + tan_down) / tan_height;
+    //let a33 = -far / (far - near);
 
-    let a43 = -(far * near) / (far - near);
+    //let a43 = -(far * near) / (far - near);
     Matrix4::new(
-        a11, 0.0, a31, 0.0, 0.0, a22, a32, 0.0, 0.0, 0.0, a33, a43, 0.0, 0.0, -1.0, 0.0,
-    )
+        a11, 0.0, 0.0, 0.0, //
+        0.0, a22, 0.0, 0.0, //
+        0.0, 0.0, 1.0, 0.0, //
+        0.0, 0.0, 0.0, 1.0, //
+    );
+    Matrix4::identity()
 }
