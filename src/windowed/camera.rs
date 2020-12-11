@@ -16,7 +16,8 @@ pub struct PerspectiveCamera {
 
 impl Camera for PerspectiveCamera {
     /// Extract the camera matrix
-    fn matrix(&self, width: u32, height: u32) -> Matrix4<f32> {
+    fn matrix(&self, _width: u32, _height: u32) -> Matrix4<f32> {
+        /*
         let perspective = Matrix4::new_perspective(
             width as f32 / height as f32,
             self.fov,
@@ -24,6 +25,8 @@ impl Camera for PerspectiveCamera {
             self.clipping.1,
         );
         perspective * self.view()
+        */
+        self.view()
     }
 }
 
