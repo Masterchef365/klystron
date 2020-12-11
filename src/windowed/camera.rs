@@ -1,4 +1,4 @@
-use nalgebra::{Matrix4, Point3, Vector3};
+use nalgebra::{Matrix4, Point3, Vector3, Vector4};
 
 pub trait Camera {
     fn matrix(&self, width: u32, height: u32) -> Matrix4<f32>;
@@ -16,17 +16,10 @@ pub struct PerspectiveCamera {
 
 impl Camera for PerspectiveCamera {
     /// Extract the camera matrix
-    fn matrix(&self, _width: u32, _height: u32) -> Matrix4<f32> {
-        /*
-        let perspective = Matrix4::new_perspective(
-            width as f32 / height as f32,
-            self.fov,
-            self.clipping.0,
-            self.clipping.1,
-        );
-        perspective * self.view()
-        */
-        self.view()
+    fn matrix(&self, width: u32, height: u32) -> Matrix4<f32> {
+        let aspect = width as f32 / height as f32;
+        let aspect = Matrix4::from_diagonal(&Vector4::new(1., aspect, 1., 1.));
+        aspect * self.view()
     }
 }
 
