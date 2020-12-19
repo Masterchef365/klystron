@@ -462,6 +462,17 @@ impl Core {
                 &[],
             );
 
+            // Portal rendering
+            self.prelude.device.cmd_bind_pipeline(
+                command_buffer,
+                vk::PipelineBindPoint::GRAPHICS,
+                self.portal_pipeline.pipeline,
+            );
+
+            for crate::Portal { mesh, affine } in &packet.portals {
+                self.write_object_cmds(command_buffer, *mesh, &affine)
+            }
+
             // Object rendering
             let handles = self.materials.iter().collect::<Vec<_>>();
             for material_id in handles {
@@ -482,19 +493,6 @@ impl Core {
                 {
                     self.write_object_cmds(command_buffer, object.mesh, &object.transform)
                 }
-            }
-
-            // Portal rendering
-            self.prelude.device.cmd_next_subpass(command_buffer, vk::SubpassContents::INLINE);
-
-            self.prelude.device.cmd_bind_pipeline(
-                command_buffer,
-                vk::PipelineBindPoint::GRAPHICS,
-                self.portal_pipeline.pipeline,
-            );
-
-            for crate::Portal { mesh, affine } in &packet.portals {
-                self.write_object_cmds(command_buffer, *mesh, &affine)
             }
 
             // Finished passes
@@ -571,10 +569,6 @@ fn create_render_pass(device: &DeviceLoader, vr: bool) -> Result<vk::RenderPass>
             .pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS)
             .color_attachments(&color_attachment_refs)
             .depth_stencil_attachment(&depth_attachment_ref),
-        vk::SubpassDescriptionBuilder::new()
-            .pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS)
-            .color_attachments(&color_attachment_refs)
-            .depth_stencil_attachment(&depth_attachment_ref),
     ];
 
     let dependencies = [
@@ -585,13 +579,6 @@ fn create_render_pass(device: &DeviceLoader, vr: bool) -> Result<vk::RenderPass>
         .src_access_mask(vk::AccessFlags::empty())
         .dst_stage_mask(vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT)
         .dst_access_mask(vk::AccessFlags::COLOR_ATTACHMENT_WRITE),
-        vk::SubpassDependencyBuilder::new()
-        .src_subpass(0)
-        .dst_subpass(1)
-        .src_stage_mask(vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT)
-        .src_access_mask(vk::AccessFlags::COLOR_ATTACHMENT_WRITE)
-        .dst_stage_mask(vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT)
-        .dst_access_mask(vk::AccessFlags::COLOR_ATTACHMENT_WRITE)
     ];
 
     let mut create_info = vk::RenderPassCreateInfoBuilder::new()
