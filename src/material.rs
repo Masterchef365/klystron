@@ -10,7 +10,6 @@ use std::sync::Arc;
 /// with the from which it was created.
 pub struct Material {
     pub pipeline: vk::Pipeline,
-    pub pipeline_layout: vk::PipelineLayout,
     prelude: Arc<VkPrelude>,
 }
 
@@ -21,7 +20,7 @@ impl Material {
         fragment_src: &[u8],
         draw_type: DrawType,
         render_pass: vk::RenderPass,
-        descriptor_set_layout: vk::DescriptorSetLayout,
+        pipeline_layout: vk::PipelineLayout,
     ) -> Result<Self> {
         // Create shader modules
         let vert_decoded = utils::decode_spv(vertex_src)?;
@@ -106,24 +105,6 @@ impl Material {
                 .name(&entry_point),
         ];
 
-        let descriptor_set_layouts = [descriptor_set_layout];
-
-        let push_constant_ranges = [vk::PushConstantRangeBuilder::new()
-            .stage_flags(vk::ShaderStageFlags::VERTEX)
-            .offset(0)
-            .size(std::mem::size_of::<[f32; 16]>() as u32)];
-
-        let create_info = vk::PipelineLayoutCreateInfoBuilder::new()
-            .push_constant_ranges(&push_constant_ranges)
-            .set_layouts(&descriptor_set_layouts);
-
-        let pipeline_layout = unsafe {
-            prelude
-                .device
-                .create_pipeline_layout(&create_info, None, None)
-        }
-        .result()?;
-
         let depth_stencil_state = vk::PipelineDepthStencilStateCreateInfoBuilder::new()
             .depth_test_enable(true)
             .depth_write_enable(true)
@@ -159,7 +140,6 @@ impl Material {
 
         Ok(Self {
             pipeline,
-            pipeline_layout,
             prelude,
         })
     }
@@ -171,9 +151,6 @@ impl Drop for Material {
             self.prelude
                 .device
                 .destroy_pipeline(Some(self.pipeline), None);
-            self.prelude
-                .device
-                .destroy_pipeline_layout(Some(self.pipeline_layout), None);
         }
     }
 }

@@ -40,12 +40,14 @@ pub struct Mesh {
 pub struct Core {
     pub allocator: Allocator,
     pub materials: GenMap<Material>,
+    pub portal_pipeline: Material,
     pub meshes: GenMap<Mesh>,
     pub render_pass: vk::RenderPass,
     pub frame_sync: FrameSync,
     pub swapchain_images: Option<SwapchainImages>,
     pub command_pool: vk::CommandPool,
     pub command_buffers: Vec<vk::CommandBuffer>,
+    pub pipeline_layout: vk::PipelineLayout,
     pub descriptor_pool: vk::DescriptorPool,
     pub descriptor_set_layout: vk::DescriptorSetLayout,
     pub descriptor_sets: Vec<vk::DescriptorSet>,
@@ -198,15 +200,45 @@ impl Core {
             }
         }
 
+        let descriptor_set_layouts = [descriptor_set_layout];
+
+        let push_constant_ranges = [vk::PushConstantRangeBuilder::new()
+            .stage_flags(vk::ShaderStageFlags::VERTEX)
+            .offset(0)
+            .size(std::mem::size_of::<[f32; 16]>() as u32)];
+
+        let create_info = vk::PipelineLayoutCreateInfoBuilder::new()
+            .push_constant_ranges(&push_constant_ranges)
+            .set_layouts(&descriptor_set_layouts);
+
+        let pipeline_layout = unsafe {
+            prelude
+                .device
+                .create_pipeline_layout(&create_info, None, None)
+        }
+        .result()?;
+
+
         // Frame synchronization
         let frame_sync = FrameSync::new(prelude.clone(), FRAMES_IN_FLIGHT)?;
 
         let render_pass = create_render_pass(&prelude.device, vr)?;
 
+        let portal_pipeline = Material::new(
+            prelude.clone(), 
+            crate::UNLIT_VERT, 
+            crate::UNLIT_FRAG, 
+            crate::DrawType::Triangles, 
+            render_pass, 
+            pipeline_layout,
+        )?;
+
         Ok(Self {
             prelude,
+            portal_pipeline,
             camera_ubos,
             time_ubos,
+            pipeline_layout,
             descriptor_set_layout,
             descriptor_pool,
             descriptor_sets,
@@ -233,7 +265,7 @@ impl Core {
             fragment,
             draw_type,
             self.render_pass,
-            self.descriptor_set_layout,
+            self.pipeline_layout,
         )?;
         Ok(crate::Material(self.materials.insert(material)))
     }
@@ -308,6 +340,48 @@ impl Core {
         Ok(())
     }
 
+    unsafe fn write_object_cmds(&self, command_buffer: vk::CommandBuffer, object: &crate::Object) {
+        let mesh = match self.meshes.get(object.mesh.0) {
+            Some(m) => m,
+            None => {
+                log::error!("Object references a mesh that no exists");
+                return;
+            }
+        };
+        self.prelude.device.cmd_bind_vertex_buffers(
+            command_buffer,
+            0,
+            &[*mesh.vertices.object()],
+            &[0],
+        );
+
+        self.prelude.device.cmd_bind_index_buffer(
+            command_buffer,
+            *mesh.indices.object(),
+            0,
+            vk::IndexType::UINT16,
+        );
+
+        // TODO: ADD ANIM
+        self.prelude.device.cmd_push_constants(
+            command_buffer,
+            self.pipeline_layout,
+            vk::ShaderStageFlags::VERTEX,
+            0,
+            std::mem::size_of::<[f32; 16]>() as u32,
+            object.transform.data.as_ptr() as _,
+        );
+
+        self.prelude.device.cmd_draw_indexed(
+            command_buffer,
+            mesh.n_indices,
+            1,
+            0,
+            0,
+            0,
+        );
+    }
+
     pub fn write_command_buffers(
         &self,
         frame_idx: usize,
@@ -371,6 +445,23 @@ impl Core {
                 .offset(vk::Offset2D { x: 0, y: 0 })
                 .extent(image.extent)];
 
+            self.prelude
+                .device
+                .cmd_set_viewport(command_buffer, 0, &viewports);
+
+            self.prelude
+                .device
+                .cmd_set_scissor(command_buffer, 0, &scissors);
+
+            self.prelude.device.cmd_bind_descriptor_sets(
+                command_buffer,
+                vk::PipelineBindPoint::GRAPHICS,
+                self.pipeline_layout,
+                0,
+                &[descriptor_set],
+                &[],
+            );
+
             let handles = self.materials.iter().collect::<Vec<_>>();
             for material_id in handles {
                 let material = match self.materials.get(material_id) {
@@ -383,77 +474,12 @@ impl Core {
                     material.pipeline,
                 );
 
-                self.prelude
-                    .device
-                    .cmd_set_viewport(command_buffer, 0, &viewports);
-
-                self.prelude
-                    .device
-                    .cmd_set_scissor(command_buffer, 0, &scissors);
-
-                self.prelude.device.cmd_bind_descriptor_sets(
-                    command_buffer,
-                    vk::PipelineBindPoint::GRAPHICS,
-                    material.pipeline_layout,
-                    0,
-                    &[descriptor_set],
-                    &[],
-                );
-
                 for object in packet
                     .objects
                     .iter()
                     .filter(|o| o.material.0 == material_id)
                 {
-                    let mesh = match self.meshes.get(object.mesh.0) {
-                        Some(m) => m,
-                        None => {
-                            log::error!("Object references a mesh that no exists");
-                            continue;
-                        }
-                    };
-                    self.prelude.device.cmd_bind_vertex_buffers(
-                        command_buffer,
-                        0,
-                        &[*mesh.vertices.object()],
-                        &[0],
-                    );
-
-                    self.prelude.device.cmd_bind_index_buffer(
-                        command_buffer,
-                        *mesh.indices.object(),
-                        0,
-                        vk::IndexType::UINT16,
-                    );
-
-                    let descriptor_sets = [self.descriptor_sets[frame_idx]];
-                    self.prelude.device.cmd_bind_descriptor_sets(
-                        command_buffer,
-                        vk::PipelineBindPoint::GRAPHICS,
-                        material.pipeline_layout,
-                        0,
-                        &descriptor_sets,
-                        &[],
-                    );
-
-                    // TODO: ADD ANIM
-                    self.prelude.device.cmd_push_constants(
-                        command_buffer,
-                        material.pipeline_layout,
-                        vk::ShaderStageFlags::VERTEX,
-                        0,
-                        std::mem::size_of::<[f32; 16]>() as u32,
-                        object.transform.data.as_ptr() as _,
-                    );
-
-                    self.prelude.device.cmd_draw_indexed(
-                        command_buffer,
-                        mesh.n_indices,
-                        1,
-                        0,
-                        0,
-                        0,
-                    );
+                    self.write_object_cmds(command_buffer, object)
                 }
             }
 
@@ -463,7 +489,7 @@ impl Core {
                 .device
                 .end_command_buffer(command_buffer)
                 .result()?;
-        }
+            }
 
         Ok(command_buffer)
     }
@@ -525,10 +551,16 @@ fn create_render_pass(device: &DeviceLoader, vr: bool) -> Result<vk::RenderPass>
         .layout(vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
         .build();
 
-    let subpasses = [vk::SubpassDescriptionBuilder::new()
-        .pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS)
-        .color_attachments(&color_attachment_refs)
-        .depth_stencil_attachment(&depth_attachment_ref)];
+    let subpasses = [
+        vk::SubpassDescriptionBuilder::new()
+            .pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS)
+            .color_attachments(&color_attachment_refs)
+            .depth_stencil_attachment(&depth_attachment_ref),
+        /*vk::SubpassDescriptionBuilder::new()
+            .pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS)
+            .color_attachments(&color_attachment_refs)
+            .depth_stencil_attachment(&depth_attachment_ref),*/
+    ];
 
     let dependencies = [vk::SubpassDependencyBuilder::new()
         .src_subpass(vk::SUBPASS_EXTERNAL)
@@ -573,6 +605,9 @@ impl Drop for Core {
             }
             self.prelude
                 .device
+                .destroy_pipeline_layout(Some(self.pipeline_layout), None);
+            self.prelude
+                .device
                 .destroy_render_pass(Some(self.render_pass), None);
             self.prelude
                 .device
@@ -586,7 +621,7 @@ impl Drop for Core {
             self.prelude
                 .device
                 .destroy_command_pool(Some(self.command_pool), None);
-        }
+            }
     }
 }
 
