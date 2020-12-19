@@ -483,6 +483,8 @@ impl Core {
                 }
             }
 
+            self.prelude.device.cmd_next_subpass(command_buffer, vk::SubpassContents::INLINE);
+
             self.prelude.device.cmd_end_render_pass(command_buffer);
 
             self.prelude
@@ -556,19 +558,28 @@ fn create_render_pass(device: &DeviceLoader, vr: bool) -> Result<vk::RenderPass>
             .pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS)
             .color_attachments(&color_attachment_refs)
             .depth_stencil_attachment(&depth_attachment_ref),
-        /*vk::SubpassDescriptionBuilder::new()
+        vk::SubpassDescriptionBuilder::new()
             .pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS)
             .color_attachments(&color_attachment_refs)
-            .depth_stencil_attachment(&depth_attachment_ref),*/
+            .depth_stencil_attachment(&depth_attachment_ref),
     ];
 
-    let dependencies = [vk::SubpassDependencyBuilder::new()
+    let dependencies = [
+        vk::SubpassDependencyBuilder::new()
         .src_subpass(vk::SUBPASS_EXTERNAL)
         .dst_subpass(0)
         .src_stage_mask(vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT)
         .src_access_mask(vk::AccessFlags::empty())
         .dst_stage_mask(vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT)
-        .dst_access_mask(vk::AccessFlags::COLOR_ATTACHMENT_WRITE)];
+        .dst_access_mask(vk::AccessFlags::COLOR_ATTACHMENT_WRITE),
+        vk::SubpassDependencyBuilder::new()
+        .src_subpass(0)
+        .dst_subpass(1)
+        .src_stage_mask(vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT)
+        .src_access_mask(vk::AccessFlags::empty())
+        .dst_stage_mask(vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT)
+        .dst_access_mask(vk::AccessFlags::COLOR_ATTACHMENT_WRITE)
+    ];
 
     let mut create_info = vk::RenderPassCreateInfoBuilder::new()
         .attachments(&attachments)
@@ -581,6 +592,7 @@ fn create_render_pass(device: &DeviceLoader, vr: bool) -> Result<vk::RenderPass>
         .view_masks(&view_mask)
         .correlation_masks(&view_mask)
         .build();
+    multiview.subpass_count = subpasses.len() as _;
 
     create_info.p_next = &mut multiview as *mut _ as _;
 
