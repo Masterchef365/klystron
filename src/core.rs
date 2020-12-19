@@ -340,8 +340,8 @@ impl Core {
         Ok(())
     }
 
-    unsafe fn write_object_cmds(&self, command_buffer: vk::CommandBuffer, object: &crate::Object) {
-        let mesh = match self.meshes.get(object.mesh.0) {
+    unsafe fn write_object_cmds(&self, command_buffer: vk::CommandBuffer, mesh: crate::Mesh, transform: &nalgebra::Matrix4<f32>) {
+        let mesh = match self.meshes.get(mesh.0) {
             Some(m) => m,
             None => {
                 log::error!("Object references a mesh that no exists");
@@ -369,7 +369,7 @@ impl Core {
             vk::ShaderStageFlags::VERTEX,
             0,
             std::mem::size_of::<[f32; 16]>() as u32,
-            object.transform.data.as_ptr() as _,
+            transform.data.as_ptr() as _,
         );
 
         self.prelude.device.cmd_draw_indexed(
@@ -462,6 +462,7 @@ impl Core {
                 &[],
             );
 
+            // Object rendering
             let handles = self.materials.iter().collect::<Vec<_>>();
             for material_id in handles {
                 let material = match self.materials.get(material_id) {
@@ -479,12 +480,24 @@ impl Core {
                     .iter()
                     .filter(|o| o.material.0 == material_id)
                 {
-                    self.write_object_cmds(command_buffer, object)
+                    self.write_object_cmds(command_buffer, object.mesh, &object.transform)
                 }
             }
 
+            // Portal rendering
             self.prelude.device.cmd_next_subpass(command_buffer, vk::SubpassContents::INLINE);
 
+            self.prelude.device.cmd_bind_pipeline(
+                command_buffer,
+                vk::PipelineBindPoint::GRAPHICS,
+                self.portal_pipeline.pipeline,
+            );
+
+            for crate::Portal { mesh, affine } in &packet.portals {
+                self.write_object_cmds(command_buffer, *mesh, &affine)
+            }
+
+            // Finished passes
             self.prelude.device.cmd_end_render_pass(command_buffer);
 
             self.prelude
@@ -576,7 +589,7 @@ fn create_render_pass(device: &DeviceLoader, vr: bool) -> Result<vk::RenderPass>
         .src_subpass(0)
         .dst_subpass(1)
         .src_stage_mask(vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT)
-        .src_access_mask(vk::AccessFlags::empty())
+        .src_access_mask(vk::AccessFlags::COLOR_ATTACHMENT_WRITE)
         .dst_stage_mask(vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT)
         .dst_access_mask(vk::AccessFlags::COLOR_ATTACHMENT_WRITE)
     ];
