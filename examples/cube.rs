@@ -1,12 +1,13 @@
 use anyhow::Result;
 use klystron::{
     runtime_3d::{launch, App},
-    DrawType, Engine, FramePacket, Material, Mesh, Object, Vertex, UNLIT_FRAG, UNLIT_VERT, Matrix4
+    DrawType, Engine, FramePacket, Matrix4, Object, Portal, Vertex, UNLIT_FRAG, UNLIT_VERT,
 };
+use nalgebra::Vector3;
 
 struct MyApp {
-    material: Material,
-    mesh: Mesh,
+    cube: Object,
+    portals: [Portal; 2],
     time: f32,
 }
 
@@ -16,29 +17,46 @@ impl App for MyApp {
     type Args = ();
 
     fn new(engine: &mut dyn Engine, _args: Self::Args) -> Result<Self> {
+        // Cube
         let material = engine.add_material(UNLIT_VERT, UNLIT_FRAG, DrawType::Triangles)?;
 
         let (vertices, indices) = rainbow_cube();
         let mesh = engine.add_mesh(&vertices, &indices)?;
 
-        Ok(Self {
-            mesh,
+        let cube = Object {
             material,
+            mesh,
+            transform: Matrix4::identity(),
+        };
+
+        // Portals
+        let (vertices, indices) = quad();
+        let mesh = engine.add_mesh(&vertices, &indices)?;
+
+        let orange = Portal {
+            mesh,
+            affine: Matrix4::new_translation(&Vector3::new(0., 0., 2.)),
+        };
+
+        let blue = Portal {
+            mesh,
+            affine: Matrix4::new_translation(&Vector3::new(0., 0., -2.)),
+        };
+
+        Ok(Self {
+            cube,
+            portals: [orange, blue],
             time: 0.0,
         })
     }
 
     fn next_frame(&mut self, engine: &mut dyn Engine) -> Result<FramePacket> {
-        let transform = Matrix4::from_euler_angles(0.0, self.time, 0.0);
-        let object = Object {
-            material: self.material,
-            mesh: self.mesh,
-            transform,
-        };
+        self.cube.transform = Matrix4::from_euler_angles(0.0, self.time, 0.0);
         engine.update_time_value(self.time)?;
         self.time += 0.01;
         Ok(FramePacket {
-            objects: vec![object],
+            objects: vec![self.cube],
+            portals: self.portals,
         })
     }
 }
@@ -64,6 +82,19 @@ fn rainbow_cube() -> (Vec<Vertex>, Vec<u16>) {
         3, 1, 0, 2, 1, 3, 2, 5, 1, 6, 5, 2, 6, 4, 5, 7, 4, 6, 7, 0, 4, 3, 0, 7, 7, 2, 3, 6, 2, 7,
         0, 5, 4, 1, 5, 0,
     ];
+
+    (vertices, indices)
+}
+
+fn quad() -> (Vec<Vertex>, Vec<u16>) {
+    let vertices = vec![
+        Vertex::new([-1.0, -1.0, 0.0], [1.; 3]),
+        Vertex::new([-1.0, 1.0, 0.0], [1.; 3]),
+        Vertex::new([1.0, -1.0, 0.0], [1.; 3]),
+        Vertex::new([1.0, 1.0, 0.0], [1.; 3]),
+    ];
+
+    let indices = vec![2, 1, 0, 3, 1, 2];
 
     (vertices, indices)
 }

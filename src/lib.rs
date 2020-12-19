@@ -25,6 +25,8 @@ pub use windowed::{Camera, PerspectiveCamera, WinitBackend};
 pub struct FramePacket {
     /// The entire scene's worth of objects
     pub objects: Vec<Object>,
+    /// Portals
+    pub portals: [Portal; 2],
 }
 
 /// A single object in the scene
@@ -38,6 +40,15 @@ pub struct Object {
     pub transform: Matrix4<f32>,
     // /// An additional time uniform passed to the vertex and fragment shaders
     // pub anim: f32,
+}
+
+/// A portal rendered in the scene
+#[derive(Copy, Clone)]
+pub struct Portal {
+    /// Vertex and Index data for the portal
+    pub mesh: Mesh,
+    /// Strictly affine transformation applied to get the view and position of each portal
+    pub affine: Matrix4<f32>,
 }
 
 /// Handle for a Material (Draw commands)
