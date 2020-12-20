@@ -259,11 +259,11 @@ impl Core {
     }
 
     pub fn add_dynamic_mesh(&mut self, vertices: &[Vertex], indices: &[u16]) -> Result<crate::DynamicMesh> {
+        let a = self.allocate_mesh(vertices.len(), indices.len(), true)?;
+        let b = self.allocate_mesh(vertices.len(), indices.len(), true)?;
+        self.upload_mesh(a, vertices, indices)?;
         let mesh = DynamicMesh {
-            frames: [
-                (true, self.add_mesh(vertices, indices)?),
-                (false, self.add_mesh(vertices, indices)?),
-            ]
+            frames: [(true, a), (false, b)]
         };
         Ok(crate::DynamicMesh(self.dynamic_meshes.insert(mesh)))
     }
@@ -278,7 +278,7 @@ impl Core {
     }
 
     pub fn add_mesh(&mut self, vertices: &[Vertex], indices: &[u16]) -> Result<crate::Mesh> {
-        let mesh = self.allocate_mesh(vertices.len(), indices.len())?;
+        let mesh = self.allocate_mesh(vertices.len(), indices.len(), false)?;
         self.upload_mesh(mesh, vertices, indices)?;
         Ok(mesh)
     }
@@ -299,7 +299,64 @@ impl Core {
     }
 
     pub fn copy_mesh(&mut self, src: crate::Mesh, dst: crate::Mesh) -> Result<()> {
-        todo!("Mesh transfer")
+        let src = self.meshes.get(src.0).context("SRC")?;
+        let dst = self.meshes.get(dst.0).context("DST")?;
+        unsafe {
+            self.prelude
+                .device
+                .reset_command_buffer(self.transfer_cmdbuffer, None)
+                .result()?;
+
+            let begin_info = vk::CommandBufferBeginInfoBuilder::new();
+            self.prelude
+                .device
+                .begin_command_buffer(self.transfer_cmdbuffer, &begin_info)
+                .result()?;
+
+            let region = vk::BufferCopyBuilder::new()
+                .src_offset(0)
+                .dst_offset(0)
+                .size(src.indices.region().size());
+            self.prelude.device.cmd_copy_buffer(
+                self.transfer_cmdbuffer,
+                *src.indices.object(),
+                *dst.indices.object(),
+                &[region]
+            );
+
+            let region = vk::BufferCopyBuilder::new()
+                .src_offset(0)
+                .dst_offset(0)
+                .size(src.vertices.region().size());
+            self.prelude.device.cmd_copy_buffer(
+                self.transfer_cmdbuffer,
+                *src.vertices.object(),
+                *dst.vertices.object(),
+                &[region]
+            );
+
+            self.prelude
+                .device
+                .end_command_buffer(self.transfer_cmdbuffer)
+                .result()?;
+
+        // Submit to the queue
+        // TODO: Transfer should have its own queue!
+        let command_buffers = [self.transfer_cmdbuffer];
+        let submit_info = vk::SubmitInfoBuilder::new().command_buffers(&command_buffers);
+            self.prelude
+                .device
+                .queue_submit(
+                    self.prelude.queue,
+                    &[submit_info],
+                    None,
+                )
+                .result()?;
+            // TODO: This is evil!
+            self.prelude.device.queue_wait_idle(self.prelude.queue).result()?;
+        }
+
+        Ok(())
     }
 
     /// Call to make sure dynamic buffers are propagated to other frames
@@ -318,10 +375,12 @@ impl Core {
         Ok(())
     }
 
-    fn allocate_mesh(&mut self, vertices: usize, indices: usize) -> Result<crate::Mesh> {
+    fn allocate_mesh(&mut self, vertices: usize, indices: usize, dynamic: bool) -> Result<crate::Mesh> {
+        let dynusage = |u| if dynamic { u | vk::BufferUsageFlags::TRANSFER_DST | vk::BufferUsageFlags::TRANSFER_SRC } else { u };
+
         //TODO: Use staging buffers!
         let create_info = vk::BufferCreateInfoBuilder::new()
-            .usage(vk::BufferUsageFlags::VERTEX_BUFFER)
+            .usage(dynusage(vk::BufferUsageFlags::VERTEX_BUFFER))
             .sharing_mode(vk::SharingMode::EXCLUSIVE)
             .size((std::mem::size_of::<Vertex>() * vertices) as u64);
         let buffer =
@@ -336,7 +395,7 @@ impl Core {
             .result()?;
 
         let create_info = vk::BufferCreateInfoBuilder::new()
-            .usage(vk::BufferUsageFlags::INDEX_BUFFER)
+            .usage(dynusage(vk::BufferUsageFlags::INDEX_BUFFER))
             .sharing_mode(vk::SharingMode::EXCLUSIVE)
             .size((std::mem::size_of::<u16>() * indices) as u64);
         let buffer =

@@ -1,7 +1,8 @@
 use anyhow::Result;
 use klystron::{
     runtime_2d::{event::WindowEvent, launch, App2D},
-    DrawType, Engine, FramePacket, Matrix4, Object, Vertex, WinitBackend, UNLIT_FRAG, UNLIT_VERT, MeshType, DynamicMesh, Material,
+    DrawType, DynamicMesh, Engine, FramePacket, Material, Matrix4, MeshType, Object, Vertex,
+    WinitBackend, UNLIT_FRAG, UNLIT_VERT,
 };
 
 #[derive(Default)]
@@ -19,15 +20,14 @@ impl Pattern {
         for i in 0..n {
             let i = i as f32 / n as f32;
             let x = i * 2. - 1.;
-            let x = x + self.time;
             self.indices.push(self.vertices.len() as _);
             self.vertices.push(Vertex {
-                pos: [x, x.cos(), 0.],
+                pos: [x, (x + self.time).cos() / 2., 0.],
                 color: [0., 1., 0.],
             });
             self.indices.push(self.vertices.len() as _);
         }
-        self.time += 1.;
+        self.time += 0.1;
     }
 }
 
@@ -43,7 +43,7 @@ impl App2D for MyApp {
 
     fn new(engine: &mut WinitBackend, _args: Self::Args) -> Result<Self> {
         let material = engine.add_material(UNLIT_VERT, UNLIT_FRAG, DrawType::Lines)?;
-        
+
         let mut pattern = Pattern::default();
         pattern.update();
         let mesh = engine.add_dynamic_mesh(&pattern.vertices, &pattern.indices)?;
