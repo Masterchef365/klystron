@@ -27,17 +27,22 @@ pub struct FramePacket {
     pub objects: Vec<Object>,
 }
 
+/// Static or dynamic mesh
+#[derive(Copy, Clone)]
+pub enum MeshType {
+    Static(Mesh),
+    Dynamic(DynamicMesh),
+}
+
 /// A single object in the scene
 #[derive(Copy, Clone)]
 pub struct Object {
     /// How to draw this object
     pub material: Material,
     /// Vertex and Index data for the object
-    pub mesh: Mesh,
+    pub mesh: MeshType,
     /// Transformation applied to each vertex of this Object
     pub transform: Matrix4<f32>,
-    // /// An additional time uniform passed to the vertex and fragment shaders
-    // pub anim: f32,
 }
 
 /// Handle for a Material (Draw commands)
@@ -74,12 +79,10 @@ pub trait Engine {
     ) -> Result<Material>;
     /// Add a mesh, given vertices and indices
     fn add_mesh(&mut self, vertices: &[Vertex], indices: &[u16]) -> Result<Mesh>;
-    /*
     /// Add a mesh, given vertices and indices
-    fn add_dynamic_mesh(&mut self, vertices: &[Vertex], indices: &[u16]) -> Result<Mesh>;
+    fn add_dynamic_mesh(&mut self, vertices: &[Vertex], indices: &[u16]) -> Result<DynamicMesh>;
     /// Add a mesh, given vertices and indices
-    fn update_dynamic_mesh(&mut self, mesh: crate::Mesh, vertices: &[Vertex], indices: &[u16]) -> Result<Mesh>;
-    */
+    fn update_mesh(&mut self, mesh: crate::DynamicMesh, vertices: &[Vertex], indices: &[u16]) -> Result<()>;
     /// Remove the given material
     fn remove_material(&mut self, material: Material) -> Result<()>;
     /// Remove the given mesh

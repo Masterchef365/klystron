@@ -35,7 +35,7 @@ pub struct Mesh {
 }
 
 pub struct DynamicMesh {
-    pub frames: [Mesh; FRAMES_IN_FLIGHT],
+    pub frames: [crate::Mesh; FRAMES_IN_FLIGHT],
     pub needs_update: [bool; FRAMES_IN_FLIGHT],
 }
 

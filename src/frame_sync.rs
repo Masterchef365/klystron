@@ -31,6 +31,9 @@ impl FrameSync {
         })
     }
 
+    /// The frame which will be rendered next I.E. it is safe to update the resources corresponding
+    /// to the frame index this returns BEFORE next_frame() is called (or equivalently, from within
+    /// user code)
     pub fn next_frame_idx(&self) -> usize {
         (self.frame_idx + 1) % self.frames.len()
     }
@@ -47,6 +50,7 @@ impl FrameSync {
         Ok((self.frame_idx, frame))
     }
 
+    /// Frame that is currently being executed 
     pub fn current_frame(&self) -> usize {
         self.frame_idx
     }
