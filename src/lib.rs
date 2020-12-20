@@ -48,6 +48,10 @@ pub struct Material(pub(crate) Handle);
 #[derive(Copy, Clone)]
 pub struct Mesh(pub(crate) Handle);
 
+/// Handle for a Mesh (Draw content)
+#[derive(Copy, Clone)]
+pub struct DynamicMesh(pub(crate) Handle);
+
 /// Material rasterization method
 pub enum DrawType {
     /// Lines in between each pair of indices
@@ -70,6 +74,12 @@ pub trait Engine {
     ) -> Result<Material>;
     /// Add a mesh, given vertices and indices
     fn add_mesh(&mut self, vertices: &[Vertex], indices: &[u16]) -> Result<Mesh>;
+    /*
+    /// Add a mesh, given vertices and indices
+    fn add_dynamic_mesh(&mut self, vertices: &[Vertex], indices: &[u16]) -> Result<Mesh>;
+    /// Add a mesh, given vertices and indices
+    fn update_dynamic_mesh(&mut self, mesh: crate::Mesh, vertices: &[Vertex], indices: &[u16]) -> Result<Mesh>;
+    */
     /// Remove the given material
     fn remove_material(&mut self, material: Material) -> Result<()>;
     /// Remove the given mesh

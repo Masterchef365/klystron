@@ -2,7 +2,7 @@ use crate::frame_sync::FrameSync;
 use crate::material::Material;
 use crate::swapchain_images::{SwapChainImage, SwapchainImages};
 use crate::vertex::Vertex;
-use anyhow::Result;
+use anyhow::{Result, Context};
 use erupt::{
     utils::{
         self,
@@ -34,6 +34,11 @@ pub struct Mesh {
     pub n_indices: u32,
 }
 
+pub struct DynamicMesh {
+    pub frames: [Mesh; FRAMES_IN_FLIGHT],
+    pub needs_update: [bool; FRAMES_IN_FLIGHT],
+}
+
 // TODO: Turn the Vec<T>'s into [T; FRAMES_IN_FLIGHT]!
 // Do this when you switch over to gpu-alloc
 
@@ -41,6 +46,7 @@ pub struct Core {
     pub allocator: Allocator,
     pub materials: GenMap<Material>,
     pub meshes: GenMap<Mesh>,
+    pub dynamic_meshes: GenMap<DynamicMesh>,
     pub render_pass: vk::RenderPass,
     pub frame_sync: FrameSync,
     pub swapchain_images: Option<SwapchainImages>,
@@ -218,6 +224,7 @@ impl Core {
             swapchain_images: None,
             materials: GenMap::with_capacity(10),
             meshes: GenMap::with_capacity(10),
+            dynamic_meshes: GenMap::with_capacity(10),
         })
     }
 
@@ -247,14 +254,39 @@ impl Core {
         Ok(())
     }
 
-    pub fn add_mesh(&mut self, vertices: &[Vertex], indices: &[u16]) -> Result<crate::Mesh> {
-        let n_indices = indices.len() as u32;
+    /*
+    pub fn add_dynamic_mesh(&mut self, vertices: &[Vertex], indices: &[u16]) -> Result<crate::Mesh> {
+        todo!()
+    }
+    */
 
+    pub fn add_mesh(&mut self, vertices: &[Vertex], indices: &[u16]) -> Result<crate::Mesh> {
+        let mesh = self.allocate_mesh(vertices.len(), indices.len())?;
+        self.upload_mesh(mesh, vertices, indices)?;
+        Ok(mesh)
+    }
+
+    fn upload_mesh(&mut self, mesh: crate::Mesh, vertices: &[Vertex], indices: &[u16]) -> Result<()> {
+        let mesh = self.meshes.get(mesh.0).context("Mesh was deleted")?;
+
+        // TODO: Never unmap memory!
+        let mut map = mesh.vertices.map(&self.prelude.device, ..).result()?;
+        map.import(bytemuck::cast_slice(vertices));
+        map.unmap(&self.prelude.device).result()?;
+
+        let mut map = mesh.indices.map(&self.prelude.device, ..).result()?;
+        map.import(bytemuck::cast_slice(indices));
+        map.unmap(&self.prelude.device).result()?;
+
+        Ok(())
+    }
+
+    fn allocate_mesh(&mut self, vertices: usize, indices: usize) -> Result<crate::Mesh> {
         //TODO: Use staging buffers!
         let create_info = vk::BufferCreateInfoBuilder::new()
             .usage(vk::BufferUsageFlags::VERTEX_BUFFER)
             .sharing_mode(vk::SharingMode::EXCLUSIVE)
-            .size(std::mem::size_of_val(vertices) as u64);
+            .size((std::mem::size_of::<Vertex>() * vertices) as u64);
         let buffer =
             unsafe { self.prelude.device.create_buffer(&create_info, None, None) }.result()?;
         let vertex_buffer = self
@@ -265,14 +297,11 @@ impl Core {
                 allocator::MemoryTypeFinder::dynamic(),
             )
             .result()?;
-        let mut map = vertex_buffer.map(&self.prelude.device, ..).result()?;
-        map.import(bytemuck::cast_slice(vertices));
-        map.unmap(&self.prelude.device).result()?;
 
         let create_info = vk::BufferCreateInfoBuilder::new()
             .usage(vk::BufferUsageFlags::INDEX_BUFFER)
             .sharing_mode(vk::SharingMode::EXCLUSIVE)
-            .size(std::mem::size_of_val(indices) as u64);
+            .size((std::mem::size_of::<u16>() * indices) as u64);
         let buffer =
             unsafe { self.prelude.device.create_buffer(&create_info, None, None) }.result()?;
         let index_buffer = self
@@ -283,14 +312,11 @@ impl Core {
                 allocator::MemoryTypeFinder::dynamic(),
             )
             .result()?;
-        let mut map = index_buffer.map(&self.prelude.device, ..).result()?;
-        map.import(bytemuck::cast_slice(indices));
-        map.unmap(&self.prelude.device).result()?;
 
         let mesh = Mesh {
             indices: index_buffer,
             vertices: vertex_buffer,
-            n_indices,
+            n_indices: indices as _,
         };
 
         Ok(crate::Mesh(self.meshes.insert(mesh)))

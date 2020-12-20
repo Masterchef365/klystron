@@ -31,8 +31,12 @@ impl FrameSync {
         })
     }
 
+    pub fn next_frame_idx(&self) -> usize {
+        (self.frame_idx + 1) % self.frames.len()
+    }
+
     pub fn next_frame(&mut self) -> Result<(usize, Frame)> {
-        self.frame_idx = (self.frame_idx + 1) % self.frames.len();
+        self.frame_idx = self.next_frame_idx();
         let frame = self.frames[self.frame_idx];
         unsafe {
             self.prelude
