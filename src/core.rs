@@ -34,6 +34,7 @@ pub struct Mesh {
     pub n_indices: u32,
 }
 
+#[derive(Copy, Clone)]
 pub struct DynamicMesh {
     /// Pairs of (is_clean, Mesh)
     pub frames: [(bool, crate::Mesh); FRAMES_IN_FLIGHT],
@@ -258,19 +259,23 @@ impl Core {
     }
 
     pub fn add_dynamic_mesh(&mut self, vertices: &[Vertex], indices: &[u16]) -> Result<crate::DynamicMesh> {
-        todo!()
+        let mesh = DynamicMesh {
+            frames: [
+                (true, self.add_mesh(vertices, indices)?),
+                (false, self.add_mesh(vertices, indices)?),
+            ]
+        };
+        Ok(crate::DynamicMesh(self.dynamic_meshes.insert(mesh)))
     }
 
     pub fn update_mesh(&mut self, mesh: crate::DynamicMesh, vertices: &[Vertex], indices: &[u16]) -> Result<()> {
-        todo!()
+        let frame_idx = self.frame_sync.next_frame_idx();
+        let mesh = self.dynamic_meshes.get_mut(mesh.0).context("Dynamic mesh no longer exists")?;
+        mesh.frames.iter_mut().for_each(|v| v.0 = false); // All dirty
+        mesh.frames[frame_idx].0 = true;
+        let mesh = mesh.frames[frame_idx].1;
+        self.upload_mesh(mesh, vertices, indices)
     }
-
-
-    /*
-    pub fn add_dynamic_mesh(&mut self, vertices: &[Vertex], indices: &[u16]) -> Result<crate::Mesh> {
-        todo!()
-    }
-    */
 
     pub fn add_mesh(&mut self, vertices: &[Vertex], indices: &[u16]) -> Result<crate::Mesh> {
         let mesh = self.allocate_mesh(vertices.len(), indices.len())?;
@@ -294,16 +299,20 @@ impl Core {
     }
 
     pub fn copy_mesh(&mut self, src: crate::Mesh, dst: crate::Mesh) -> Result<()> {
-        todo!()
+        todo!("Mesh transfer")
     }
 
     /// Call to make sure dynamic buffers are propagated to other frames
     pub fn propagate_dynamic_buffers(&mut self) -> Result<()> {
         let handles: Vec<_> = self.dynamic_meshes.iter().collect();
         for handle in handles {
-            let mesh = self.dynamic_meshes.get_mut(handle).unwrap();
-            let clean = mesh.frames.iter().filter(|(c, _)| *c).next().context("Dynamic buffer updated improperly");
-
+            let mesh = *self.dynamic_meshes.get(handle).unwrap();
+            let reference = mesh.frames.iter().filter(|(c, _)| *c).next().context("Dynamic buffer updated improperly")?.1;
+            for &(is_clean, mesh) in &mesh.frames {
+                if !is_clean {
+                    self.copy_mesh(reference, mesh)?;
+                }
+            }
         }
 
         Ok(())

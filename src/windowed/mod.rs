@@ -153,6 +153,8 @@ impl WinitBackend {
                 .next_image(image_index, &frame)?
         };
 
+        self.core.propagate_dynamic_buffers()?;
+
         // Write command buffers
         let command_buffer = self.core.write_command_buffers(frame_idx, packet, &image)?;
 

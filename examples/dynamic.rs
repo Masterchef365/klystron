@@ -4,6 +4,7 @@ use klystron::{
     DrawType, Engine, FramePacket, Matrix4, Object, Vertex, WinitBackend, UNLIT_FRAG, UNLIT_VERT, MeshType, DynamicMesh, Material,
 };
 
+#[derive(Default)]
 struct Pattern {
     pub vertices: Vec<Vertex>,
     pub indices: Vec<u16>,
@@ -11,11 +12,22 @@ struct Pattern {
 }
 
 impl Pattern {
-    pub fn new() -> Self {
-        todo!()
-    }
-
     pub fn update(&mut self) {
+        self.vertices.clear();
+        self.indices.clear();
+        let n = 1000;
+        for i in 0..n {
+            let i = i as f32 / n as f32;
+            let x = i * 2. - 1.;
+            let x = x + self.time;
+            self.indices.push(self.vertices.len() as _);
+            self.vertices.push(Vertex {
+                pos: [x, x.cos(), 0.],
+                color: [0., 1., 0.],
+            });
+            self.indices.push(self.vertices.len() as _);
+        }
+        self.time += 1.;
     }
 }
 
@@ -23,7 +35,6 @@ struct MyApp {
     mesh: DynamicMesh,
     material: Material,
     pattern: Pattern,
-    window_size: (u32, u32),
 }
 
 impl App2D for MyApp {
@@ -33,14 +44,14 @@ impl App2D for MyApp {
     fn new(engine: &mut WinitBackend, _args: Self::Args) -> Result<Self> {
         let material = engine.add_material(UNLIT_VERT, UNLIT_FRAG, DrawType::Lines)?;
         
-        let pattern = Pattern::new();
+        let mut pattern = Pattern::default();
+        pattern.update();
         let mesh = engine.add_dynamic_mesh(&pattern.vertices, &pattern.indices)?;
 
         Ok(Self {
             material,
             mesh,
             pattern,
-            window_size: (500, 500),
         })
     }
 
@@ -50,6 +61,7 @@ impl App2D for MyApp {
 
     fn frame(&mut self, engine: &mut WinitBackend) -> Result<FramePacket> {
         self.pattern.update();
+        engine.update_mesh(self.mesh, &self.pattern.vertices, &self.pattern.indices)?;
         let object = Object {
             mesh: MeshType::Dynamic(self.mesh),
             transform: Matrix4::identity(),
@@ -59,26 +71,6 @@ impl App2D for MyApp {
             objects: vec![object],
         })
     }
-}
-
-fn wire_triangle() -> ([Vertex; 3], [u16; 6]) {
-    let color = [0., 1., 0.];
-    let vertices = [
-        Vertex {
-            pos: [-0.5, -0.25, 0.],
-            color,
-        },
-        Vertex {
-            pos: [-0.5, 0.25, 0.],
-            color,
-        },
-        Vertex {
-            pos: [0.; 3],
-            color,
-        },
-    ];
-    let indices = [0, 1, 1, 2, 2, 0];
-    (vertices, indices)
 }
 
 fn main() -> Result<()> {
