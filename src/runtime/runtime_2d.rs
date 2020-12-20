@@ -69,6 +69,6 @@ pub struct Dummy2DCam;
 impl Camera for Dummy2DCam {
     fn matrix(&self, width: u32, height: u32) -> Matrix4<f32> {
         let aspect = width as f32 / height as f32;
-        Matrix4::from_diagonal(&Vector4::new(1., aspect, 0., 1.))
+        Matrix4::from_diagonal(&Vector4::new(aspect, 1., 0., 1.))
     }
 }

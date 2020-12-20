@@ -20,9 +20,8 @@ impl Pattern {
         for i in 0..n {
             let i = i as f32 / n as f32;
             let x = i * 2. - 1.;
-            self.indices.push(self.vertices.len() as _);
             self.vertices.push(Vertex {
-                pos: [x, (x + self.time).cos() / 2., 0.],
+                pos: [x, (x + self.time).cos(), 0.],
                 color: [0., 1., 0.],
             });
             self.indices.push(self.vertices.len() as _);
@@ -43,7 +42,7 @@ impl App2D for MyApp {
     type Args = ();
 
     fn new(engine: &mut WinitBackend, _args: Self::Args) -> Result<Self> {
-        let material = engine.add_material(UNLIT_VERT, UNLIT_FRAG, DrawType::Lines)?;
+        let material = engine.add_material(UNLIT_VERT, UNLIT_FRAG, DrawType::Points)?;
 
         let mut pattern = Pattern::default();
         pattern.update();
@@ -63,9 +62,7 @@ impl App2D for MyApp {
 
     fn frame(&mut self, engine: &mut WinitBackend) -> Result<FramePacket> {
         self.pattern.update();
-        if self.monotonic & 1 == 0 {
-            engine.update_mesh(self.mesh, &self.pattern.vertices, &self.pattern.indices)?;
-        }
+        engine.update_mesh(self.mesh, &self.pattern.vertices, &self.pattern.indices)?;
         let object = Object {
             mesh: MeshType::Dynamic(self.mesh),
             transform: Matrix4::identity(),
