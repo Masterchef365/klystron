@@ -408,6 +408,12 @@ impl Engine for OpenXrBackend {
     fn remove_mesh(&mut self, mesh: Mesh) -> Result<()> {
         self.core.remove_mesh(mesh)
     }
+    fn add_dynamic_mesh(&mut self, vertices: &[Vertex], indices: &[u16]) -> Result<crate::DynamicMesh> {
+        self.core.add_dynamic_mesh(vertices, indices)
+    }
+    fn update_mesh(&mut self, mesh: crate::DynamicMesh, vertices: &[Vertex], indices: &[u16]) -> Result<()> {
+        self.core.update_mesh(mesh, vertices, indices)
+    }
     fn update_time_value(&self, data: f32) -> Result<()> {
         self.core.update_time_value(data)
     }

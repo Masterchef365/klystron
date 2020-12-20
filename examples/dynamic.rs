@@ -12,6 +12,7 @@ struct Pattern {
 
 impl Pattern {
     pub fn new() -> Self {
+        todo!()
     }
 
     pub fn update(&mut self) {
@@ -43,34 +44,20 @@ impl App2D for MyApp {
         })
     }
 
-    fn event(&mut self, event: &WindowEvent, _engine: &mut WinitBackend) -> Result<()> {
-        match event {
-            WindowEvent::Resized(size) => {
-                self.window_size = (size.width, size.height);
-            }
-            WindowEvent::CursorMoved { position, .. } => {
-                let center = |v| v * 2. - 1.;
-                let (x, y) = (
-                    center(position.x as f32 / self.window_size.0 as f32),
-                    center(position.y as f32 / self.window_size.1 as f32),
-                );
-                self.object.transform = Matrix4::from_euler_angles(0., 0., y.atan2(x) as f32);
-            }
-            _ => (),
-        }
+    fn event(&mut self, _event: &WindowEvent, _engine: &mut WinitBackend) -> Result<()> {
         Ok(())
     }
 
-    fn frame(&self) -> FramePacket {
+    fn frame(&mut self, engine: &mut WinitBackend) -> Result<FramePacket> {
         self.pattern.update();
         let object = Object {
             mesh: MeshType::Dynamic(self.mesh),
             transform: Matrix4::identity(),
-            material,
+            material: self.material,
         };
-        FramePacket {
+        Ok(FramePacket {
             objects: vec![object],
-        }
+        })
     }
 }
 

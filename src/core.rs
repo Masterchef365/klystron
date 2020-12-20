@@ -35,8 +35,8 @@ pub struct Mesh {
 }
 
 pub struct DynamicMesh {
-    pub frames: [crate::Mesh; FRAMES_IN_FLIGHT],
-    pub needs_update: [bool; FRAMES_IN_FLIGHT],
+    /// Pairs of (is_clean, Mesh)
+    pub frames: [(bool, crate::Mesh); FRAMES_IN_FLIGHT],
 }
 
 // TODO: Turn the Vec<T>'s into [T; FRAMES_IN_FLIGHT]!
@@ -52,6 +52,7 @@ pub struct Core {
     pub swapchain_images: Option<SwapchainImages>,
     pub command_pool: vk::CommandPool,
     pub command_buffers: Vec<vk::CommandBuffer>,
+    pub transfer_cmdbuffer: vk::CommandBuffer,
     pub descriptor_pool: vk::DescriptorPool,
     pub descriptor_set_layout: vk::DescriptorSetLayout,
     pub descriptor_sets: Vec<vk::DescriptorSet>,
@@ -73,10 +74,11 @@ impl Core {
         let allocate_info = vk::CommandBufferAllocateInfoBuilder::new()
             .command_pool(command_pool)
             .level(vk::CommandBufferLevel::PRIMARY)
-            .command_buffer_count(FRAMES_IN_FLIGHT as u32);
+            .command_buffer_count((FRAMES_IN_FLIGHT + 1) as u32);
 
-        let command_buffers =
+        let mut command_buffers =
             unsafe { prelude.device.allocate_command_buffers(&allocate_info) }.result()?;
+        let transfer_cmdbuffer = command_buffers.pop().unwrap();
 
         // Device memory allocator
         let mut allocator = Allocator::new(
@@ -211,6 +213,7 @@ impl Core {
 
         Ok(Self {
             prelude,
+            transfer_cmdbuffer,
             camera_ubos,
             time_ubos,
             descriptor_set_layout,
@@ -254,6 +257,15 @@ impl Core {
         Ok(())
     }
 
+    pub fn add_dynamic_mesh(&mut self, vertices: &[Vertex], indices: &[u16]) -> Result<crate::DynamicMesh> {
+        todo!()
+    }
+
+    pub fn update_mesh(&mut self, mesh: crate::DynamicMesh, vertices: &[Vertex], indices: &[u16]) -> Result<()> {
+        todo!()
+    }
+
+
     /*
     pub fn add_dynamic_mesh(&mut self, vertices: &[Vertex], indices: &[u16]) -> Result<crate::Mesh> {
         todo!()
@@ -277,6 +289,22 @@ impl Core {
         let mut map = mesh.indices.map(&self.prelude.device, ..).result()?;
         map.import(bytemuck::cast_slice(indices));
         map.unmap(&self.prelude.device).result()?;
+
+        Ok(())
+    }
+
+    pub fn copy_mesh(&mut self, src: crate::Mesh, dst: crate::Mesh) -> Result<()> {
+        todo!()
+    }
+
+    /// Call to make sure dynamic buffers are propagated to other frames
+    pub fn propagate_dynamic_buffers(&mut self) -> Result<()> {
+        let handles: Vec<_> = self.dynamic_meshes.iter().collect();
+        for handle in handles {
+            let mesh = self.dynamic_meshes.get_mut(handle).unwrap();
+            let clean = mesh.frames.iter().filter(|(c, _)| *c).next().context("Dynamic buffer updated improperly");
+
+        }
 
         Ok(())
     }
@@ -431,13 +459,13 @@ impl Core {
                     .iter()
                     .filter(|o| o.material.0 == material_id)
                 {
-                    let mesh = match self.meshes.get(object.mesh.0) {
-                        Some(m) => m,
-                        None => {
-                            log::error!("Object references a mesh that no exists");
-                            continue;
-                        }
-                    };
+                    let err = "Object references a mesh that no longer exists";
+                    let handle = match object.mesh {
+                        crate::MeshType::Dynamic(d) => self.dynamic_meshes.get(d.0).map(|d| d.frames[frame_idx].1).context(err)?,
+                        crate::MeshType::Static(m) => m,
+                    }.0;
+                    let mesh = self.meshes.get(handle).context(err)?;
+
                     self.prelude.device.cmd_bind_vertex_buffers(
                         command_buffer,
                         0,
