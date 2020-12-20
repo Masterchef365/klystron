@@ -27,7 +27,7 @@ impl Pattern {
             });
             self.indices.push(self.vertices.len() as _);
         }
-        self.time += 0.1;
+        self.time += 0.01;
     }
 }
 
@@ -35,6 +35,7 @@ struct MyApp {
     mesh: DynamicMesh,
     material: Material,
     pattern: Pattern,
+    monotonic: u32,
 }
 
 impl App2D for MyApp {
@@ -52,6 +53,7 @@ impl App2D for MyApp {
             material,
             mesh,
             pattern,
+            monotonic: 0,
         })
     }
 
@@ -61,12 +63,15 @@ impl App2D for MyApp {
 
     fn frame(&mut self, engine: &mut WinitBackend) -> Result<FramePacket> {
         self.pattern.update();
-        engine.update_mesh(self.mesh, &self.pattern.vertices, &self.pattern.indices)?;
+        if self.monotonic & 1 == 0 {
+            engine.update_mesh(self.mesh, &self.pattern.vertices, &self.pattern.indices)?;
+        }
         let object = Object {
             mesh: MeshType::Dynamic(self.mesh),
             transform: Matrix4::identity(),
             material: self.material,
         };
+        self.monotonic += 1;
         Ok(FramePacket {
             objects: vec![object],
         })

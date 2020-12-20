@@ -22,7 +22,7 @@ pub struct VkPrelude {
     pub entry: utils::loading::DefaultEntryLoader,
 }
 
-pub(crate) const FRAMES_IN_FLIGHT: usize = 2;
+pub(crate) const FRAMES_IN_FLIGHT: usize = 4;
 pub(crate) const COLOR_FORMAT: vk::Format = vk::Format::B8G8R8A8_SRGB;
 pub(crate) const DEPTH_FORMAT: vk::Format = vk::Format::D32_SFLOAT;
 
@@ -261,9 +261,11 @@ impl Core {
     pub fn add_dynamic_mesh(&mut self, vertices: &[Vertex], indices: &[u16]) -> Result<crate::DynamicMesh> {
         let a = self.allocate_mesh(vertices.len(), indices.len(), true)?;
         let b = self.allocate_mesh(vertices.len(), indices.len(), true)?;
+        let c = self.allocate_mesh(vertices.len(), indices.len(), true)?;
+        let d = self.allocate_mesh(vertices.len(), indices.len(), true)?;
         self.upload_mesh(a, vertices, indices)?;
         let mesh = DynamicMesh {
-            frames: [(true, a), (false, b)]
+            frames: [(true, a), (false, b), (false, c), (false, d)]
         };
         Ok(crate::DynamicMesh(self.dynamic_meshes.insert(mesh)))
     }
