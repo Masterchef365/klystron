@@ -29,16 +29,17 @@ impl App for MyApp {
     }
 
     fn next_frame(&mut self, engine: &mut dyn Engine) -> Result<FramePacket> {
-        let transform = Matrix4::from_euler_angles(0.0, self.time, 0.0);
         let object = Object {
             material: self.material,
             mesh: self.mesh,
-            transform,
+            transform: Matrix4::identity(),
         };
         engine.update_time_value(self.time)?;
         self.time += 0.01;
+        let base_transform = Matrix4::from_euler_angles(0.0, self.time, 0.0);
         Ok(FramePacket {
             objects: vec![object],
+            base_transform,
         })
     }
 }
