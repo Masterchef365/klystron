@@ -264,8 +264,8 @@ impl OpenXrBackend {
             &self.stage,
         )?;
 
-        let left = matrix_from_view(&views[0]);
-        let right = matrix_from_view(&views[1]);
+        let left = matrix_from_view(&views[0]) * packet.base_transform;
+        let right = matrix_from_view(&views[1]) * packet.base_transform;
         let both = left.iter().chain(right.iter()).copied().collect::<Vec<_>>();
         let mut data = [0.0; 32];
         data.copy_from_slice(&both);

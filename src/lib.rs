@@ -25,6 +25,8 @@ pub use windowed::{Camera, PerspectiveCamera, WinitBackend};
 pub struct FramePacket {
     /// The entire scene's worth of objects
     pub objects: Vec<Object>,
+    /// Transform the whole world by this first (prepends to camera origin)
+    pub base_transform: Matrix4<f32>,
 }
 
 /// A single object in the scene

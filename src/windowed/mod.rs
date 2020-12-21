@@ -158,13 +158,9 @@ impl WinitBackend {
 
         // Upload camera matrix and time
         let mut data = [0.0; 32];
+        let matrix = camera.matrix(image.extent.width, image.extent.height) * packet.base_transform;
         data.iter_mut()
-            .zip(
-                camera
-                    .matrix(image.extent.width, image.extent.height)
-                    .as_slice()
-                    .iter(),
-            )
+            .zip(matrix.as_slice().iter())
             .for_each(|(o, i)| *o = *i);
         self.core.update_camera_data(frame_idx, &data)?;
 
