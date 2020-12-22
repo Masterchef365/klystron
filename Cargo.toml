@@ -8,7 +8,7 @@ edition = "2018"
 builtin_shaders = []
 
 [dependencies]
-erupt = "0.14.0"
+erupt = "0.15"
 winit = "0.22"
 openxr = { version = "0.13.0", features = ["loaded"] }
 nalgebra = "0.22"
