@@ -24,7 +24,7 @@ pub struct VkPrelude {
 
 pub(crate) const FRAMES_IN_FLIGHT: usize = 2;
 pub(crate) const COLOR_FORMAT: vk::Format = vk::Format::B8G8R8A8_SRGB;
-pub(crate) const DEPTH_FORMAT: vk::Format = vk::Format::D32_SFLOAT;
+pub(crate) const DEPTH_FORMAT: vk::Format = vk::Format::D32_SFLOAT_S8_UINT;
 
 pub type CameraUbo = [f32; 32];
 

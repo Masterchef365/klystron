@@ -105,12 +105,24 @@ impl Material {
                 .name(&entry_point),
         ];
 
+        let stencil_op_state = vk::StencilOpStateBuilder::new()
+            .compare_op(vk::CompareOp::EQUAL)
+            .fail_op(vk::StencilOp::INVERT)
+            .depth_fail_op(vk::StencilOp::INVERT)
+            .pass_op(vk::StencilOp::INVERT)
+            .reference(0)
+            .compare_mask(!0)
+            .write_mask(!0)
+            .build();
+
         let depth_stencil_state = vk::PipelineDepthStencilStateCreateInfoBuilder::new()
             .depth_test_enable(true)
             .depth_write_enable(true)
             .depth_compare_op(vk::CompareOp::LESS) // TODO: Play with this! For fun!
             .depth_bounds_test_enable(false)
-            .stencil_test_enable(false);
+            .stencil_test_enable(true)
+            .front(stencil_op_state)
+            .back(stencil_op_state);
 
         let create_info = vk::GraphicsPipelineCreateInfoBuilder::new()
             .stages(&shader_stages)
