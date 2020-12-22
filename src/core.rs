@@ -12,15 +12,7 @@ use erupt::{
 };
 use genmap::GenMap;
 use std::sync::Arc;
-
-pub struct VkPrelude {
-    pub queue: vk::Queue,
-    pub queue_family_index: u32,
-    pub device: DeviceLoader,
-    pub physical_device: vk::PhysicalDevice,
-    pub instance: InstanceLoader,
-    pub entry: utils::loading::DefaultEntryLoader,
-}
+use vk_core::SharedCore;
 
 pub(crate) const FRAMES_IN_FLIGHT: usize = 2;
 pub(crate) const COLOR_FORMAT: vk::Format = vk::Format::B8G8R8A8_SRGB;
@@ -51,11 +43,11 @@ pub struct Core {
     pub descriptor_sets: Vec<vk::DescriptorSet>,
     pub camera_ubos: Vec<Allocation<vk::Buffer>>,
     pub time_ubos: Vec<Allocation<vk::Buffer>>,
-    pub prelude: Arc<VkPrelude>,
+    pub prelude: SharedCore,
 }
 
 impl Core {
-    pub fn new(prelude: Arc<VkPrelude>, vr: bool) -> Result<Self> {
+    pub fn new(prelude: SharedCore, vr: bool) -> Result<Self> {
         // Command pool
         let create_info = vk::CommandPoolCreateInfoBuilder::new()
             .flags(vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER)
@@ -586,15 +578,6 @@ impl Drop for Core {
             self.prelude
                 .device
                 .destroy_command_pool(Some(self.command_pool), None);
-        }
-    }
-}
-
-impl Drop for VkPrelude {
-    fn drop(&mut self) {
-        unsafe {
-            self.device.destroy_device(None);
-            self.instance.destroy_instance(None);
         }
     }
 }

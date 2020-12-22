@@ -1,5 +1,6 @@
 mod camera;
-use crate::core::{Core, VkPrelude};
+use crate::core::Core;
+use vk_core::SharedCore;
 use crate::hardware_query::HardwareSelection;
 use crate::swapchain_images::SwapchainImages;
 use crate::{DrawType, Engine, FramePacket, Material, Mesh, Vertex};
@@ -20,7 +21,7 @@ pub struct WinitBackend {
     image_available_semaphores: Vec<vk::Semaphore>,
     surface: khr_surface::SurfaceKHR,
     hardware: HardwareSelection,
-    prelude: Arc<VkPrelude>,
+    prelude: SharedCore,
     core: Core,
 }
 
@@ -82,7 +83,7 @@ impl WinitBackend {
         let device = DeviceLoader::new(&instance, hardware.physical_device, &create_info, None)?;
         let queue = unsafe { device.get_device_queue(hardware.queue_family, 0, None) };
 
-        let prelude = Arc::new(VkPrelude {
+        let prelude = SharedCore::new(vk_core::Core {
             queue,
             queue_family_index: hardware.queue_family,
             physical_device: hardware.physical_device,

@@ -1,5 +1,6 @@
 pub mod xr_prelude;
-use crate::core::{Core, VkPrelude};
+use vk_core::SharedCore;
+use crate::core::Core;
 use crate::swapchain_images::SwapchainImages;
 use crate::{DrawType, Engine, FramePacket, Material, Mesh, Vertex};
 use anyhow::{bail, Result};
@@ -17,7 +18,7 @@ pub struct OpenXrBackend {
     stage: xr::Space,
     swapchain: Option<xr::Swapchain<xr::Vulkan>>,
     openxr: Arc<XrPrelude>,
-    prelude: Arc<VkPrelude>,
+    prelude: SharedCore,
     core: Core,
 }
 
@@ -187,7 +188,7 @@ impl OpenXrBackend {
             .create_reference_space(xr::ReferenceSpaceType::STAGE, xr::Posef::IDENTITY)
             .unwrap();
 
-        let prelude = Arc::new(VkPrelude {
+        let prelude = Arc::new(vk_core::Core {
             queue,
             queue_family_index,
             device: vk_device,

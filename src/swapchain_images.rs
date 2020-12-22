@@ -1,4 +1,4 @@
-use crate::core::VkPrelude;
+use vk_core::SharedCore;
 use crate::frame_sync::Frame;
 use anyhow::Result;
 use drop_bomb::DropBomb;
@@ -6,7 +6,6 @@ use erupt::{
     utils::allocator::{Allocation, Allocator, MemoryTypeFinder},
     vk1_0 as vk, DeviceLoader,
 };
-use std::sync::Arc;
 
 pub struct SwapchainImages {
     pub extent: vk::Extent2D,
@@ -14,7 +13,7 @@ pub struct SwapchainImages {
     pub depth_image_mem: Option<Allocation<vk::Image>>,
     pub depth_image_view: vk::ImageView,
     images: Vec<SwapChainImage>,
-    prelude: Arc<VkPrelude>,
+    prelude: SharedCore,
     bomb: DropBomb,
 }
 
@@ -51,7 +50,7 @@ impl SwapchainImages {
     }
 
     pub fn new(
-        prelude: Arc<VkPrelude>,
+        prelude: SharedCore,
         allocator: &mut Allocator,
         extent: vk::Extent2D,
         render_pass: vk::RenderPass,
