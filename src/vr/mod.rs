@@ -1,5 +1,6 @@
 pub mod xr_prelude;
-use crate::core::{Core, VkPrelude, CameraUbo, MatrixData};
+use crate::core::{Core, CameraUbo};
+use vk_core::SharedCore;
 use crate::swapchain_images::SwapchainImages;
 use crate::{DrawType, Engine, FramePacket, Material, Mesh, Vertex};
 use anyhow::{bail, Result};
@@ -7,8 +8,9 @@ use erupt::{vk1_0 as vk, DeviceLoader, EntryLoader, InstanceLoader};
 use log::info;
 use nalgebra::{Matrix4, Unit, Vector3};
 use std::ffi::CString;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use xr_prelude::{load_openxr, XrPrelude};
+use gpu_alloc::{self, GpuAllocator};
 
 /// VR Capable OpenXR engine backend
 pub struct OpenXrBackend {
@@ -17,7 +19,7 @@ pub struct OpenXrBackend {
     stage: xr::Space,
     swapchain: Option<xr::Swapchain<xr::Vulkan>>,
     openxr: Arc<XrPrelude>,
-    prelude: Arc<VkPrelude>,
+    prelude: SharedCore,
     core: Core,
 }
 
@@ -187,16 +189,24 @@ impl OpenXrBackend {
             .create_reference_space(xr::ReferenceSpaceType::STAGE, xr::Posef::IDENTITY)
             .unwrap();
 
-        let prelude = Arc::new(VkPrelude {
+        let device_props = unsafe { gpu_alloc_erupt::device_properties(&vk_instance, vk_physical_device)? };
+        let allocator =
+            Mutex::new(GpuAllocator::new(gpu_alloc::Config::i_am_prototyping(), device_props));
+
+        let prelude = Arc::new(vk_core::Core {
             queue,
-            queue_family_index,
             device: vk_device,
-            physical_device: vk_physical_device,
             instance: vk_instance,
-            entry: vk_entry,
+            allocator,
+            _entry: vk_entry,
         });
 
-        let core = Core::new(prelude.clone(), true)?;
+        let meta = vk_core::CoreMeta {
+            physical_device: vk_physical_device,
+            queue_family_index,
+        };
+
+        let core = Core::new(prelude.clone(), meta, true)?;
 
         let openxr = Arc::new(XrPrelude {
             instance: xr_instance,
@@ -342,9 +352,7 @@ impl OpenXrBackend {
     }
 
     fn recreate_swapchain(&mut self) -> Result<()> {
-        if let Some(mut images) = self.core.swapchain_images.take() {
-            images.free(&mut self.core.allocator)?;
-        }
+        drop(self.core.swapchain_images.take());
         self.swapchain = None;
 
         let views = self
@@ -389,7 +397,6 @@ impl OpenXrBackend {
 
         self.core.swapchain_images = Some(SwapchainImages::new(
             self.prelude.clone(),
-            &mut self.core.allocator,
             extent,
             self.core.render_pass,
             swapchain_images,
