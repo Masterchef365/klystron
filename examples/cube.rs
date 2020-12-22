@@ -91,10 +91,10 @@ fn rainbow_cube() -> (Vec<Vertex>, Vec<u16>) {
 
 fn quad(color: [f32; 3]) -> (Vec<Vertex>, Vec<u16>) {
     let vertices = vec![
-        Vertex::new([-1.0, -1.0, 0.0], color),
-        Vertex::new([-1.0, 1.0, 0.0], color),
-        Vertex::new([1.0, -1.0, 0.0], color),
-        Vertex::new([1.0, 1.0, 0.0], color),
+        Vertex::new([-2.0, -2.0, 0.0], color),
+        Vertex::new([-2.0, 2.0, 0.0], color),
+        Vertex::new([2.0, -2.0, 0.0], color),
+        Vertex::new([2.0, 2.0, 0.0], color),
     ];
 
     let indices = vec![

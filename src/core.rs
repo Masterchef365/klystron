@@ -25,6 +25,12 @@ pub struct VkPrelude {
 pub(crate) const FRAMES_IN_FLIGHT: usize = 2;
 pub(crate) const COLOR_FORMAT: vk::Format = vk::Format::B8G8R8A8_SRGB;
 pub(crate) const DEPTH_FORMAT: vk::Format = vk::Format::D32_SFLOAT_S8_UINT;
+const DEPTH_CLEAR_VALUE: vk::ClearValue = vk::ClearValue {
+                    depth_stencil: vk::ClearDepthStencilValue {
+                        depth: 1.0,
+                        stencil: 0,
+                    },
+                };
 
 pub type MatrixData = [[f32; 4]; 4];
 
@@ -438,12 +444,7 @@ impl Core {
                         float32: [0.0, 0.0, 0.0, 1.0],
                     },
                 },
-                vk::ClearValue {
-                    depth_stencil: vk::ClearDepthStencilValue {
-                        depth: 1.0,
-                        stencil: 0,
-                    },
-                },
+                DEPTH_CLEAR_VALUE,
             ];
 
             let begin_info = vk::RenderPassBeginInfoBuilder::new()
@@ -490,7 +491,11 @@ impl Core {
                 &[],
             );
 
-            // Portal rendering
+            // Outer scene rendering
+            self.prelude.device.cmd_set_stencil_reference(command_buffer, vk::StencilFaceFlags::FRONT, 0);
+            self.all_object_cmds(command_buffer, packet, 0);
+
+            // Portal mask rendering
             self.prelude.device.cmd_bind_pipeline(
                 command_buffer,
                 vk::PipelineBindPoint::GRAPHICS,
@@ -506,10 +511,26 @@ impl Core {
                 self.write_object_cmds(command_buffer, *mesh, &push_constant);
             }
 
-            let n_cameras = if self.vr { 2 } else { 1 };
-            self.prelude.device.cmd_set_stencil_reference(command_buffer, vk::StencilFaceFlags::FRONT, 0);
-            self.all_object_cmds(command_buffer, packet, 0 * n_cameras);
+            // Clear depth attachment
+            let attachments = [vk::ClearAttachmentBuilder::new()
+            .aspect_mask(vk::ImageAspectFlags::DEPTH)
+            .clear_value(DEPTH_CLEAR_VALUE)];
+            let rects = [vk::ClearRectBuilder::new()
+                .base_array_layer(0)
+                .layer_count(1)
+                .rect(vk::Rect2DBuilder::new()
+                    .extent(image.extent)
+                    .offset(*vk::Offset2DBuilder::default())
+                    .build())
+                ];
+            self.prelude.device.cmd_clear_attachments(
+                command_buffer,
+                &attachments,
+                &rects,
+            );
 
+            // Portal view rendering
+            let n_cameras = if self.vr { 2 } else { 1 };
             self.prelude.device.cmd_set_stencil_reference(command_buffer, vk::StencilFaceFlags::FRONT, 1);
             self.all_object_cmds(command_buffer, packet, 1 * n_cameras);
 

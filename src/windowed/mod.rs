@@ -161,7 +161,8 @@ impl WinitBackend {
         let mut camera_data = CameraUbo {
             cameras: [matrix; 6],
         };
-        camera_data.cameras[1][1][1] /= 2.;
+        camera_data.cameras[1][3][0] = 2.;
+        camera_data.cameras[2][3][0] = -2.;
         self.core.update_camera_data(frame_idx, &camera_data)?;
 
         // Submit to the queue
