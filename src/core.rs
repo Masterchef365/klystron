@@ -477,28 +477,10 @@ impl Core {
             }
 
             self.prelude.device.cmd_set_stencil_reference(command_buffer, vk::StencilFaceFlags::FRONT, 0);
+            self.all_object_cmds(command_buffer, packet);
 
-            // Object rendering
-            let handles = self.materials.iter().collect::<Vec<_>>();
-            for material_id in handles {
-                let material = match self.materials.get(material_id) {
-                    Some(m) => m,
-                    None => continue,
-                };
-                self.prelude.device.cmd_bind_pipeline(
-                    command_buffer,
-                    vk::PipelineBindPoint::GRAPHICS,
-                    material.pipeline,
-                );
-
-                for object in packet
-                    .objects
-                    .iter()
-                    .filter(|o| o.material.0 == material_id)
-                {
-                    self.write_object_cmds(command_buffer, object.mesh, &object.transform)
-                }
-            }
+            self.prelude.device.cmd_set_stencil_reference(command_buffer, vk::StencilFaceFlags::FRONT, 2);
+            self.all_object_cmds(command_buffer, packet);
 
             // Finished passes
             self.prelude.device.cmd_end_render_pass(command_buffer);
@@ -510,6 +492,30 @@ impl Core {
             }
 
         Ok(command_buffer)
+    }
+
+    unsafe fn all_object_cmds(&self, command_buffer: vk::CommandBuffer, packet: &crate::FramePacket) {
+        // Object rendering
+        let handles = self.materials.iter().collect::<Vec<_>>();
+        for material_id in handles {
+            let material = match self.materials.get(material_id) {
+                Some(m) => m,
+                None => continue,
+            };
+            self.prelude.device.cmd_bind_pipeline(
+                command_buffer,
+                vk::PipelineBindPoint::GRAPHICS,
+                material.pipeline,
+            );
+
+            for object in packet
+                .objects
+                    .iter()
+                    .filter(|o| o.material.0 == material_id)
+                    {
+                        self.write_object_cmds(command_buffer, object.mesh, &object.transform)
+                    }
+        }
     }
 
     /// Upload camera matricies (Two f32 camera matrics in column-major order)
