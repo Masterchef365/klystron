@@ -97,7 +97,12 @@ fn quad(color: [f32; 3]) -> (Vec<Vertex>, Vec<u16>) {
         Vertex::new([1.0, 1.0, 0.0], color),
     ];
 
-    let indices = vec![2, 1, 0, 3, 1, 2];
+    let indices = vec![
+        2, 1, 0, 
+        3, 1, 2,
+        0, 1, 2, 
+        2, 1, 3
+    ];
 
     (vertices, indices)
 }

@@ -231,6 +231,7 @@ impl Core {
             crate::DrawType::Triangles, 
             render_pass, 
             pipeline_layout,
+            true,
         )?;
 
         Ok(Self {
@@ -266,6 +267,7 @@ impl Core {
             draw_type,
             self.render_pass,
             self.pipeline_layout,
+            false,
         )?;
         Ok(crate::Material(self.materials.insert(material)))
     }
@@ -469,9 +471,12 @@ impl Core {
                 self.portal_pipeline.pipeline,
             );
 
-            for crate::Portal { mesh, affine } in &packet.portals {
+            for (idx, crate::Portal { mesh, affine }) in packet.portals.iter().enumerate() {
+                self.prelude.device.cmd_set_stencil_reference(command_buffer, vk::StencilFaceFlags::FRONT, (idx + 1) as _);
                 self.write_object_cmds(command_buffer, *mesh, &affine)
             }
+
+            self.prelude.device.cmd_set_stencil_reference(command_buffer, vk::StencilFaceFlags::FRONT, 0);
 
             // Object rendering
             let handles = self.materials.iter().collect::<Vec<_>>();

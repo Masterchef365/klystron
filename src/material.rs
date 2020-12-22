@@ -21,6 +21,7 @@ impl Material {
         draw_type: DrawType,
         render_pass: vk::RenderPass,
         pipeline_layout: vk::PipelineLayout,
+        portal_mask: bool,
     ) -> Result<Self> {
         // Create shader modules
         let vert_decoded = utils::decode_spv(vertex_src)?;
@@ -63,7 +64,7 @@ impl Material {
             .viewport_count(1)
             .scissor_count(1);
 
-        let dynamic_states = [vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR];
+        let dynamic_states = [vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR, vk::DynamicState::STENCIL_REFERENCE];
         let dynamic_state =
             vk::PipelineDynamicStateCreateInfoBuilder::new().dynamic_states(&dynamic_states);
 
@@ -72,7 +73,7 @@ impl Material {
             .rasterizer_discard_enable(false)
             .polygon_mode(vk::PolygonMode::FILL)
             .line_width(1.0)
-            .cull_mode(vk::CullModeFlags::NONE)
+            .cull_mode(vk::CullModeFlags::BACK)
             .front_face(vk::FrontFace::CLOCKWISE)
             .depth_clamp_enable(false);
 
@@ -105,15 +106,23 @@ impl Material {
                 .name(&entry_point),
         ];
 
-        let stencil_op_state = vk::StencilOpStateBuilder::new()
-            .compare_op(vk::CompareOp::EQUAL)
-            .fail_op(vk::StencilOp::INVERT)
-            .depth_fail_op(vk::StencilOp::INVERT)
-            .pass_op(vk::StencilOp::INVERT)
-            .reference(0)
-            .compare_mask(!0)
-            .write_mask(!0)
-            .build();
+        let stencil_op_state = if portal_mask {
+            vk::StencilOpStateBuilder::new()
+                .compare_op(vk::CompareOp::ALWAYS)
+                .fail_op(vk::StencilOp::KEEP)
+                .depth_fail_op(vk::StencilOp::KEEP)
+                .pass_op(vk::StencilOp::REPLACE)
+        } else {
+            vk::StencilOpStateBuilder::new()
+                .compare_op(vk::CompareOp::EQUAL)
+                .fail_op(vk::StencilOp::KEEP)
+                .depth_fail_op(vk::StencilOp::KEEP)
+                .pass_op(vk::StencilOp::KEEP)
+        }
+        .reference(0)
+        .compare_mask(!0)
+        .write_mask(!0)
+        .build();
 
         let depth_stencil_state = vk::PipelineDepthStencilStateCreateInfoBuilder::new()
             .depth_test_enable(true)
@@ -150,10 +159,7 @@ impl Material {
             prelude.device.destroy_shader_module(Some(vertex), None);
         }
 
-        Ok(Self {
-            pipeline,
-            prelude,
-        })
+        Ok(Self { pipeline, prelude })
     }
 }
 
