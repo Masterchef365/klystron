@@ -12,7 +12,6 @@ use erupt::{
     vk1_0 as vk, DeviceLoader, EntryLoader, InstanceLoader,
 };
 use std::ffi::CString;
-use std::sync::Arc;
 use winit::window::Window;
 
 /// Windowed mode Winit engine backend

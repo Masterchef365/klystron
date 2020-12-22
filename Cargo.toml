@@ -19,3 +19,5 @@ drop_bomb = "0.1"
 ctrlc = "3.1.5"
 genmap = "1.0"
 vk_core = { git = "https://github.com/Masterchef365/vk_core.git", branch = "main" }
+gpu-alloc-erupt = "0.1"
+gpu-alloc = "0.2"
