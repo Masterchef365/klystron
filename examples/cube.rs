@@ -30,13 +30,16 @@ impl App for MyApp {
         };
 
         // Portals
-        let (vertices, indices) = quad();
+        let (vertices, indices) = quad([233. / 255., 147. / 255., 20. / 255.]);
         let mesh = engine.add_mesh(&vertices, &indices)?;
 
         let orange = Portal {
             mesh,
             affine: Matrix4::new_translation(&Vector3::new(0., 0., 2.)),
         };
+
+        let (vertices, indices) = quad([20. / 255., 154. / 255., 233. / 255.]);
+        let mesh = engine.add_mesh(&vertices, &indices)?;
 
         let blue = Portal {
             mesh,
@@ -86,12 +89,12 @@ fn rainbow_cube() -> (Vec<Vertex>, Vec<u16>) {
     (vertices, indices)
 }
 
-fn quad() -> (Vec<Vertex>, Vec<u16>) {
+fn quad(color: [f32; 3]) -> (Vec<Vertex>, Vec<u16>) {
     let vertices = vec![
-        Vertex::new([-1.0, -1.0, 0.0], [1.; 3]),
-        Vertex::new([-1.0, 1.0, 0.0], [1.; 3]),
-        Vertex::new([1.0, -1.0, 0.0], [1.; 3]),
-        Vertex::new([1.0, 1.0, 0.0], [1.; 3]),
+        Vertex::new([-1.0, -1.0, 0.0], color),
+        Vertex::new([-1.0, 1.0, 0.0], color),
+        Vertex::new([1.0, -1.0, 0.0], color),
+        Vertex::new([1.0, 1.0, 0.0], color),
     ];
 
     let indices = vec![2, 1, 0, 3, 1, 2];
