@@ -88,6 +88,10 @@ impl SwapchainImages {
         let depth_image_mem = unsafe { prelude.allocator()?
             .alloc(EruptMemoryDevice::wrap(&prelude.device), request)? };
 
+        unsafe {
+            prelude.device.bind_image_memory(depth_image, *depth_image_mem.memory(), 0).result()?;
+        }
+
         let create_info = vk::ImageViewCreateInfoBuilder::new()
             .image(depth_image)
             .view_type(vk::ImageViewType::_2D)
@@ -145,6 +149,9 @@ impl Drop for SwapchainImages {
             self.prelude
                 .device
                 .destroy_image_view(Some(self.depth_image_view), None);
+            self.prelude
+                .device
+                .destroy_image(Some(self.depth_image), None);
         }
 
         unsafe {
