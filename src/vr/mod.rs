@@ -78,7 +78,7 @@ impl OpenXrBackend {
             .vulkan_instance_extensions(system)
             .unwrap()
             .split(' ')
-            .map(|x| std::ffi::CString::new(x).unwrap())
+            .map(|x| std::ffi::CString::new(x.trim_end_matches("\u{0}")).unwrap())
             .collect::<Vec<_>>();
 
         let mut vk_instance_ext_ptrs = vk_instance_exts
@@ -93,7 +93,7 @@ impl OpenXrBackend {
             .vulkan_device_extensions(system)
             .unwrap()
             .split(' ')
-            .map(|x| CString::new(x).unwrap())
+            .map(|x| CString::new(x.trim_end_matches("\u{0}")).unwrap())
             .collect::<Vec<_>>();
 
         let mut vk_device_ext_ptrs = vk_device_exts
