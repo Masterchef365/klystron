@@ -43,7 +43,7 @@ impl App for MyApp {
 
         let blue = Portal {
             mesh,
-            affine: Matrix4::new_translation(&Vector3::new(0., 8., -2.)),
+            affine: Matrix4::identity(),
         };
 
         Ok(Self {
@@ -55,6 +55,7 @@ impl App for MyApp {
 
     fn next_frame(&mut self, engine: &mut dyn Engine) -> Result<FramePacket> {
         self.cube.transform = Matrix4::from_euler_angles(0.0, self.time, 0.0);
+        self.portals[1].affine = Matrix4::new_translation(&Vector3::new(0., 4. + 4. * self.time.cos(), -2.));
         engine.update_time_value(self.time)?;
         self.time += 0.01;
         Ok(FramePacket {
