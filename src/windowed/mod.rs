@@ -157,12 +157,21 @@ impl WinitBackend {
         let command_buffer = self.core.write_command_buffers(frame_idx, packet, &image)?;
 
         // Upload camera matrix and time
-        let matrix: MatrixData = *camera.matrix(image.extent.width, image.extent.height).as_ref();
+        let matrix = camera.matrix(image.extent.width, image.extent.height);
+        let orange = matrix * packet.portals[1].affine;
+        let blue = matrix * packet.portals[0].affine;
+
         let mut camera_data = CameraUbo {
-            cameras: [matrix; 6],
+            cameras: [
+                *matrix.as_ref(),
+                *blue.as_ref(),
+                *orange.as_ref(),
+                [[0.; 4]; 4],
+                [[0.; 4]; 4],
+                [[0.; 4]; 4],
+            ],
         };
-        camera_data.cameras[1][3][0] = 2.;
-        camera_data.cameras[2][3][0] = -2.;
+
         self.core.update_camera_data(frame_idx, &camera_data)?;
 
         // Submit to the queue
