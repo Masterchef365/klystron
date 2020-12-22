@@ -158,13 +158,11 @@ impl WinitBackend {
 
         // Upload camera matrix and time
         let matrix = camera.matrix(image.extent.width, image.extent.height);
-        let orange = packet.portals[1].affine;
-        let orange_inv = orange.try_inverse().unwrap();
-        let blue = packet.portals[0].affine;
-        let blue_inv = blue.try_inverse().unwrap();
 
-        let orange = matrix * orange * blue_inv;
-        let blue = matrix * blue * orange_inv;
+        let orange = packet.portals[1].affine;
+        let blue = packet.portals[0].affine;
+        let affines = [blue, orange];
+        let [blue, orange] = crate::portal::portal_view_logic(matrix, affines);
 
         let mut camera_data = CameraUbo {
             cameras: [

@@ -264,13 +264,20 @@ impl OpenXrBackend {
             &self.stage,
         )?;
 
-        let left: MatrixData = *matrix_from_view(&views[0]).as_ref();
-        let right: MatrixData = *matrix_from_view(&views[1]).as_ref();
+        let left = matrix_from_view(&views[0]);
+        let right = matrix_from_view(&views[1]);
+
+        let orange = packet.portals[1].affine;
+        let blue = packet.portals[0].affine;
+        let affines = [blue, orange];
+        let [l_blue, l_orange] = crate::portal::portal_view_logic(left, affines);
+        let [r_blue, r_orange] = crate::portal::portal_view_logic(right, affines);
+
         let camera_data = CameraUbo {
             cameras: [
-                left, right,
-                left, right,
-                left, right,
+                *left.as_ref(), *right.as_ref(),
+                *l_blue.as_ref(), *r_blue.as_ref(),
+                *l_orange.as_ref(), *r_orange.as_ref(),
             ],
         };
         self.core.update_camera_data(frame_idx, &camera_data)?;
