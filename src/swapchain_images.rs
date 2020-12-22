@@ -89,7 +89,7 @@ impl SwapchainImages {
             .alloc(EruptMemoryDevice::wrap(&prelude.device), request)? };
 
         unsafe {
-            prelude.device.bind_image_memory(depth_image, *depth_image_mem.memory(), 0).result()?;
+            prelude.device.bind_image_memory(depth_image, *depth_image_mem.memory(), depth_image_mem.offset()).result()?;
         }
 
         let create_info = vk::ImageViewCreateInfoBuilder::new()

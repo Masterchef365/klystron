@@ -132,7 +132,7 @@ impl Core {
             let memory = unsafe { prelude.allocator()?
                 .alloc(EruptMemoryDevice::wrap(&prelude.device), request)? };
             unsafe {
-                prelude.device.bind_buffer_memory(buffer, *memory.memory(), 0).result()?;
+                prelude.device.bind_buffer_memory(buffer, *memory.memory(), memory.offset()).result()?;
             }
             camera_ubos.push(AllocatedBuffer {
                 buffer,
@@ -161,7 +161,7 @@ impl Core {
             let memory = unsafe { prelude.allocator()?
                 .alloc(EruptMemoryDevice::wrap(&prelude.device), request)? };
             unsafe {
-                prelude.device.bind_buffer_memory(buffer, *memory.memory(), 0).result()?;
+                prelude.device.bind_buffer_memory(buffer, *memory.memory(), memory.offset()).result()?;
             }
             time_ubos.push(AllocatedBuffer {
                 buffer,
@@ -263,16 +263,17 @@ impl Core {
             .size(std::mem::size_of_val(vertices) as u64);
         let buffer =
             unsafe { self.prelude.device.create_buffer(&create_info, None, None) }.result()?;
+        let requirements = unsafe { self.prelude.device.get_buffer_memory_requirements(buffer, None) };
         let request = gpu_alloc::Request {
-            size: std::mem::size_of_val(vertices) as u64,
-            align_mask: std::mem::align_of::<f32>() as u64,
+            size: requirements.size,
+            align_mask: requirements.alignment,
             usage: UF::DOWNLOAD | UF::UPLOAD | UF::HOST_ACCESS,
-            memory_types: !0,
+            memory_types: requirements.memory_type_bits,
         };
         let memory = unsafe { self.prelude.allocator()?
             .alloc(EruptMemoryDevice::wrap(&self.prelude.device), request)? };
         unsafe {
-            self.prelude.device.bind_buffer_memory(buffer, *memory.memory(), 0).result()?;
+            self.prelude.device.bind_buffer_memory(buffer, *memory.memory(), memory.offset()).result()?;
         }
         unsafe {
         memory.write_bytes(
@@ -293,22 +294,23 @@ impl Core {
             .size(std::mem::size_of_val(indices) as u64);
         let buffer =
             unsafe { self.prelude.device.create_buffer(&create_info, None, None) }.result()?;
+        let requirements = unsafe { self.prelude.device.get_buffer_memory_requirements(buffer, None) };
         let request = gpu_alloc::Request {
-            size: std::mem::size_of_val(indices) as u64,
-            align_mask: std::mem::align_of::<u16>() as u64,
+            size: requirements.size,
+            align_mask: requirements.alignment,
             usage: UF::DOWNLOAD | UF::UPLOAD | UF::HOST_ACCESS,
-            memory_types: !0,
+            memory_types: requirements.memory_type_bits,
         };
         let memory = unsafe { self.prelude.allocator()?
             .alloc(EruptMemoryDevice::wrap(&self.prelude.device), request)? };
         unsafe {
-            self.prelude.device.bind_buffer_memory(buffer, *memory.memory(), 0).result()?;
+            self.prelude.device.bind_buffer_memory(buffer, *memory.memory(), memory.offset()).result()?;
         }
         unsafe {
         memory.write_bytes(
                 EruptMemoryDevice::wrap(&self.prelude.device),
                 0,
-                &bytemuck::cast_slice(vertices),
+                &bytemuck::cast_slice(indices),
             )?;
         }
         let index_buffer = AllocatedBuffer {
