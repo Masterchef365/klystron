@@ -1,5 +1,5 @@
 pub mod xr_prelude;
-use crate::core::{Core, VkPrelude};
+use crate::core::{Core, VkPrelude, CameraUbo, MatrixData};
 use crate::swapchain_images::SwapchainImages;
 use crate::{DrawType, Engine, FramePacket, Material, Mesh, Vertex};
 use anyhow::{bail, Result};
@@ -264,12 +264,16 @@ impl OpenXrBackend {
             &self.stage,
         )?;
 
-        let left = matrix_from_view(&views[0]);
-        let right = matrix_from_view(&views[1]);
-        let both = left.iter().chain(right.iter()).copied().collect::<Vec<_>>();
-        let mut data = [0.0; 32];
-        data.copy_from_slice(&both);
-        self.core.update_camera_data(frame_idx, &data)?;
+        let left: MatrixData = *matrix_from_view(&views[0]).as_ref();
+        let right: MatrixData = *matrix_from_view(&views[1]).as_ref();
+        let camera_data = CameraUbo {
+            cameras: [
+                left, right,
+                left, right,
+                left, right,
+            ],
+        };
+        self.core.update_camera_data(frame_idx, &camera_data)?;
 
         // Submit to the queue
         let command_buffers = [command_buffer];

@@ -1,5 +1,5 @@
 mod camera;
-use crate::core::{Core, VkPrelude};
+use crate::core::{Core, VkPrelude, MatrixData, CameraUbo};
 use crate::hardware_query::HardwareSelection;
 use crate::swapchain_images::SwapchainImages;
 use crate::{DrawType, Engine, FramePacket, Material, Mesh, Vertex};
@@ -157,16 +157,12 @@ impl WinitBackend {
         let command_buffer = self.core.write_command_buffers(frame_idx, packet, &image)?;
 
         // Upload camera matrix and time
-        let mut data = [0.0; 32];
-        data.iter_mut()
-            .zip(
-                camera
-                    .matrix(image.extent.width, image.extent.height)
-                    .as_slice()
-                    .iter(),
-            )
-            .for_each(|(o, i)| *o = *i);
-        self.core.update_camera_data(frame_idx, &data)?;
+        let matrix: MatrixData = *camera.matrix(image.extent.width, image.extent.height).as_ref();
+        let mut camera_data = CameraUbo {
+            cameras: [matrix; 6],
+        };
+        camera_data.cameras[1][1][1] /= 2.;
+        self.core.update_camera_data(frame_idx, &camera_data)?;
 
         // Submit to the queue
         let command_buffers = [command_buffer];

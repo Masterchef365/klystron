@@ -26,7 +26,26 @@ pub(crate) const FRAMES_IN_FLIGHT: usize = 2;
 pub(crate) const COLOR_FORMAT: vk::Format = vk::Format::B8G8R8A8_SRGB;
 pub(crate) const DEPTH_FORMAT: vk::Format = vk::Format::D32_SFLOAT_S8_UINT;
 
-pub type CameraUbo = [f32; 32];
+pub type MatrixData = [[f32; 4]; 4];
+
+#[repr(C)]
+#[derive(Copy, Clone, Debug)]
+pub struct CameraUbo {
+    pub cameras: [MatrixData; 6],
+}
+
+unsafe impl bytemuck::Zeroable for CameraUbo {}
+unsafe impl bytemuck::Pod for CameraUbo {}
+
+#[repr(C)]
+#[derive(Copy, Clone, Debug)]
+pub struct PushConstant {
+    pub model: MatrixData,
+    pub camera_idx: u32,
+}
+
+unsafe impl bytemuck::Zeroable for PushConstant {}
+unsafe impl bytemuck::Pod for PushConstant {}
 
 pub struct Mesh {
     pub indices: Allocation<vk::Buffer>,
@@ -54,6 +73,7 @@ pub struct Core {
     pub camera_ubos: Vec<Allocation<vk::Buffer>>,
     pub time_ubos: Vec<Allocation<vk::Buffer>>,
     pub prelude: Arc<VkPrelude>,
+    pub vr: bool,
 }
 
 impl Core {
@@ -205,7 +225,7 @@ impl Core {
         let push_constant_ranges = [vk::PushConstantRangeBuilder::new()
             .stage_flags(vk::ShaderStageFlags::VERTEX)
             .offset(0)
-            .size(std::mem::size_of::<[f32; 16]>() as u32)];
+            .size(std::mem::size_of::<PushConstant>() as u32)];
 
         let create_info = vk::PipelineLayoutCreateInfoBuilder::new()
             .push_constant_ranges(&push_constant_ranges)
@@ -251,6 +271,7 @@ impl Core {
             swapchain_images: None,
             materials: GenMap::with_capacity(10),
             meshes: GenMap::with_capacity(10),
+            vr,
         })
     }
 
@@ -342,7 +363,12 @@ impl Core {
         Ok(())
     }
 
-    unsafe fn write_object_cmds(&self, command_buffer: vk::CommandBuffer, mesh: crate::Mesh, transform: &nalgebra::Matrix4<f32>) {
+    unsafe fn write_object_cmds(
+        &self, 
+        command_buffer: vk::CommandBuffer, 
+        mesh: crate::Mesh, 
+        push_constant: &PushConstant,
+    ) {
         let mesh = match self.meshes.get(mesh.0) {
             Some(m) => m,
             None => {
@@ -370,8 +396,8 @@ impl Core {
             self.pipeline_layout,
             vk::ShaderStageFlags::VERTEX,
             0,
-            std::mem::size_of::<[f32; 16]>() as u32,
-            transform.data.as_ptr() as _,
+            std::mem::size_of::<PushConstant>() as u32,
+            push_constant as *const _ as *const _,
         );
 
         self.prelude.device.cmd_draw_indexed(
@@ -473,14 +499,22 @@ impl Core {
 
             for (idx, crate::Portal { mesh, affine }) in packet.portals.iter().enumerate() {
                 self.prelude.device.cmd_set_stencil_reference(command_buffer, vk::StencilFaceFlags::FRONT, (idx + 1) as _);
-                self.write_object_cmds(command_buffer, *mesh, &affine)
+                let push_constant = PushConstant {
+                    model: *affine.as_ref(),
+                    camera_idx: 0,
+                };
+                self.write_object_cmds(command_buffer, *mesh, &push_constant);
             }
 
+            let n_cameras = if self.vr { 2 } else { 1 };
             self.prelude.device.cmd_set_stencil_reference(command_buffer, vk::StencilFaceFlags::FRONT, 0);
-            self.all_object_cmds(command_buffer, packet);
+            self.all_object_cmds(command_buffer, packet, 0 * n_cameras);
+
+            self.prelude.device.cmd_set_stencil_reference(command_buffer, vk::StencilFaceFlags::FRONT, 1);
+            self.all_object_cmds(command_buffer, packet, 1 * n_cameras);
 
             self.prelude.device.cmd_set_stencil_reference(command_buffer, vk::StencilFaceFlags::FRONT, 2);
-            self.all_object_cmds(command_buffer, packet);
+            self.all_object_cmds(command_buffer, packet, 2 * n_cameras);
 
             // Finished passes
             self.prelude.device.cmd_end_render_pass(command_buffer);
@@ -494,7 +528,7 @@ impl Core {
         Ok(command_buffer)
     }
 
-    unsafe fn all_object_cmds(&self, command_buffer: vk::CommandBuffer, packet: &crate::FramePacket) {
+    unsafe fn all_object_cmds(&self, command_buffer: vk::CommandBuffer, packet: &crate::FramePacket, camera_idx: u32) {
         // Object rendering
         let handles = self.materials.iter().collect::<Vec<_>>();
         for material_id in handles {
@@ -510,19 +544,23 @@ impl Core {
 
             for object in packet
                 .objects
-                    .iter()
-                    .filter(|o| o.material.0 == material_id)
-                    {
-                        self.write_object_cmds(command_buffer, object.mesh, &object.transform)
-                    }
+                .iter()
+                .filter(|o| o.material.0 == material_id)
+                {
+                    let push_constant = PushConstant {
+                        model: *object.transform.as_ref(),
+                        camera_idx,
+                    };
+                    self.write_object_cmds(command_buffer, object.mesh, &push_constant);
+                }
         }
     }
 
     /// Upload camera matricies (Two f32 camera matrics in column-major order)
-    pub fn update_camera_data(&self, frame_idx: usize, data: &[f32; 32]) -> Result<()> {
+    pub fn update_camera_data(&self, frame_idx: usize, data: &CameraUbo) -> Result<()> {
         let ubo = &self.camera_ubos[frame_idx];
         let mut map = ubo.map(&self.prelude.device, ..).result()?;
-        map.import(bytemuck::cast_slice(&data[..]));
+        map.import(bytemuck::cast_slice(&[*data]));
         map.unmap(&self.prelude.device).result()?;
         Ok(())
     }
