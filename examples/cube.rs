@@ -2,13 +2,15 @@ use anyhow::Result;
 use klystron::{
     runtime_3d::{launch, App},
     DrawType, Engine, FramePacket, Matrix4, Object, Portal, Vertex, UNLIT_FRAG, UNLIT_VERT,
+    Vector3, Point3,
 };
-use nalgebra::Vector3;
+use nalgebra::{Vector4, Point4};
 
 struct MyApp {
     cube: Object,
     grid: Object,
     portals: [Portal; 2],
+    tracker: PortalTracker,
     time: f32,
 }
 
@@ -64,25 +66,71 @@ impl App for MyApp {
         Ok(Self {
             cube,
             grid,
+            tracker: PortalTracker::new(),
             portals: [orange, blue],
             time: 0.0,
         })
     }
 
-    fn next_frame(&mut self, engine: &mut dyn Engine) -> Result<FramePacket> {
-        let object = Object {
-            material: self.material,
-            mesh: self.mesh,
-            transform: Matrix4::identity(),
-        };
+    fn next_frame(&mut self, engine: &mut dyn Engine, camera_origin: Point3<f32>) -> Result<FramePacket> {
         engine.update_time_value(self.time)?;
         self.time += 0.01;
-        let base_transform = Matrix4::from_euler_angles(0.0, self.time, 0.0);
+        let base_transform = self.tracker.next(&self.portals, camera_origin);
         Ok(FramePacket {
             base_transform,
             objects: vec![self.cube, self.grid],
             portals: self.portals,
         })
+    }
+}
+
+struct PortalTracker {
+    last: Point3<f32>,
+    base: Matrix4<f32>,
+}
+
+impl PortalTracker {
+    pub fn new() -> Self {
+        Self { 
+            last: Point3::origin(),
+            base: Matrix4::identity(),
+        }
+    }
+
+    pub fn next(&mut self, [orange, blue]: &[Portal; 2], camera: Point3<f32>) -> Matrix4<f32> {
+        let blue_inv = blue.affine.try_inverse().unwrap();
+        let orange_inv = orange.affine.try_inverse().unwrap();
+        let camera_homo = camera.to_homogeneous();
+        let last_homo = self.last.to_homogeneous();
+
+        if let Some(dir) = quad_intersect((blue_inv * last_homo).xyz(), (blue_inv * camera_homo).xyz()) {
+            println!("{:?}", dir);
+        }
+
+
+        self.last = camera;
+        self.base
+    }
+}
+
+#[derive(Debug)]
+enum Direction {
+    Forward,
+    Backward,
+}
+
+fn quad_cotubular(pt: Vector3<f32>) -> bool {
+    pt.x.abs() <= 2. && pt.y.abs() <= 2.
+}
+
+fn quad_intersect(begin: Vector3<f32>, end: Vector3<f32>) -> Option<Direction> {
+    if !quad_cotubular(begin) || !quad_cotubular(end) {
+        return None;
+    }
+    match (begin.z.is_sign_negative(), end.z.is_sign_negative()) {
+        (true, false) => Some(Direction::Backward),
+        (false, true) => Some(Direction::Forward),
+        _ => None,
     }
 }
 

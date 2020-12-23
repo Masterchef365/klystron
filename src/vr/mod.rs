@@ -6,7 +6,7 @@ use crate::{DrawType, Engine, FramePacket, Material, Mesh, Vertex};
 use anyhow::{bail, Result};
 use erupt::{vk1_0 as vk, DeviceLoader, EntryLoader, InstanceLoader};
 use log::info;
-use nalgebra::{Matrix4, Unit, Vector3};
+use nalgebra::{Matrix4, Unit, Vector3, Point3};
 use std::ffi::CString;
 use std::sync::{Arc, Mutex};
 use xr_prelude::{load_openxr, XrPrelude};
@@ -20,6 +20,7 @@ pub struct OpenXrBackend {
     swapchain: Option<xr::Swapchain<xr::Vulkan>>,
     openxr: Arc<XrPrelude>,
     prelude: SharedCore,
+    origin: Point3<f32>,
     core: Core,
 }
 
@@ -215,6 +216,7 @@ impl OpenXrBackend {
         });
 
         let instance = Self {
+            origin: Point3::origin(),
             frame_wait,
             frame_stream,
             stage,
@@ -310,6 +312,9 @@ impl OpenXrBackend {
                 .result()?;
         }
 
+        let origin = views[0].pose.position;
+        self.origin = Point3::new(origin.x, origin.y, origin.z);
+
         // Present to swapchain
         swapchain.release_image()?;
 
@@ -349,6 +354,10 @@ impl OpenXrBackend {
         )?;
 
         return Ok(());
+    }
+
+    pub fn origin(&self) -> Point3<f32> {
+        self.origin
     }
 
     fn recreate_swapchain(&mut self) -> Result<()> {

@@ -19,6 +19,7 @@ use winit::{
     event_loop::{ControlFlow, EventLoop},
     window::WindowBuilder,
 };
+use nalgebra::Point3;
 
 /// An app that can be run on the runtime
 pub trait App: Sized {
@@ -28,7 +29,7 @@ pub trait App: Sized {
     /// Create a new instance of the app, populating the engine with meshes and materials
     fn new(engine: &mut dyn Engine, args: Self::Args) -> Result<Self>;
     /// Update the app's state and render the next frame
-    fn next_frame(&mut self, engine: &mut dyn Engine) -> Result<FramePacket>;
+    fn next_frame(&mut self, engine: &mut dyn Engine, camera_origin: Point3<f32>) -> Result<FramePacket>;
 }
 
 /// Launch an `App`. Runs in OpenXR when `vr` is set.
@@ -72,7 +73,7 @@ pub fn windowed_backend<A: App + 'static>(args: A::Args) -> Result<()> {
         },
         Event::MainEventsCleared => {
             target_time.start_frame();
-            let packet = app.next_frame(&mut engine).unwrap();
+            let packet = app.next_frame(&mut engine, mouse_camera.inner.pivot).unwrap();
             engine.next_frame(&packet, &mouse_camera.inner).unwrap();
             target_time.end_frame();
         }
@@ -149,7 +150,8 @@ pub fn vr_backend<A: App>(args: A::Args) -> Result<()> {
             continue;
         }
 
-        let packet = app.next_frame(&mut engine)?;
+        let origin = engine.origin();
+        let packet = app.next_frame(&mut engine, origin)?;
         engine.next_frame(&packet)?;
     }
 }

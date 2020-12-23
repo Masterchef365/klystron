@@ -15,7 +15,7 @@ mod vr;
 mod windowed;
 use anyhow::Result;
 use genmap::Handle;
-pub use nalgebra::Matrix4;
+pub use nalgebra::{Matrix4, Vector3, Point3};
 pub use vertex::Vertex;
 pub use vr::{xr_prelude::XrPrelude, OpenXrBackend};
 pub use windowed::{Camera, PerspectiveCamera, WinitBackend};
