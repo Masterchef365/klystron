@@ -27,7 +27,8 @@ impl App for MyApp {
         let cube = Object {
             material,
             mesh,
-            transform: Matrix4::identity(),
+            //transform: Matrix4::new_translation(&Vector3::new(0., 2., 2.)),
+            transform: Matrix4::new_translation(&Vector3::new(7., 2., 9.)),
         };
 
         // Grid
@@ -42,14 +43,14 @@ impl App for MyApp {
             transform: Matrix4::identity(),
         };
 
-
         // Portals
         let (vertices, indices) = quad([233. / 255., 147. / 255., 20. / 255.]);
         let mesh = engine.add_mesh(&vertices, &indices)?;
 
         let orange = Portal {
             mesh,
-            affine: Matrix4::new_translation(&Vector3::new(9., 2., 9.)) * Matrix4::from_euler_angles(0.0, std::f32::consts::FRAC_PI_2, 0.),
+            affine: Matrix4::new_translation(&Vector3::new(9., 2., 9.))
+                * Matrix4::from_euler_angles(0.0, std::f32::consts::FRAC_PI_2, 0.),
         };
 
         let (vertices, indices) = quad([20. / 255., 154. / 255., 233. / 255.]);
@@ -57,7 +58,7 @@ impl App for MyApp {
 
         let blue = Portal {
             mesh,
-            affine: Matrix4::identity(),
+            affine: Matrix4::new_translation(&Vector3::new(0., 2., 0.)),
         };
 
         Ok(Self {
@@ -69,8 +70,6 @@ impl App for MyApp {
     }
 
     fn next_frame(&mut self, engine: &mut dyn Engine) -> Result<FramePacket> {
-        self.cube.transform = Matrix4::new_translation(&Vector3::new(7., 2., 9.));// * Matrix4::from_euler_angles(0.0, self.time, 0.0);
-        //self.portals[1].affine = Matrix4::new_translation(&Vector3::new( self.time.cos(), 2., -2.));
         engine.update_time_value(self.time)?;
         self.time += 0.004;
         Ok(FramePacket {
@@ -113,12 +112,7 @@ fn quad(color: [f32; 3]) -> (Vec<Vertex>, Vec<u16>) {
         Vertex::new([2.0, 2.0, 0.0], color),
     ];
 
-    let indices = vec![
-        2, 1, 0, 
-        3, 1, 2,
-        0, 1, 2, 
-        2, 1, 3
-    ];
+    let indices = vec![2, 1, 0, 3, 1, 2, 0, 1, 2, 2, 1, 3];
 
     (vertices, indices)
 }
