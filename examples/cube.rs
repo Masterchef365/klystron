@@ -1,10 +1,10 @@
 use anyhow::Result;
 use klystron::{
     runtime_3d::{launch, App},
-    DrawType, Engine, FramePacket, Matrix4, Object, Portal, Vertex, UNLIT_FRAG, UNLIT_VERT,
-    Vector3, Point3,
+    DrawType, Engine, FramePacket, Matrix4, Object, Point3, Portal, Vector3, Vertex, UNLIT_FRAG,
+    UNLIT_VERT,
 };
-use nalgebra::{Vector4, Point4};
+use nalgebra::{Point4, Vector4};
 
 struct MyApp {
     cube: Object,
@@ -45,8 +45,11 @@ impl App for MyApp {
             transform: Matrix4::identity(),
         };
 
+        let invisible = true;
+
         // Portals
-        let (vertices, indices) = quad([233. / 255., 147. / 255., 20. / 255.]);
+        let orange = [233. / 255., 147. / 255., 20. / 255.];
+        let (vertices, indices) = quad(if invisible { [0.; 3] } else { orange });
         let mesh = engine.add_mesh(&vertices, &indices)?;
 
         let orange = Portal {
@@ -55,7 +58,8 @@ impl App for MyApp {
                 * Matrix4::from_euler_angles(0.0, std::f32::consts::FRAC_PI_2, 0.),
         };
 
-        let (vertices, indices) = quad([20. / 255., 154. / 255., 233. / 255.]);
+        let blue = [20. / 255., 154. / 255., 233. / 255.];
+        let (vertices, indices) = quad(if invisible { [0.; 3] } else { blue });
         let mesh = engine.add_mesh(&vertices, &indices)?;
 
         let blue = Portal {
@@ -72,7 +76,11 @@ impl App for MyApp {
         })
     }
 
-    fn next_frame(&mut self, engine: &mut dyn Engine, camera_origin: Point3<f32>) -> Result<FramePacket> {
+    fn next_frame(
+        &mut self,
+        engine: &mut dyn Engine,
+        camera_origin: Point3<f32>,
+    ) -> Result<FramePacket> {
         engine.update_time_value(self.time)?;
         self.time += 0.01;
         let base_transform = self.tracker.next(&self.portals, camera_origin);
@@ -91,7 +99,7 @@ struct PortalTracker {
 
 impl PortalTracker {
     pub fn new() -> Self {
-        Self { 
+        Self {
             last: Point3::origin(),
             base: Matrix4::identity(),
         }
@@ -100,15 +108,25 @@ impl PortalTracker {
     pub fn next(&mut self, [orange, blue]: &[Portal; 2], camera: Point3<f32>) -> Matrix4<f32> {
         let blue_inv = blue.affine.try_inverse().unwrap();
         let orange_inv = orange.affine.try_inverse().unwrap();
-        let camera_homo = camera.to_homogeneous();
+        let base_inv = self.base.try_inverse().unwrap();
+        let camera_homo = base_inv * camera.to_homogeneous();
         let last_homo = self.last.to_homogeneous();
 
-        if let Some(dir) = quad_intersect((blue_inv * last_homo).xyz(), (blue_inv * camera_homo).xyz()) {
-            println!("{:?}", dir);
+        if let Some(Direction::Forward) =
+            quad_intersect((blue_inv * last_homo).xyz(), (blue_inv * camera_homo).xyz())
+        {
+            self.base *= orange_inv * blue.affine;
         }
 
+        if let Some(Direction::Backward) =
+            quad_intersect((orange_inv * last_homo).xyz(), (orange_inv * camera_homo).xyz())
+        {
+            self.base *= blue_inv * orange.affine;
+        }
 
-        self.last = camera;
+        self.last = Point3 {
+            coords: camera_homo.xyz(),
+        };
         self.base
     }
 }
