@@ -64,7 +64,7 @@ impl App for MyApp {
 
         let blue = Portal {
             mesh,
-            affine: Matrix4::new_translation(&Vector3::new(0., 2., 0.)),
+            affine: Matrix4::new_translation(&Vector3::new(-2., 2., 0.)),
         };
 
         Ok(Self {
@@ -115,13 +115,13 @@ impl PortalTracker {
         if let Some(Direction::Forward) =
             quad_intersect((blue_inv * last_homo).xyz(), (blue_inv * camera_homo).xyz())
         {
-            self.base *= orange_inv * blue.affine;
+            self.base *= blue.affine * orange_inv;
         }
 
         if let Some(Direction::Backward) =
             quad_intersect((orange_inv * last_homo).xyz(), (orange_inv * camera_homo).xyz())
         {
-            self.base *= blue_inv * orange.affine;
+            self.base *= orange.affine * blue_inv;
         }
 
         self.last = Point3 {
