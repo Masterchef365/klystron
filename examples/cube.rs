@@ -7,6 +7,7 @@ use nalgebra::Vector3;
 
 struct MyApp {
     cube: Object,
+    grid: Object,
     portals: [Portal; 2],
     time: f32,
 }
@@ -29,6 +30,19 @@ impl App for MyApp {
             transform: Matrix4::identity(),
         };
 
+        // Grid
+        let material = engine.add_material(UNLIT_VERT, UNLIT_FRAG, DrawType::Lines)?;
+
+        let (vertices, indices) = grid(30, 1., [1.; 3]);
+        let mesh = engine.add_mesh(&vertices, &indices)?;
+
+        let grid = Object {
+            material,
+            mesh,
+            transform: Matrix4::identity(),
+        };
+
+
         // Portals
         let (vertices, indices) = quad([233. / 255., 147. / 255., 20. / 255.]);
         let mesh = engine.add_mesh(&vertices, &indices)?;
@@ -48,6 +62,7 @@ impl App for MyApp {
 
         Ok(Self {
             cube,
+            grid,
             portals: [orange, blue],
             time: 0.0,
         })
@@ -59,7 +74,7 @@ impl App for MyApp {
         engine.update_time_value(self.time)?;
         self.time += 0.01;
         Ok(FramePacket {
-            objects: vec![self.cube],
+            objects: vec![self.cube, self.grid],
             portals: self.portals,
         })
     }
@@ -104,6 +119,29 @@ fn quad(color: [f32; 3]) -> (Vec<Vertex>, Vec<u16>) {
         0, 1, 2, 
         2, 1, 3
     ];
+
+    (vertices, indices)
+}
+
+fn grid(size: i32, scale: f32, color: [f32; 3]) -> (Vec<Vertex>, Vec<u16>) {
+    let mut vertices = Vec::new();
+    let mut indices = Vec::new();
+    let mut index = 0;
+    let mut push_line = |a, b| {
+        vertices.push(Vertex { pos: a, color });
+        vertices.push(Vertex { pos: b, color });
+        indices.push(index);
+        index += 1;
+        indices.push(index);
+        index += 1;
+    };
+
+    let l = size as f32 * scale;
+    for i in -size..=size {
+        let f = i as f32 * scale;
+        push_line([l, 0.0, f], [-l, 0.0, f]);
+        push_line([f, 0.0, l], [f, 0.0, -l]);
+    }
 
     (vertices, indices)
 }
