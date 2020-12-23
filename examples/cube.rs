@@ -13,7 +13,7 @@ struct MyApp {
 }
 
 impl App for MyApp {
-    const NAME: &'static str = "MyApp";
+    const NAME: &'static str = "Thinking with portals";
 
     type Args = ();
 
@@ -49,7 +49,7 @@ impl App for MyApp {
 
         let orange = Portal {
             mesh,
-            affine: Matrix4::new_translation(&Vector3::new(0., 0., 2.)),
+            affine: Matrix4::new_translation(&Vector3::new(9., 2., 9.)) * Matrix4::from_euler_angles(0.0, std::f32::consts::FRAC_PI_2, 0.),
         };
 
         let (vertices, indices) = quad([20. / 255., 154. / 255., 233. / 255.]);
@@ -69,10 +69,10 @@ impl App for MyApp {
     }
 
     fn next_frame(&mut self, engine: &mut dyn Engine) -> Result<FramePacket> {
-        self.cube.transform = Matrix4::from_euler_angles(0.0, self.time, 0.0);
-        self.portals[1].affine = Matrix4::new_translation(&Vector3::new(0., 4. + 4. * self.time.cos(), -2.));
+        self.cube.transform = Matrix4::new_translation(&Vector3::new(7., 2., 9.));// * Matrix4::from_euler_angles(0.0, self.time, 0.0);
+        //self.portals[1].affine = Matrix4::new_translation(&Vector3::new( self.time.cos(), 2., -2.));
         engine.update_time_value(self.time)?;
-        self.time += 0.01;
+        self.time += 0.004;
         Ok(FramePacket {
             objects: vec![self.cube, self.grid],
             portals: self.portals,
