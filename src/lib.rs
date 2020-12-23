@@ -19,6 +19,7 @@ pub use nalgebra::Matrix4;
 pub use vertex::Vertex;
 pub use vr::{xr_prelude::XrPrelude, OpenXrBackend};
 pub use windowed::{Camera, PerspectiveCamera, WinitBackend};
+mod portal;
 
 /// All information necessary to define a frame of video (besides camera, which is passed in a
 /// special camera for windowed mode and implicitly in OpenXR)
@@ -27,6 +28,8 @@ pub struct FramePacket {
     pub objects: Vec<Object>,
     /// Transform the whole world by this first (prepends to camera origin)
     pub base_transform: Matrix4<f32>,
+    /// Portals
+    pub portals: [Portal; 2],
 }
 
 /// A single object in the scene
@@ -40,6 +43,15 @@ pub struct Object {
     pub transform: Matrix4<f32>,
     // /// An additional time uniform passed to the vertex and fragment shaders
     // pub anim: f32,
+}
+
+/// A portal rendered in the scene
+#[derive(Copy, Clone)]
+pub struct Portal {
+    /// Vertex and Index data for the portal
+    pub mesh: Mesh,
+    /// Strictly affine transformation applied to get the view and position of each portal
+    pub affine: Matrix4<f32>,
 }
 
 /// Handle for a Material (Draw commands)

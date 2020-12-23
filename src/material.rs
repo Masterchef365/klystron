@@ -1,27 +1,26 @@
-use crate::core::VkPrelude;
+use vk_core::SharedCore;
 use crate::vertex::Vertex;
 use crate::DrawType;
 use anyhow::Result;
 use erupt::{utils, vk1_0 as vk};
 use std::ffi::CString;
-use std::sync::Arc;
 
 /// Represents a backing pipeline that can render an object
 /// with the from which it was created.
 pub struct Material {
     pub pipeline: vk::Pipeline,
-    pub pipeline_layout: vk::PipelineLayout,
-    prelude: Arc<VkPrelude>,
+    prelude: SharedCore,
 }
 
 impl Material {
     pub fn new(
-        prelude: Arc<VkPrelude>,
+        prelude: SharedCore,
         vertex_src: &[u8],
         fragment_src: &[u8],
         draw_type: DrawType,
         render_pass: vk::RenderPass,
-        descriptor_set_layout: vk::DescriptorSetLayout,
+        pipeline_layout: vk::PipelineLayout,
+        portal_mask: bool,
     ) -> Result<Self> {
         // Create shader modules
         let vert_decoded = utils::decode_spv(vertex_src)?;
@@ -64,7 +63,7 @@ impl Material {
             .viewport_count(1)
             .scissor_count(1);
 
-        let dynamic_states = [vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR];
+        let dynamic_states = [vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR, vk::DynamicState::STENCIL_REFERENCE];
         let dynamic_state =
             vk::PipelineDynamicStateCreateInfoBuilder::new().dynamic_states(&dynamic_states);
 
@@ -106,30 +105,32 @@ impl Material {
                 .name(&entry_point),
         ];
 
-        let descriptor_set_layouts = [descriptor_set_layout];
-
-        let push_constant_ranges = [vk::PushConstantRangeBuilder::new()
-            .stage_flags(vk::ShaderStageFlags::VERTEX)
-            .offset(0)
-            .size(std::mem::size_of::<[f32; 16]>() as u32)];
-
-        let create_info = vk::PipelineLayoutCreateInfoBuilder::new()
-            .push_constant_ranges(&push_constant_ranges)
-            .set_layouts(&descriptor_set_layouts);
-
-        let pipeline_layout = unsafe {
-            prelude
-                .device
-                .create_pipeline_layout(&create_info, None, None)
+        let stencil_op_state = if portal_mask {
+            vk::StencilOpStateBuilder::new()
+                .compare_op(vk::CompareOp::ALWAYS)
+                .fail_op(vk::StencilOp::KEEP)
+                .depth_fail_op(vk::StencilOp::KEEP)
+                .pass_op(vk::StencilOp::REPLACE)
+        } else {
+            vk::StencilOpStateBuilder::new()
+                .compare_op(vk::CompareOp::EQUAL)
+                .fail_op(vk::StencilOp::KEEP)
+                .depth_fail_op(vk::StencilOp::KEEP)
+                .pass_op(vk::StencilOp::KEEP)
         }
-        .result()?;
+        .reference(0)
+        .compare_mask(!0)
+        .write_mask(!0)
+        .build();
 
         let depth_stencil_state = vk::PipelineDepthStencilStateCreateInfoBuilder::new()
             .depth_test_enable(true)
             .depth_write_enable(true)
             .depth_compare_op(vk::CompareOp::LESS) // TODO: Play with this! For fun!
             .depth_bounds_test_enable(false)
-            .stencil_test_enable(false);
+            .stencil_test_enable(true)
+            .front(stencil_op_state)
+            .back(stencil_op_state);
 
         let create_info = vk::GraphicsPipelineCreateInfoBuilder::new()
             .stages(&shader_stages)
@@ -157,11 +158,7 @@ impl Material {
             prelude.device.destroy_shader_module(Some(vertex), None);
         }
 
-        Ok(Self {
-            pipeline,
-            pipeline_layout,
-            prelude,
-        })
+        Ok(Self { pipeline, prelude })
     }
 }
 
@@ -171,9 +168,6 @@ impl Drop for Material {
             self.prelude
                 .device
                 .destroy_pipeline(Some(self.pipeline), None);
-            self.prelude
-                .device
-                .destroy_pipeline_layout(Some(self.pipeline_layout), None);
         }
     }
 }
