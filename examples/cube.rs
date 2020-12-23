@@ -54,8 +54,8 @@ impl App for MyApp {
 
         let orange = Portal {
             mesh,
-            affine: Matrix4::new_translation(&Vector3::new(9., 2., 9.))
-                * Matrix4::from_euler_angles(0.0, std::f32::consts::FRAC_PI_2, 0.),
+            affine: Matrix4::new_translation(&Vector3::new(9., 8., 9.))
+                * Matrix4::from_euler_angles(0.0, std::f32::consts::FRAC_PI_2 + 0.2, 0.),
         };
 
         let blue = [20. / 255., 154. / 255., 233. / 255.];
