@@ -30,8 +30,8 @@ impl App for MyApp {
         let cube = Object {
             material: tri_mat,
             mesh,
-            //transform: Matrix4::new_translation(&Vector3::new(0., 2., 2.)),
-            transform: Matrix4::new_translation(&Vector3::new(7., 2., 9.)),
+            transform: Matrix4::new_translation(&Vector3::new(0., 2., 5.)),
+            //transform: Matrix4::new_translation(&Vector3::new(7., 2., 9.)),
         };
 
         // Grid
@@ -75,7 +75,7 @@ impl App for MyApp {
         let outlook = Object {
             mesh,
             material: tri_mat,
-            transform: orange.affine * Matrix4::new_translation(&Vector3::new(0., -1., 0.))
+            transform: orange.affine * Matrix4::new_translation(&Vector3::new(0., -2., 0.))
                 * Matrix4::from_euler_angles(std::f32::consts::FRAC_PI_2, 0., 0.),
         };
 
