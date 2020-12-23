@@ -35,7 +35,7 @@ impl App for MyApp {
 
         let orange = Portal {
             mesh,
-            affine: Matrix4::new_translation(&Vector3::new(0., 4., 2.)),
+            affine: Matrix4::new_translation(&Vector3::new(0., 0., 2.)),
         };
 
         let (vertices, indices) = quad([20. / 255., 154. / 255., 233. / 255.]);
