@@ -8,6 +8,7 @@ use nalgebra::{Point4, Vector4};
 
 struct MyApp {
     cube: Object,
+    outlook: Object,
     grid: Object,
     portals: [Portal; 2],
     tracker: PortalTracker,
@@ -21,26 +22,26 @@ impl App for MyApp {
 
     fn new(engine: &mut dyn Engine, _args: Self::Args) -> Result<Self> {
         // Cube
-        let material = engine.add_material(UNLIT_VERT, UNLIT_FRAG, DrawType::Triangles)?;
+        let tri_mat = engine.add_material(UNLIT_VERT, UNLIT_FRAG, DrawType::Triangles)?;
 
         let (vertices, indices) = rainbow_cube();
         let mesh = engine.add_mesh(&vertices, &indices)?;
 
         let cube = Object {
-            material,
+            material: tri_mat,
             mesh,
             //transform: Matrix4::new_translation(&Vector3::new(0., 2., 2.)),
             transform: Matrix4::new_translation(&Vector3::new(7., 2., 9.)),
         };
 
         // Grid
-        let material = engine.add_material(UNLIT_VERT, UNLIT_FRAG, DrawType::Lines)?;
+        let line_mat = engine.add_material(UNLIT_VERT, UNLIT_FRAG, DrawType::Lines)?;
 
         let (vertices, indices) = grid(30, 1., [1.; 3]);
         let mesh = engine.add_mesh(&vertices, &indices)?;
 
         let grid = Object {
-            material,
+            material: line_mat,
             mesh,
             transform: Matrix4::identity(),
         };
@@ -49,27 +50,41 @@ impl App for MyApp {
 
         // Portals
         let orange = [233. / 255., 147. / 255., 20. / 255.];
-        let (vertices, indices) = quad(if invisible { [0.; 3] } else { orange });
+        let (vertices, indices) = quad(if invisible { [0.; 3] } else { orange }, 1.);
         let mesh = engine.add_mesh(&vertices, &indices)?;
 
         let orange = Portal {
             mesh,
             affine: Matrix4::new_translation(&Vector3::new(9., 8., 9.))
-                * Matrix4::from_euler_angles(0.0, std::f32::consts::FRAC_PI_2 + 0.2, 0.),
+                * Matrix4::from_euler_angles(-0.3, std::f32::consts::FRAC_PI_2 + 0.2, 0.),
         };
 
         let blue = [20. / 255., 154. / 255., 233. / 255.];
-        let (vertices, indices) = quad(if invisible { [0.; 3] } else { blue });
+        let (vertices, indices) = quad(if invisible { [0.; 3] } else { blue }, 1.);
         let mesh = engine.add_mesh(&vertices, &indices)?;
 
         let blue = Portal {
             mesh,
-            affine: Matrix4::new_translation(&Vector3::new(-2., 2., 0.)),
+            affine: Matrix4::new_translation(&Vector3::new(-1., 2., 0.)),
         };
+        
+        // Outlook
+        let (vertices, indices) = quad([0.3; 3], 2.);
+        let mesh = engine.add_mesh(&vertices, &indices)?;
+
+        let outlook = Object {
+            mesh,
+            material: tri_mat,
+            transform: orange.affine * Matrix4::new_translation(&Vector3::new(0., -1., 0.))
+                * Matrix4::from_euler_angles(std::f32::consts::FRAC_PI_2, 0., 0.),
+        };
+
+
 
         Ok(Self {
             cube,
             grid,
+            outlook,
             tracker: PortalTracker::new(),
             portals: [orange, blue],
             time: 0.0,
@@ -86,7 +101,7 @@ impl App for MyApp {
         let base_transform = self.tracker.next(&self.portals, camera_origin);
         Ok(FramePacket {
             base_transform,
-            objects: vec![self.cube, self.grid],
+            objects: vec![self.cube, self.grid, self.outlook],
             portals: self.portals,
         })
     }
@@ -138,7 +153,7 @@ enum Direction {
 }
 
 fn quad_cotubular(pt: Vector3<f32>) -> bool {
-    pt.x.abs() <= 2. && pt.y.abs() <= 2.
+    pt.x.abs() <= 1. && pt.y.abs() <= 1.
 }
 
 fn quad_intersect(begin: Vector3<f32>, end: Vector3<f32>) -> Option<Direction> {
@@ -177,12 +192,12 @@ fn rainbow_cube() -> (Vec<Vertex>, Vec<u16>) {
     (vertices, indices)
 }
 
-fn quad(color: [f32; 3]) -> (Vec<Vertex>, Vec<u16>) {
+fn quad(color: [f32; 3], size: f32) -> (Vec<Vertex>, Vec<u16>) {
     let vertices = vec![
-        Vertex::new([-2.0, -2.0, 0.0], color),
-        Vertex::new([-2.0, 2.0, 0.0], color),
-        Vertex::new([2.0, -2.0, 0.0], color),
-        Vertex::new([2.0, 2.0, 0.0], color),
+        Vertex::new([-size, -size, 0.0], color),
+        Vertex::new([-size, size, 0.0], color),
+        Vertex::new([size, -size, 0.0], color),
+        Vertex::new([size, size, 0.0], color),
     ];
 
     let indices = vec![2, 1, 0, 3, 1, 2, 0, 1, 2, 2, 1, 3];
