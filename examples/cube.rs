@@ -29,8 +29,8 @@ impl App for MyApp {
         // Cube
         let tri_mat = engine.add_material(UNLIT_VERT, UNLIT_FRAG, DrawType::Triangles)?;
 
-        //let (vertices, indices) = rainbow_cube();
-        let (vertices, indices) = portal_mesh([1.; 3], size, inset);
+        let (vertices, indices) = rainbow_cube();
+        //let (vertices, indices) = portal_mesh([1.; 3], size, inset);
         let mesh = engine.add_mesh(&vertices, &indices)?;
 
         let cube = Object {
@@ -54,22 +54,23 @@ impl App for MyApp {
 
         // Portals
         let orange = [233. / 255., 147. / 255., 20. / 255.];
-        let (vertices, indices) = portal_mesh(if invisible { [0.; 3] } else { orange }, size, inset);
+        let (vertices, indices) = portal_mesh(if invisible { [0.; 3] } else { orange }, size, -inset);
         let mesh = engine.add_mesh(&vertices, &indices)?;
 
         let orange = Portal {
             mesh,
             affine: Matrix4::new_translation(&Vector3::new(9., 8., 9.))
-                * Matrix4::from_euler_angles(-0.3, std::f32::consts::FRAC_PI_2 + 0.2, std::f32::consts::PI),
+                * Matrix4::from_euler_angles(-0.3, -std::f32::consts::FRAC_PI_2 + 0.2, std::f32::consts::PI),
         };
 
         let blue = [20. / 255., 154. / 255., 233. / 255.];
-        let (vertices, indices) = portal_mesh(if invisible { [0.; 3] } else { blue }, size, inset);
+        let (vertices, mut indices) = portal_mesh(if invisible { [0.; 3] } else { blue }, size, inset);
+        invert_indices(&mut indices);
         let mesh = engine.add_mesh(&vertices, &indices)?;
 
         let blue = Portal {
             mesh,
-            affine: Matrix4::new_translation(&Vector3::new(-1., 2., 0.)),
+            affine: Matrix4::new_translation(&Vector3::new(1., 2., 0.)),
         };
         
         // Outlook
@@ -156,6 +157,14 @@ enum Direction {
     Backward,
 }
 
+fn invert_indices(indices: &mut [u16]) {
+    for chunk in indices.chunks_exact_mut(3) {
+        let tmp = chunk[0];
+        chunk[0] = chunk[2];
+        chunk[2] = tmp;
+    }
+}
+
 fn quad_cotubular(pt: Vector3<f32>) -> bool {
     pt.x.abs() <= 1. && pt.y.abs() <= 1.
 }
@@ -204,7 +213,12 @@ fn quad(color: [f32; 3], size: f32) -> (Vec<Vertex>, Vec<u16>) {
         Vertex::new([size, size, 0.0], color),
     ];
 
-    let indices = vec![2, 1, 0, 3, 1, 2, 0, 1, 2, 2, 1, 3];
+    let indices = vec![
+        2, 1, 0, 
+        3, 1, 2, 
+        //0, 1, 2, 
+        //2, 1, 3
+    ];
 
     (vertices, indices)
 }
