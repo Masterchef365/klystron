@@ -21,10 +21,16 @@ impl App for MyApp {
     type Args = ();
 
     fn new(engine: &mut dyn Engine, _args: Self::Args) -> Result<Self> {
+        // Portal settings
+        let invisible = true;
+        let inset = 0.1;
+        let size = 1.;
+
         // Cube
         let tri_mat = engine.add_material(UNLIT_VERT, UNLIT_FRAG, DrawType::Triangles)?;
 
-        let (vertices, indices) = rainbow_cube();
+        //let (vertices, indices) = rainbow_cube();
+        let (vertices, indices) = portal_mesh([1.; 3], size, inset);
         let mesh = engine.add_mesh(&vertices, &indices)?;
 
         let cube = Object {
@@ -46,11 +52,9 @@ impl App for MyApp {
             transform: Matrix4::identity(),
         };
 
-        let invisible = true;
-
         // Portals
         let orange = [233. / 255., 147. / 255., 20. / 255.];
-        let (vertices, indices) = quad(if invisible { [0.; 3] } else { orange }, 1.);
+        let (vertices, indices) = portal_mesh(if invisible { [0.; 3] } else { orange }, size, inset);
         let mesh = engine.add_mesh(&vertices, &indices)?;
 
         let orange = Portal {
@@ -60,7 +64,7 @@ impl App for MyApp {
         };
 
         let blue = [20. / 255., 154. / 255., 233. / 255.];
-        let (vertices, indices) = quad(if invisible { [0.; 3] } else { blue }, 1.);
+        let (vertices, indices) = portal_mesh(if invisible { [0.; 3] } else { blue }, size, inset);
         let mesh = engine.add_mesh(&vertices, &indices)?;
 
         let blue = Portal {
@@ -201,6 +205,38 @@ fn quad(color: [f32; 3], size: f32) -> (Vec<Vertex>, Vec<u16>) {
     ];
 
     let indices = vec![2, 1, 0, 3, 1, 2, 0, 1, 2, 2, 1, 3];
+
+    (vertices, indices)
+}
+
+fn portal_mesh(color: [f32; 3], size: f32, inset: f32) -> (Vec<Vertex>, Vec<u16>) {
+    let vertices = vec![
+        Vertex::new([-size, -size, 0.0], color), // 0
+        Vertex::new([-size, size, 0.0], color), // 1
+        Vertex::new([size, -size, 0.0], color), // 2
+        Vertex::new([size, size, 0.0], color), // 3
+        Vertex::new([-size, -size, -inset], color), // 4
+        Vertex::new([-size, size, -inset], color), // 5
+        Vertex::new([size, -size, -inset], color), // 6
+        Vertex::new([size, size, -inset], color), // 7
+    ];
+
+    let indices = vec![
+        0, 5, 1, //
+        0, 4, 5, //
+
+        6, 4, 2, //
+        4, 0, 2, //
+
+        3, 5, 7, //
+        3, 1, 5, //
+        
+        2, 3, 7, //
+        2, 7, 6, //
+
+        6, 5, 4,  //
+        7, 5, 6,  //
+    ];
 
     (vertices, indices)
 }
