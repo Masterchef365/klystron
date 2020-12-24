@@ -443,7 +443,7 @@ impl Engine for OpenXrBackend {
 fn matrix_from_view(view: &xr::View) -> Matrix4<f32> {
     let proj = projection_from_fov(&view.fov, 0.01, 1000.0);
     let view = view_from_pose(&view.pose);
-    let flip = Matrix4::from_diagonal(&Vector4::new(-1., -1., 1., 1.)); // Vulkan's up is down!
+    let flip = Matrix4::from_diagonal(&Vector4::new(1., -1., 1., 1.)); // Vulkan's up is down!
     flip * proj * view
 }
 
