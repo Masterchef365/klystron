@@ -1,5 +1,6 @@
 mod camera;
-use crate::core::{Core, VkPrelude, MatrixData, CameraUbo};
+use crate::core::{Core, CameraUbo};
+use vk_core::SharedCore;
 use crate::hardware_query::HardwareSelection;
 use crate::swapchain_images::SwapchainImages;
 use crate::{DrawType, Engine, FramePacket, Material, Mesh, Vertex};
@@ -11,8 +12,9 @@ use erupt::{
     vk1_0 as vk, DeviceLoader, EntryLoader, InstanceLoader,
 };
 use std::ffi::CString;
-use std::sync::Arc;
 use winit::window::Window;
+use std::sync::Mutex;
+use gpu_alloc::GpuAllocator;
 
 /// Windowed mode Winit engine backend
 pub struct WinitBackend {
@@ -20,7 +22,7 @@ pub struct WinitBackend {
     image_available_semaphores: Vec<vk::Semaphore>,
     surface: khr_surface::SurfaceKHR,
     hardware: HardwareSelection,
-    prelude: Arc<VkPrelude>,
+    prelude: SharedCore,
     core: Core,
 }
 
@@ -82,16 +84,25 @@ impl WinitBackend {
         let device = DeviceLoader::new(&instance, hardware.physical_device, &create_info, None)?;
         let queue = unsafe { device.get_device_queue(hardware.queue_family, 0, None) };
 
-        let prelude = Arc::new(VkPrelude {
+        let device_props = unsafe { gpu_alloc_erupt::device_properties(&instance, hardware.physical_device)? };
+        let allocator =
+            Mutex::new(GpuAllocator::new(gpu_alloc::Config::i_am_prototyping(), device_props));
+
+
+        let prelude = SharedCore::new(vk_core::Core {
             queue,
-            queue_family_index: hardware.queue_family,
-            physical_device: hardware.physical_device,
             device,
             instance,
-            entry,
+            allocator,
+            _entry: entry,
         });
 
-        let core = Core::new(prelude.clone(), false)?;
+        let meta = vk_core::CoreMeta {
+            queue_family_index: hardware.queue_family,
+            physical_device: hardware.physical_device,
+        };
+
+        let core = Core::new(prelude.clone(), meta, false)?;
 
         let image_available_semaphores = (0..crate::core::FRAMES_IN_FLIGHT)
             .map(|_| {
@@ -158,13 +169,14 @@ impl WinitBackend {
 
         // Upload camera matrix and time
         let matrix = camera.matrix(image.extent.width, image.extent.height);
+        let matrix = matrix * packet.base_transform;
 
         let orange = packet.portals[1].affine;
         let blue = packet.portals[0].affine;
         let affines = [blue, orange];
         let [blue, orange] = crate::portal::portal_view_logic(matrix, affines);
 
-        let mut camera_data = CameraUbo {
+        let camera_data = CameraUbo {
             cameras: [
                 *matrix.as_ref(),
                 *blue.as_ref(),
@@ -226,9 +238,7 @@ impl WinitBackend {
     }
 
     fn free_swapchain(&mut self) -> Result<()> {
-        if let Some(mut images) = self.core.swapchain_images.take() {
-            images.free(&mut self.core.allocator)?;
-        }
+        drop(self.core.swapchain_images.take());
 
         unsafe {
             self.prelude
@@ -244,7 +254,7 @@ impl WinitBackend {
             self.prelude
                 .instance
                 .get_physical_device_surface_capabilities_khr(
-                    self.prelude.physical_device,
+                    self.hardware.physical_device,
                     self.surface,
                     None,
                 )
@@ -292,7 +302,6 @@ impl WinitBackend {
 
         self.core.swapchain_images = Some(SwapchainImages::new(
             self.prelude.clone(),
-            &mut self.core.allocator,
             surface_caps.current_extent,
             self.core.render_pass,
             swapchain_images,

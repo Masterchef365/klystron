@@ -15,7 +15,7 @@ mod vr;
 mod windowed;
 use anyhow::Result;
 use genmap::Handle;
-pub use nalgebra::Matrix4;
+pub use nalgebra::{Matrix4, Vector3, Point3};
 pub use vertex::Vertex;
 pub use vr::{xr_prelude::XrPrelude, OpenXrBackend};
 pub use windowed::{Camera, PerspectiveCamera, WinitBackend};
@@ -26,6 +26,8 @@ mod portal;
 pub struct FramePacket {
     /// The entire scene's worth of objects
     pub objects: Vec<Object>,
+    /// Transform the whole world by this first (prepends to camera origin)
+    pub base_transform: Matrix4<f32>,
     /// Portals
     pub portals: [Portal; 2],
 }

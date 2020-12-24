@@ -1,14 +1,16 @@
 pub mod xr_prelude;
-use crate::core::{Core, VkPrelude, CameraUbo, MatrixData};
+use crate::core::{Core, CameraUbo};
+use vk_core::SharedCore;
 use crate::swapchain_images::SwapchainImages;
 use crate::{DrawType, Engine, FramePacket, Material, Mesh, Vertex};
 use anyhow::{bail, Result};
 use erupt::{vk1_0 as vk, DeviceLoader, EntryLoader, InstanceLoader};
 use log::info;
-use nalgebra::{Matrix4, Unit, Vector3};
+use nalgebra::{Matrix4, Unit, Vector3, Point3, Vector4};
 use std::ffi::CString;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use xr_prelude::{load_openxr, XrPrelude};
+use gpu_alloc::{self, GpuAllocator};
 
 /// VR Capable OpenXR engine backend
 pub struct OpenXrBackend {
@@ -17,7 +19,8 @@ pub struct OpenXrBackend {
     stage: xr::Space,
     swapchain: Option<xr::Swapchain<xr::Vulkan>>,
     openxr: Arc<XrPrelude>,
-    prelude: Arc<VkPrelude>,
+    prelude: SharedCore,
+    origin: Point3<f32>,
     core: Core,
 }
 
@@ -187,16 +190,24 @@ impl OpenXrBackend {
             .create_reference_space(xr::ReferenceSpaceType::STAGE, xr::Posef::IDENTITY)
             .unwrap();
 
-        let prelude = Arc::new(VkPrelude {
+        let device_props = unsafe { gpu_alloc_erupt::device_properties(&vk_instance, vk_physical_device)? };
+        let allocator =
+            Mutex::new(GpuAllocator::new(gpu_alloc::Config::i_am_prototyping(), device_props));
+
+        let prelude = Arc::new(vk_core::Core {
             queue,
-            queue_family_index,
             device: vk_device,
-            physical_device: vk_physical_device,
             instance: vk_instance,
-            entry: vk_entry,
+            allocator,
+            _entry: vk_entry,
         });
 
-        let core = Core::new(prelude.clone(), true)?;
+        let meta = vk_core::CoreMeta {
+            physical_device: vk_physical_device,
+            queue_family_index,
+        };
+
+        let core = Core::new(prelude.clone(), meta, true)?;
 
         let openxr = Arc::new(XrPrelude {
             instance: xr_instance,
@@ -205,6 +216,7 @@ impl OpenXrBackend {
         });
 
         let instance = Self {
+            origin: Point3::origin(),
             frame_wait,
             frame_stream,
             stage,
@@ -264,8 +276,8 @@ impl OpenXrBackend {
             &self.stage,
         )?;
 
-        let left = matrix_from_view(&views[0]);
-        let right = matrix_from_view(&views[1]);
+        let left = matrix_from_view(&views[0]) * packet.base_transform;
+        let right = matrix_from_view(&views[1]) * packet.base_transform;
 
         let orange = packet.portals[1].affine;
         let blue = packet.portals[0].affine;
@@ -299,6 +311,9 @@ impl OpenXrBackend {
                 )
                 .result()?;
         }
+
+        let origin = views[0].pose.position;
+        self.origin = Point3::new(origin.x, origin.y, origin.z);
 
         // Present to swapchain
         swapchain.release_image()?;
@@ -341,10 +356,12 @@ impl OpenXrBackend {
         return Ok(());
     }
 
+    pub fn origin(&self) -> Point3<f32> {
+        self.origin
+    }
+
     fn recreate_swapchain(&mut self) -> Result<()> {
-        if let Some(mut images) = self.core.swapchain_images.take() {
-            images.free(&mut self.core.allocator)?;
-        }
+        drop(self.core.swapchain_images.take());
         self.swapchain = None;
 
         let views = self
@@ -389,7 +406,6 @@ impl OpenXrBackend {
 
         self.core.swapchain_images = Some(SwapchainImages::new(
             self.prelude.clone(),
-            &mut self.core.allocator,
             extent,
             self.core.render_pass,
             swapchain_images,
@@ -427,7 +443,8 @@ impl Engine for OpenXrBackend {
 fn matrix_from_view(view: &xr::View) -> Matrix4<f32> {
     let proj = projection_from_fov(&view.fov, 0.01, 1000.0);
     let view = view_from_pose(&view.pose);
-    proj * view
+    let flip = Matrix4::from_diagonal(&Vector4::new(1., 1., 1., 1.)); // Vulkan's up is down!
+    flip * proj * view
 }
 
 // Ported from:
@@ -443,8 +460,7 @@ fn view_from_pose(pose: &xr::Posef) -> Matrix4<f32> {
     let translation = Matrix4::new_translation(&position);
 
     let view = translation * rotation;
-    let inv = view.try_inverse().expect("Matrix didn't invert");
-    inv
+    view.try_inverse().unwrap()
 }
 
 fn projection_from_fov(fov: &xr::Fovf, near: f32, far: f32) -> Matrix4<f32> {
@@ -455,7 +471,7 @@ fn projection_from_fov(fov: &xr::Fovf, near: f32, far: f32) -> Matrix4<f32> {
     let tan_down = fov.angle_down.tan();
 
     let tan_width = tan_right - tan_left;
-    let tan_height = tan_down - tan_up;
+    let tan_height = tan_up - tan_down;
 
     let a11 = 2.0 / tan_width;
     let a22 = 2.0 / tan_height;
@@ -466,6 +482,9 @@ fn projection_from_fov(fov: &xr::Fovf, near: f32, far: f32) -> Matrix4<f32> {
 
     let a43 = -(far * near) / (far - near);
     Matrix4::new(
-        a11, 0.0, a31, 0.0, 0.0, a22, a32, 0.0, 0.0, 0.0, a33, a43, 0.0, 0.0, -1.0, 0.0,
+        a11, 0.0, a31, 0.0, //
+        0.0, -a22, a32, 0.0, // 
+        0.0, 0.0, a33, a43, //
+        0.0, 0.0, -1.0, 0.0, //
     )
 }

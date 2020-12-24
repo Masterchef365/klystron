@@ -1,21 +1,20 @@
-use crate::core::VkPrelude;
+use vk_core::SharedCore;
 use crate::vertex::Vertex;
 use crate::DrawType;
 use anyhow::Result;
 use erupt::{utils, vk1_0 as vk};
 use std::ffi::CString;
-use std::sync::Arc;
 
 /// Represents a backing pipeline that can render an object
 /// with the from which it was created.
 pub struct Material {
     pub pipeline: vk::Pipeline,
-    prelude: Arc<VkPrelude>,
+    prelude: SharedCore,
 }
 
 impl Material {
     pub fn new(
-        prelude: Arc<VkPrelude>,
+        prelude: SharedCore,
         vertex_src: &[u8],
         fragment_src: &[u8],
         draw_type: DrawType,
@@ -74,7 +73,7 @@ impl Material {
             .polygon_mode(vk::PolygonMode::FILL)
             .line_width(1.0)
             .cull_mode(vk::CullModeFlags::BACK)
-            .front_face(vk::FrontFace::CLOCKWISE)
+            .front_face(vk::FrontFace::COUNTER_CLOCKWISE)
             .depth_clamp_enable(false);
 
         let multisampling = vk::PipelineMultisampleStateCreateInfoBuilder::new()
