@@ -443,6 +443,7 @@ impl Engine for OpenXrBackend {
 fn matrix_from_view(view: &xr::View) -> Matrix4<f32> {
     let proj = projection_from_fov(&view.fov, 0.01, 1000.0);
     let view = view_from_pose(&view.pose);
+    println!("{}", proj);
     proj * view
 }
 
@@ -458,9 +459,7 @@ fn view_from_pose(pose: &xr::Posef) -> Matrix4<f32> {
     let position = Vector3::new(position.x, position.y, position.z);
     let translation = Matrix4::new_translation(&position);
 
-    let view = translation * rotation;
-    let inv = view.try_inverse().expect("Matrix didn't invert");
-    inv
+    translation * rotation
 }
 
 fn projection_from_fov(fov: &xr::Fovf, near: f32, far: f32) -> Matrix4<f32> {
@@ -471,7 +470,7 @@ fn projection_from_fov(fov: &xr::Fovf, near: f32, far: f32) -> Matrix4<f32> {
     let tan_down = fov.angle_down.tan();
 
     let tan_width = tan_right - tan_left;
-    let tan_height = tan_down - tan_up;
+    let tan_height = tan_up - tan_down;
 
     let a11 = 2.0 / tan_width;
     let a22 = 2.0 / tan_height;
@@ -482,6 +481,9 @@ fn projection_from_fov(fov: &xr::Fovf, near: f32, far: f32) -> Matrix4<f32> {
 
     let a43 = -(far * near) / (far - near);
     Matrix4::new(
-        a11, 0.0, a31, 0.0, 0.0, a22, a32, 0.0, 0.0, 0.0, a33, a43, 0.0, 0.0, -1.0, 0.0,
+        a11, 0.0, a31, 0.0, //
+        0.0, a22, a32, 0.0, // 
+        0.0, 0.0, a33, a43, //
+        0.0, 0.0, -1.0, 0.0, //
     )
 }
