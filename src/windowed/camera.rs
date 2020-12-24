@@ -23,6 +23,8 @@ impl Camera for PerspectiveCamera {
             self.clipping.0,
             self.clipping.1,
         );
+        println!("Proj: {}", perspective);
+        println!("View: {}", self.view());
         perspective * self.view()
     }
 }

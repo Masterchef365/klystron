@@ -6,7 +6,7 @@ use crate::{DrawType, Engine, FramePacket, Material, Mesh, Vertex};
 use anyhow::{bail, Result};
 use erupt::{vk1_0 as vk, DeviceLoader, EntryLoader, InstanceLoader};
 use log::info;
-use nalgebra::{Matrix4, Unit, Vector3, Point3};
+use nalgebra::{Matrix4, Unit, Vector3, Point3, Vector4};
 use std::ffi::CString;
 use std::sync::{Arc, Mutex};
 use xr_prelude::{load_openxr, XrPrelude};
@@ -443,8 +443,8 @@ impl Engine for OpenXrBackend {
 fn matrix_from_view(view: &xr::View) -> Matrix4<f32> {
     let proj = projection_from_fov(&view.fov, 0.01, 1000.0);
     let view = view_from_pose(&view.pose);
-    println!("{}", proj);
-    proj * view
+    let flip = Matrix4::from_diagonal(&Vector4::new(-1., -1., 1., 1.)); // Vulkan's up is down!
+    flip * proj * view
 }
 
 // Ported from:
@@ -459,7 +459,8 @@ fn view_from_pose(pose: &xr::Posef) -> Matrix4<f32> {
     let position = Vector3::new(position.x, position.y, position.z);
     let translation = Matrix4::new_translation(&position);
 
-    translation * rotation
+    let view = translation * rotation;
+    view.try_inverse().unwrap()
 }
 
 fn projection_from_fov(fov: &xr::Fovf, near: f32, far: f32) -> Matrix4<f32> {

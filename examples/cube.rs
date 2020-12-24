@@ -35,7 +35,7 @@ impl App for MyApp {
         let cube = Object {
             material: tri_mat,
             mesh,
-            transform: Matrix4::new_translation(&Vector3::new(0., 2., 5.)),
+            transform: Matrix4::new_translation(&Vector3::new(0., 1., -5.)),
             //transform: Matrix4::new_translation(&Vector3::new(7., 2., 9.)),
         };
 
@@ -69,7 +69,7 @@ impl App for MyApp {
 
         let blue = Portal {
             mesh,
-            affine: Matrix4::new_translation(&Vector3::new(1., 2., 0.)),
+            affine: Matrix4::new_translation(&Vector3::new(1., 4., 0.)),
         };
         
         // Outlook
