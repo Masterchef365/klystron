@@ -4,7 +4,6 @@ use klystron::{
     DrawType, Engine, FramePacket, Matrix4, Object, Point3, Portal, Vector3, Vertex, UNLIT_FRAG,
     UNLIT_VERT,
 };
-use nalgebra::{Point4, Vector4};
 
 struct MyApp {
     cube: Object,
@@ -54,7 +53,8 @@ impl App for MyApp {
 
         // Portals
         let orange = [233. / 255., 147. / 255., 20. / 255.];
-        let (vertices, indices) = portal_mesh(if invisible { [0.; 3] } else { orange }, size, -inset);
+        let (vertices, mut indices) = portal_mesh(if invisible { [0.; 3] } else { orange }, size, -inset);
+        invert_indices(&mut indices);
         let mesh = engine.add_mesh(&vertices, &indices)?;
 
         let orange = Portal {
@@ -64,8 +64,7 @@ impl App for MyApp {
         };
 
         let blue = [20. / 255., 154. / 255., 233. / 255.];
-        let (vertices, mut indices) = portal_mesh(if invisible { [0.; 3] } else { blue }, size, inset);
-        invert_indices(&mut indices);
+        let (vertices, indices) = portal_mesh(if invisible { [0.; 3] } else { blue }, size, inset);
         let mesh = engine.add_mesh(&vertices, &indices)?;
 
         let blue = Portal {
@@ -214,10 +213,10 @@ fn quad(color: [f32; 3], size: f32) -> (Vec<Vertex>, Vec<u16>) {
     ];
 
     let indices = vec![
-        2, 1, 0, 
-        3, 1, 2, 
-        //0, 1, 2, 
-        //2, 1, 3
+        //2, 1, 0, 
+        //3, 1, 2, 
+        0, 1, 2, 
+        2, 1, 3
     ];
 
     (vertices, indices)
