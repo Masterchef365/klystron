@@ -31,7 +31,7 @@ impl OpenXrBackend {
         let xr_entry = load_openxr()?;
 
         let mut enabled_extensions = xr::ExtensionSet::default();
-        enabled_extensions.khr_vulkan_enable = true;
+        enabled_extensions.khr_vulkan_enable2 = true;
         let xr_instance = xr_entry.create_instance(
             &xr::ApplicationInfo {
                 application_name,
@@ -128,7 +128,16 @@ impl OpenXrBackend {
             .enabled_layer_names(&vk_instance_layers_ptrs)
             .enabled_extension_names(&vk_instance_ext_ptrs);
 
-        let vk_instance = InstanceLoader::new(&vk_entry, &create_info, None)?;
+        //let vk_instance = InstanceLoader::new(&vk_entry, &create_info, None)?;
+        let vk_instance = unsafe { xr_instance.create_vulkan_instance(
+            system,
+            std::mem::transmute(vk_entry.get_instance_proc_addr),
+            &create_info as _ as _,
+        ) }?.map_err(|e| anyhow::format_err!("XR instance stuff idk"))?;
+        let vk_instance = vk::Instance(vk_instance as _);
+        let vk_instance = unsafe {
+            InstanceLoader::custom(vk_entry, vk_instance, instance_enabled, mut symbol)
+        }
 
         // Obtain physical vk_device, queue_family_index, and vk_device from OpenXR
         let vk_physical_device = vk::PhysicalDevice(
