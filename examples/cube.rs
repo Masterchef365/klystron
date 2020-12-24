@@ -69,7 +69,7 @@ impl App for MyApp {
 
         let blue = Portal {
             mesh,
-            affine: Matrix4::new_translation(&Vector3::new(1., 4., 0.)),
+            affine: Matrix4::new_translation(&Vector3::new(1., 2., 0.)),
         };
         
         // Outlook
