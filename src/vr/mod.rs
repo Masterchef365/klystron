@@ -444,7 +444,7 @@ fn projection_from_fov(fov: &xr::Fovf, near: f32, far: f32) -> Matrix4<f32> {
     let tan_down = fov.angle_down.tan();
 
     let tan_width = tan_right - tan_left;
-    let tan_height = tan_down - tan_up;
+    let tan_height = tan_up - tan_down;
 
     let a11 = 2.0 / tan_width;
     let a22 = 2.0 / tan_height;
@@ -455,6 +455,9 @@ fn projection_from_fov(fov: &xr::Fovf, near: f32, far: f32) -> Matrix4<f32> {
 
     let a43 = -(far * near) / (far - near);
     Matrix4::new(
-        a11, 0.0, a31, 0.0, 0.0, a22, a32, 0.0, 0.0, 0.0, a33, a43, 0.0, 0.0, -1.0, 0.0,
+        a11, 0.0, a31, 0.0, //
+        0.0, -a22, a32, 0.0, //
+        0.0, 0.0, a33, a43, //
+        0.0, 0.0, -1.0, 0.0, //
     )
 }
