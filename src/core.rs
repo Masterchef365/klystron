@@ -426,16 +426,6 @@ impl Core {
                         vk::IndexType::UINT16,
                     );
 
-                    let descriptor_sets = [self.descriptor_sets[frame_idx]];
-                    self.prelude.device.cmd_bind_descriptor_sets(
-                        command_buffer,
-                        vk::PipelineBindPoint::GRAPHICS,
-                        material.pipeline_layout,
-                        0,
-                        &descriptor_sets,
-                        &[],
-                    );
-
                     // TODO: ADD ANIM
                     self.prelude.device.cmd_push_constants(
                         command_buffer,
