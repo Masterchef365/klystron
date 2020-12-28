@@ -49,8 +49,9 @@ impl App2D for MyApp {
         Ok(())
     }
 
-    fn frame(&self) -> FramePacket {
+    fn frame(&mut self) -> FramePacket {
         FramePacket {
+            base_transform: Matrix4::identity(),
             objects: vec![self.object],
         }
     }

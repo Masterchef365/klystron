@@ -24,7 +24,7 @@ pub trait App2D: Sized {
     /// Handle a winit window event
     fn event(&mut self, event: &WindowEvent, engine: &mut WinitBackend) -> Result<()>;
     /// Rendering logic
-    fn frame(&self) -> FramePacket;
+    fn frame(&mut self) -> FramePacket;
 }
 
 /// Run a 2D app given these args
