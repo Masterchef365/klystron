@@ -55,7 +55,7 @@ impl Default for PerspectiveCamera {
             yaw: 1.0,
             pitch: 1.0,
             fov: 45.0f32.to_radians(),
-            clipping: (0.1, 100.0),
+            clipping: (0.1, 2000.0),
         }
     }
 }
