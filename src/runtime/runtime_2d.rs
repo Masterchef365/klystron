@@ -24,7 +24,7 @@ pub trait App2D: Sized {
     /// Handle a winit window event
     fn event(&mut self, event: &WindowEvent, engine: &mut WinitBackend) -> Result<()>;
     /// Rendering logic
-    fn frame(&self) -> FramePacket;
+    fn frame(&mut self, engine: &mut WinitBackend) -> FramePacket;
 }
 
 /// Run a 2D app given these args
@@ -53,7 +53,7 @@ pub fn launch<App: App2D + 'static>(args: App::Args) -> Result<()> {
             engine.update_time_value(time).unwrap();
             time += 0.01;
             target_time.start_frame();
-            let packet = app.frame();
+            let packet = app.frame(&mut engine);
             engine
                 .next_frame(&packet, &Dummy2DCam)
                 .expect("Engine frame failed");

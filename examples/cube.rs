@@ -1,7 +1,7 @@
 use anyhow::Result;
 use klystron::{
     runtime_3d::{launch, App},
-    DrawType, Engine, FramePacket, Material, Mesh, Object, Texture, Vertex, UNLIT_FRAG, UNLIT_VERT,
+    DrawType, Engine, FramePacket, Material, Mesh, Object, Texture, Vertex, UNLIT_FRAG, UNLIT_VERT, Sampling
 };
 use nalgebra::{Matrix4, Point3};
 use std::fs::File;
@@ -22,13 +22,13 @@ impl App for MyApp {
         // Read important image data
         let img = png::Decoder::new(File::open("./examples/obama.png")?);
         let (info, mut reader) = img.read_info()?;
-        assert!(info.color_type == png::ColorType::RGB);
+        assert!(info.color_type == png::ColorType::RGBA);
         assert!(info.bit_depth == png::BitDepth::Eight);
         let mut img_buffer = vec![0; info.buffer_size()];
-        assert_eq!(info.buffer_size(), (info.width * info.height * 3) as _);
+        assert_eq!(info.buffer_size(), (info.width * info.height * 4) as _);
         reader.next_frame(&mut img_buffer)?;
 
-        let texture = engine.add_texture(&img_buffer, info.width)?;
+        let texture = engine.add_texture(&img_buffer, info.width, Sampling::Linear)?;
 
         let material = engine.add_material(UNLIT_VERT, UNLIT_FRAG, DrawType::Triangles)?;
 
@@ -66,14 +66,14 @@ fn main() -> Result<()> {
 
 fn rainbow_cube() -> (Vec<Vertex>, Vec<u16>) {
     let vertices = vec![
-        Vertex::from_nalgebra(Point3::new(-1.0, -1.0, -1.0), Point3::new(0.0, 1.0, 1.0)),
-        Vertex::from_nalgebra(Point3::new(1.0, -1.0, -1.0), Point3::new(1.0, 0.0, 1.0)),
-        Vertex::from_nalgebra(Point3::new(1.0, 1.0, -1.0), Point3::new(1.0, 1.0, 0.0)),
-        Vertex::from_nalgebra(Point3::new(-1.0, 1.0, -1.0), Point3::new(0.0, 1.0, 1.0)),
-        Vertex::from_nalgebra(Point3::new(-1.0, -1.0, 1.0), Point3::new(1.0, 0.0, 1.0)),
-        Vertex::from_nalgebra(Point3::new(1.0, -1.0, 1.0), Point3::new(1.0, 1.0, 0.0)),
-        Vertex::from_nalgebra(Point3::new(1.0, 1.0, 1.0), Point3::new(0.0, 1.0, 1.0)),
-        Vertex::from_nalgebra(Point3::new(-1.0, 1.0, 1.0), Point3::new(1.0, 0.0, 1.0)),
+        Vertex::new([-1.0, -1.0, -1.0], [0.0, 1.0, 1.0]),
+        Vertex::new([1.0, -1.0, -1.0], [1.0, 0.0, 1.0]),
+        Vertex::new([1.0, 1.0, -1.0], [1.0, 1.0, 0.0]),
+        Vertex::new([-1.0, 1.0, -1.0], [0.0, 1.0, 1.0]),
+        Vertex::new([-1.0, -1.0, 1.0], [1.0, 0.0, 1.0]),
+        Vertex::new([1.0, -1.0, 1.0], [1.0, 1.0, 0.0]),
+        Vertex::new([1.0, 1.0, 1.0], [0.0, 1.0, 1.0]),
+        Vertex::new([-1.0, 1.0, 1.0], [1.0, 0.0, 1.0]),
     ];
 
     let indices = vec![

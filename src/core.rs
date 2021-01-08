@@ -420,6 +420,7 @@ impl Core {
                         vk::IndexType::UINT16,
                     );
 
+                    // TODO: ADD ANIM
                     self.prelude.device.cmd_push_constants(
                         command_buffer,
                         material.pipeline_layout,
