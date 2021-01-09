@@ -19,7 +19,7 @@ impl Camera for PerspectiveCamera {
     fn matrix(&self, width: u32, height: u32) -> Matrix4<f32> {
         let aspect = width as f32 / height as f32;
         let aspect = Matrix4::from_diagonal(&Vector4::new(1., aspect, 1., 1.));
-        aspect * self.view()
+        (aspect * self.view()).try_inverse().unwrap()
     }
 }
 
