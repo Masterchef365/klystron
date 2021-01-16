@@ -30,7 +30,7 @@ impl OpenXrBackend {
         let xr_entry = load_openxr()?;
 
         let mut enabled_extensions = xr::ExtensionSet::default();
-        enabled_extensions.khr_vulkan_enable = true;
+        enabled_extensions.khr_vulkan_enable2 = true;
         let xr_instance = xr_entry.create_instance(
             &xr::ApplicationInfo {
                 application_name,
@@ -75,34 +75,9 @@ impl OpenXrBackend {
             );
         }
 
-        // Vulkan instance extensions required by OpenXR
-        let vk_instance_exts = xr_instance
-            .vulkan_instance_extensions(system)
-            .unwrap()
-            .split(' ')
-            .map(|x| std::ffi::CString::new(x.trim_end_matches("\u{0}")).unwrap())
-            .collect::<Vec<_>>();
-
-        let mut vk_instance_ext_ptrs = vk_instance_exts
-            .iter()
-            .map(|x| x.as_ptr())
-            .collect::<Vec<_>>();
-
+        let mut vk_instance_ext_ptrs = Vec::new();
         let mut vk_instance_layers_ptrs = Vec::new();
-
-        // Vulkan device extensions required by OpenXR
-        let vk_device_exts = xr_instance
-            .vulkan_device_extensions(system)
-            .unwrap()
-            .split(' ')
-            .map(|x| std::ffi::CString::new(x.trim_end_matches("\u{0}")).unwrap())
-            .collect::<Vec<_>>();
-
-        let mut vk_device_ext_ptrs = vk_device_exts
-            .iter()
-            .map(|x| x.as_ptr())
-            .collect::<Vec<_>>();
-
+        let mut vk_device_ext_ptrs = Vec::new();
         let mut vk_device_layers_ptrs = Vec::new();
 
         crate::extensions::extensions_and_layers(
@@ -115,19 +90,37 @@ impl OpenXrBackend {
         // Vulkan Instance
         let application_name = CString::new(application_name)?;
         let engine_name = CString::new(crate::ENGINE_NAME)?;
+        let vk_version = vk::make_version(1, 1, 0);
         let app_info = vk::ApplicationInfoBuilder::new()
             .application_name(&application_name)
             .application_version(vk::make_version(1, 0, 0))
             .engine_name(&engine_name)
             .engine_version(crate::engine_version())
-            .api_version(vk::make_version(1, 1, 0));
+            .api_version(vk_version);
 
         let create_info = vk::InstanceCreateInfoBuilder::new()
             .application_info(&app_info)
             .enabled_layer_names(&vk_instance_layers_ptrs)
-            .enabled_extension_names(&vk_instance_ext_ptrs);
+            .enabled_extension_names(&vk_instance_ext_ptrs)
+            .build();
 
-        let vk_instance = InstanceLoader::new(&vk_entry, &create_info, None)?;
+        let vk_instance = unsafe { xr_instance.create_vulkan_instance(
+            system,
+            std::mem::transmute(vk_entry.get_instance_proc_addr),
+            &create_info as *const _ as _,
+        ) }?.map_err(|_| anyhow::format_err!("OpenXR failed to create Vulkan instance"))?;
+
+        let vk_instance = vk::Instance(vk_instance as _);
+        let vk_instance = unsafe {
+            let instance_enabled = erupt::InstanceEnabled::new(
+                vk_version,
+                vk_instance_ext_ptrs.len(),
+                vk_instance_ext_ptrs.as_ptr(),
+                &[], //TODO?
+            )?;
+            let symbol = |name| (vk_entry.get_instance_proc_addr)(vk_instance, name);
+            InstanceLoader::custom(&vk_entry, vk_instance, instance_enabled, symbol)
+        }?;
 
         // Obtain physical vk_device, queue_family_index, and vk_device from OpenXR
         let vk_physical_device = vk::PhysicalDevice(
