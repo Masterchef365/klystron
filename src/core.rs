@@ -3,24 +3,10 @@ use crate::material::Material;
 use crate::swapchain_images::{SwapChainImage, SwapchainImages};
 use crate::vertex::Vertex;
 use anyhow::Result;
-use erupt::{
-    utils::{
-        self,
-        allocator::{self, Allocation, Allocator},
-    },
-    vk1_0 as vk, vk1_1, DeviceLoader, InstanceLoader,
-};
+use erupt::{vk1_0 as vk, vk1_1, DeviceLoader};
 use genmap::GenMap;
-use std::sync::Arc;
-
-pub struct VkPrelude {
-    pub queue: vk::Queue,
-    pub queue_family_index: u32,
-    pub device: DeviceLoader,
-    pub physical_device: vk::PhysicalDevice,
-    pub instance: InstanceLoader,
-    pub entry: utils::loading::DefaultEntryLoader,
-}
+use vk_core::SharedCore;
+use gpu_alloc_erupt::EruptMemoryDevice;
 
 pub(crate) const FRAMES_IN_FLIGHT: usize = 2;
 pub(crate) const COLOR_FORMAT: vk::Format = vk::Format::B8G8R8A8_SRGB;
@@ -28,9 +14,15 @@ pub(crate) const DEPTH_FORMAT: vk::Format = vk::Format::D32_SFLOAT;
 
 pub type CameraUbo = [f32; 32];
 
+// TODO: yes, I know this is a bad way to do things.
+pub struct AllocatedBuffer {
+    buffer: vk::Buffer,
+    memory: gpu_alloc::MemoryBlock<vk::DeviceMemory>,
+}
+
 pub struct Mesh {
-    pub indices: Allocation<vk::Buffer>,
-    pub vertices: Allocation<vk::Buffer>,
+    pub indices: AllocatedBuffer,
+    pub vertices: AllocatedBuffer,
     pub n_indices: u32,
 }
 
@@ -38,7 +30,6 @@ pub struct Mesh {
 // Do this when you switch over to gpu-alloc
 
 pub struct Core {
-    pub allocator: Allocator,
     pub materials: GenMap<Material>,
     pub meshes: GenMap<Mesh>,
     pub render_pass: vk::RenderPass,
@@ -49,17 +40,17 @@ pub struct Core {
     pub descriptor_pool: vk::DescriptorPool,
     pub descriptor_set_layout: vk::DescriptorSetLayout,
     pub descriptor_sets: Vec<vk::DescriptorSet>,
-    pub camera_ubos: Vec<Allocation<vk::Buffer>>,
-    pub time_ubos: Vec<Allocation<vk::Buffer>>,
-    pub prelude: Arc<VkPrelude>,
+    pub camera_ubos: Vec<AllocatedBuffer>,
+    pub time_ubos: Vec<AllocatedBuffer>,
+    pub prelude: SharedCore,
 }
 
 impl Core {
-    pub fn new(prelude: Arc<VkPrelude>, vr: bool) -> Result<Self> {
+    pub fn new(prelude: SharedCore, core_meta: vk_core::CoreMeta, vr: bool) -> Result<Self> {
         // Command pool
         let create_info = vk::CommandPoolCreateInfoBuilder::new()
             .flags(vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER)
-            .queue_family_index(prelude.queue_family_index);
+            .queue_family_index(core_meta.queue_family_index);
         let command_pool =
             unsafe { prelude.device.create_command_pool(&create_info, None, None) }.result()?;
 
@@ -71,14 +62,6 @@ impl Core {
 
         let command_buffers =
             unsafe { prelude.device.allocate_command_buffers(&allocate_info) }.result()?;
-
-        // Device memory allocator
-        let mut allocator = Allocator::new(
-            &prelude.instance,
-            prelude.physical_device,
-            allocator::AllocatorCreateInfo::default(),
-        )
-        .result()?;
 
         // Create descriptor layout
         let bindings = [
@@ -136,31 +119,54 @@ impl Core {
         // Camera:
         let mut camera_ubos = Vec::new();
         for _ in 0..FRAMES_IN_FLIGHT {
+            use gpu_alloc::UsageFlags as UF;
             let buffer =
                 unsafe { prelude.device.create_buffer(&ubo_create_info, None, None) }.result()?;
-            let memory = allocator
-                .allocate(
-                    &prelude.device,
-                    buffer,
-                    allocator::MemoryTypeFinder::dynamic(),
-                )
-                .result()?;
-            camera_ubos.push(memory);
+            let requirements = unsafe { prelude.device.get_buffer_memory_requirements(buffer, None) };
+            let request = gpu_alloc::Request {
+                size: requirements.size,
+                align_mask: requirements.alignment,
+                usage: UF::DOWNLOAD | UF::UPLOAD | UF::HOST_ACCESS,
+                memory_types: requirements.memory_type_bits,
+            };
+            let memory = unsafe { prelude.allocator()?
+                .alloc(EruptMemoryDevice::wrap(&prelude.device), request)? };
+            unsafe {
+                prelude.device.bind_buffer_memory(buffer, *memory.memory(), memory.offset()).result()?;
+            }
+            camera_ubos.push(AllocatedBuffer {
+                buffer,
+                memory,
+            });
         }
 
         // Animation
+        let ubo_create_info = vk::BufferCreateInfoBuilder::new()
+            .usage(vk::BufferUsageFlags::UNIFORM_BUFFER)
+            .sharing_mode(vk::SharingMode::EXCLUSIVE)
+            .size(std::mem::size_of::<f32>() as u64);
+
         let mut time_ubos = Vec::new();
         for _ in 0..FRAMES_IN_FLIGHT {
+            use gpu_alloc::UsageFlags as UF;
             let buffer =
                 unsafe { prelude.device.create_buffer(&ubo_create_info, None, None) }.result()?;
-            let memory = allocator
-                .allocate(
-                    &prelude.device,
-                    buffer,
-                    allocator::MemoryTypeFinder::dynamic(),
-                )
-                .result()?;
-            time_ubos.push(memory);
+            let requirements = unsafe { prelude.device.get_buffer_memory_requirements(buffer, None) };
+            let request = gpu_alloc::Request {
+                size: requirements.size,
+                align_mask: requirements.alignment,
+                usage: UF::DOWNLOAD | UF::UPLOAD | UF::HOST_ACCESS,
+                memory_types: requirements.memory_type_bits,
+            };
+            let memory = unsafe { prelude.allocator()?
+                .alloc(EruptMemoryDevice::wrap(&prelude.device), request)? };
+            unsafe {
+                prelude.device.bind_buffer_memory(buffer, *memory.memory(), memory.offset()).result()?;
+            }
+            time_ubos.push(AllocatedBuffer {
+                buffer,
+                memory,
+            });
         }
 
         // Bind buffers to descriptors
@@ -169,12 +175,12 @@ impl Core {
             .zip(camera_ubos.iter().zip(descriptor_sets.iter()))
         {
             let camera_buffer_infos = [vk::DescriptorBufferInfoBuilder::new()
-                .buffer(*camera_ubo.object())
+                .buffer(camera_ubo.buffer)
                 .offset(0)
                 .range(std::mem::size_of::<CameraUbo>() as u64)];
 
             let animation_buffer_infos = [vk::DescriptorBufferInfoBuilder::new()
-                .buffer(*animation_ubo.object())
+                .buffer(animation_ubo.buffer)
                 .offset(0)
                 .range(std::mem::size_of::<f32>() as u64)];
 
@@ -212,7 +218,6 @@ impl Core {
             descriptor_sets,
             command_pool,
             frame_sync,
-            allocator,
             command_buffers,
             render_pass,
             swapchain_images: None,
@@ -249,43 +254,70 @@ impl Core {
 
     pub fn add_mesh(&mut self, vertices: &[Vertex], indices: &[u16]) -> Result<crate::Mesh> {
         let n_indices = indices.len() as u32;
+        use gpu_alloc::UsageFlags as UF;
 
-        //TODO: Use staging buffers!
+        // Vertex
         let create_info = vk::BufferCreateInfoBuilder::new()
             .usage(vk::BufferUsageFlags::VERTEX_BUFFER)
             .sharing_mode(vk::SharingMode::EXCLUSIVE)
             .size(std::mem::size_of_val(vertices) as u64);
         let buffer =
             unsafe { self.prelude.device.create_buffer(&create_info, None, None) }.result()?;
-        let vertex_buffer = self
-            .allocator
-            .allocate(
-                &self.prelude.device,
-                buffer,
-                allocator::MemoryTypeFinder::dynamic(),
-            )
-            .result()?;
-        let mut map = vertex_buffer.map(&self.prelude.device, ..).result()?;
-        map.import(bytemuck::cast_slice(vertices));
-        map.unmap(&self.prelude.device).result()?;
+        let requirements = unsafe { self.prelude.device.get_buffer_memory_requirements(buffer, None) };
+        let request = gpu_alloc::Request {
+            size: requirements.size,
+            align_mask: requirements.alignment,
+            usage: UF::DOWNLOAD | UF::UPLOAD | UF::HOST_ACCESS,
+            memory_types: requirements.memory_type_bits,
+        };
+        let memory = unsafe { self.prelude.allocator()?
+            .alloc(EruptMemoryDevice::wrap(&self.prelude.device), request)? };
+        unsafe {
+            self.prelude.device.bind_buffer_memory(buffer, *memory.memory(), memory.offset()).result()?;
+        }
+        unsafe {
+        memory.write_bytes(
+                EruptMemoryDevice::wrap(&self.prelude.device),
+                0,
+                &bytemuck::cast_slice(vertices),
+            )?;
+        }
+        let vertex_buffer = AllocatedBuffer {
+            memory,
+            buffer,
+        };
 
+        // Indices
         let create_info = vk::BufferCreateInfoBuilder::new()
             .usage(vk::BufferUsageFlags::INDEX_BUFFER)
             .sharing_mode(vk::SharingMode::EXCLUSIVE)
             .size(std::mem::size_of_val(indices) as u64);
         let buffer =
             unsafe { self.prelude.device.create_buffer(&create_info, None, None) }.result()?;
-        let index_buffer = self
-            .allocator
-            .allocate(
-                &self.prelude.device,
-                buffer,
-                allocator::MemoryTypeFinder::dynamic(),
-            )
-            .result()?;
-        let mut map = index_buffer.map(&self.prelude.device, ..).result()?;
-        map.import(bytemuck::cast_slice(indices));
-        map.unmap(&self.prelude.device).result()?;
+        let requirements = unsafe { self.prelude.device.get_buffer_memory_requirements(buffer, None) };
+        let request = gpu_alloc::Request {
+            size: requirements.size,
+            align_mask: requirements.alignment,
+            usage: UF::DOWNLOAD | UF::UPLOAD | UF::HOST_ACCESS,
+            memory_types: requirements.memory_type_bits,
+        };
+        let memory = unsafe { self.prelude.allocator()?
+            .alloc(EruptMemoryDevice::wrap(&self.prelude.device), request)? };
+        unsafe {
+            self.prelude.device.bind_buffer_memory(buffer, *memory.memory(), memory.offset()).result()?;
+        }
+        unsafe {
+        memory.write_bytes(
+                EruptMemoryDevice::wrap(&self.prelude.device),
+                0,
+                &bytemuck::cast_slice(indices),
+            )?;
+        }
+        let index_buffer = AllocatedBuffer {
+            memory,
+            buffer,
+        };
+
 
         let mesh = Mesh {
             indices: index_buffer,
@@ -302,8 +334,12 @@ impl Core {
             self.prelude.device.device_wait_idle().result()?;
         }
         if let Some(mesh) = self.meshes.remove(id.0) {
-            self.allocator.free(&self.prelude.device, mesh.vertices);
-            self.allocator.free(&self.prelude.device, mesh.indices);
+            unsafe {
+                self.prelude.allocator()?.dealloc(EruptMemoryDevice::wrap(&self.prelude.device), mesh.indices.memory);
+                self.prelude.allocator()?.dealloc(EruptMemoryDevice::wrap(&self.prelude.device), mesh.vertices.memory);
+                self.prelude.device.destroy_buffer(Some(mesh.indices.buffer), None);
+                self.prelude.device.destroy_buffer(Some(mesh.vertices.buffer), None);
+            }
         }
         Ok(())
     }
@@ -415,13 +451,13 @@ impl Core {
                     self.prelude.device.cmd_bind_vertex_buffers(
                         command_buffer,
                         0,
-                        &[*mesh.vertices.object()],
+                        &[mesh.vertices.buffer],
                         &[0],
                     );
 
                     self.prelude.device.cmd_bind_index_buffer(
                         command_buffer,
-                        *mesh.indices.object(),
+                        mesh.indices.buffer,
                         0,
                         vk::IndexType::UINT16,
                     );
@@ -461,9 +497,9 @@ impl Core {
     /// Upload camera matricies (Two f32 camera matrics in column-major order)
     pub fn update_camera_data(&self, frame_idx: usize, data: &[f32; 32]) -> Result<()> {
         let ubo = &self.camera_ubos[frame_idx];
-        let mut map = ubo.map(&self.prelude.device, ..).result()?;
-        map.import(bytemuck::cast_slice(&data[..]));
-        map.unmap(&self.prelude.device).result()?;
+        unsafe {
+            ubo.memory.write_bytes(EruptMemoryDevice::wrap(&self.prelude.device), 0, bytemuck::cast_slice(&data[..]))?;
+        }
         Ok(())
     }
 
@@ -471,9 +507,9 @@ impl Core {
     pub fn update_time_value(&self, time: f32) -> Result<()> {
         let frame_idx = self.frame_sync.current_frame();
         let ubo = &self.time_ubos[frame_idx];
-        let mut map = ubo.map(&self.prelude.device, ..).result()?;
-        map.import(bytemuck::cast_slice(&[time]));
-        map.unmap(&self.prelude.device).result()?;
+        unsafe {
+            ubo.memory.write_bytes(EruptMemoryDevice::wrap(&self.prelude.device), 0, bytemuck::cast_slice(&[time]))?;
+        }
         Ok(())
     }
 }
@@ -551,15 +587,15 @@ impl Drop for Core {
             self.prelude.device.device_wait_idle().unwrap();
             let handles = self.meshes.iter().collect::<Vec<_>>();
             for mesh in handles {
-                let mesh = self.meshes.remove(mesh).unwrap();
-                self.allocator.free(&self.prelude.device, mesh.vertices);
-                self.allocator.free(&self.prelude.device, mesh.indices);
+                self.remove_mesh(crate::Mesh(mesh)).unwrap();
             }
             for ubo in self.camera_ubos.drain(..) {
-                self.allocator.free(&self.prelude.device, ubo);
+                self.prelude.allocator().unwrap().dealloc(EruptMemoryDevice::wrap(&self.prelude.device), ubo.memory);
+                self.prelude.device.destroy_buffer(Some(ubo.buffer), None);
             }
             for ubo in self.time_ubos.drain(..) {
-                self.allocator.free(&self.prelude.device, ubo);
+                self.prelude.allocator().unwrap().dealloc(EruptMemoryDevice::wrap(&self.prelude.device), ubo.memory);
+                self.prelude.device.destroy_buffer(Some(ubo.buffer), None);
             }
             self.prelude
                 .device
@@ -576,15 +612,6 @@ impl Drop for Core {
             self.prelude
                 .device
                 .destroy_command_pool(Some(self.command_pool), None);
-        }
-    }
-}
-
-impl Drop for VkPrelude {
-    fn drop(&mut self) {
-        unsafe {
-            self.device.destroy_device(None);
-            self.instance.destroy_instance(None);
         }
     }
 }

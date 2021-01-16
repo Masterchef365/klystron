@@ -1,13 +1,12 @@
-use crate::core::VkPrelude;
+use vk_core::SharedCore;
 use anyhow::Result;
 use erupt::{vk1_0 as vk, DeviceLoader};
-use std::sync::Arc;
 
 /// Manages fences and semaphores for every given frame
 pub struct FrameSync {
     frames: Vec<Frame>,
     frame_idx: usize,
-    prelude: Arc<VkPrelude>,
+    prelude: SharedCore,
 }
 
 #[derive(Copy, Clone)]
@@ -19,7 +18,7 @@ pub struct Frame {
 }
 
 impl FrameSync {
-    pub fn new(prelude: Arc<VkPrelude>, frames_in_flight: usize) -> Result<Self> {
+    pub fn new(prelude: SharedCore, frames_in_flight: usize) -> Result<Self> {
         let frames = (0..frames_in_flight)
             .map(|_| Frame::new(&prelude.device))
             .collect::<Result<_>>()?;
