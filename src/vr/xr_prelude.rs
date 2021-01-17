@@ -12,6 +12,8 @@ pub struct XrPrelude {
 /// Attempt to load OpenXR dll first from OPENXR_LOADER, or the default location if no environment
 /// variable is provided.
 pub fn load_openxr() -> anyhow::Result<xr::Entry> {
+    Ok(xr::Entry::linked())
+    /*
     let path = std::env::var("OPENXR_LOADER");
     use std::env::VarError;
     Ok(match path {
@@ -22,4 +24,6 @@ pub fn load_openxr() -> anyhow::Result<xr::Entry> {
         Err(VarError::NotPresent) => Entry::load()?,
         Err(e) => Err(e)?,
     })
+    */
+
 }

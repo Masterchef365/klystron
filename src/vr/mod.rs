@@ -3,7 +3,7 @@ use vk_core::SharedCore;
 use crate::core::Core;
 use crate::swapchain_images::SwapchainImages;
 use crate::{DrawType, Engine, FramePacket, Material, Mesh, Vertex};
-use anyhow::{bail, Result};
+use anyhow::{bail, ensure, Context, Result};
 use erupt::{vk1_0 as vk, DeviceLoader, EntryLoader, InstanceLoader};
 use log::info;
 use nalgebra::{Matrix4, Unit, Vector3};
@@ -29,8 +29,12 @@ impl OpenXrBackend {
         // Load OpenXR runtime
         let xr_entry = load_openxr()?;
 
+        let available_extensions = xr_entry.enumerate_extensions()?;
+        ensure!(available_extensions.khr_vulkan_enable2, "Klytron requires OpenXR with KHR_VULKAN_ENABLE2");
+
         let mut enabled_extensions = xr::ExtensionSet::default();
         enabled_extensions.khr_vulkan_enable2 = true;
+
         let xr_instance = xr_entry.create_instance(
             &xr::ApplicationInfo {
                 application_name,
@@ -111,6 +115,7 @@ impl OpenXrBackend {
         ) }?.map_err(|_| anyhow::format_err!("OpenXR failed to create Vulkan instance"))?;
 
         let vk_instance = vk::Instance(vk_instance as _);
+        let symbol = |name| unsafe { (vk_entry.get_instance_proc_addr)(vk_instance, name) };
         let vk_instance = unsafe {
             let instance_enabled = erupt::InstanceEnabled::new(
                 vk_version,
@@ -118,7 +123,6 @@ impl OpenXrBackend {
                 vk_instance_ext_ptrs.as_ptr(),
                 &[], //TODO?
             )?;
-            let symbol = |name| (vk_entry.get_instance_proc_addr)(vk_instance, name);
             InstanceLoader::custom(&vk_entry, vk_instance, instance_enabled, symbol)
         }?;
 
@@ -142,7 +146,7 @@ impl OpenXrBackend {
                     }
                 })
                 .next()
-                .expect("Vulkan vk_device has no graphics queue")
+                .context("Vulkan vk_device has no graphics queue")?
         };
 
         let priorities = [1.0];
@@ -162,7 +166,23 @@ impl OpenXrBackend {
 
         create_info.p_next = &mut phys_device_features as *mut _ as _;
 
-        let vk_device = DeviceLoader::new(&vk_instance, vk_physical_device, &create_info, None)?;
+        let vk_device = unsafe { xr_instance.create_vulkan_device(
+            system, 
+            std::mem::transmute(vk_entry.get_instance_proc_addr),
+            vk_physical_device.0 as _, 
+            &create_info as *const _ as _
+        )}?.map_err(vk::Result)?;
+        let vk_device = vk::Device(vk_device as _);
+        let device_enabled = unsafe { erupt::DeviceEnabled::new(
+                vk_device_ext_ptrs.len(),
+                vk_device_ext_ptrs.as_ptr(),
+        )};
+        let vk_device = unsafe { DeviceLoader::custom(
+            &vk_instance, 
+            vk_device,
+            device_enabled, 
+            symbol,
+        )?};
         let queue = unsafe { vk_device.get_device_queue(queue_family_index, 0, None) };
 
         let (session, frame_wait, frame_stream) = unsafe {
