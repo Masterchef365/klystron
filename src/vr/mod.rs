@@ -1,4 +1,3 @@
-pub mod xr_prelude;
 use vk_core::SharedCore;
 use crate::core::Core;
 use crate::swapchain_images::SwapchainImages;
@@ -9,7 +8,6 @@ use log::info;
 use nalgebra::{Matrix4, Unit, Vector3};
 use std::ffi::CString;
 use std::sync::{Arc, Mutex};
-use xr_prelude::{load_openxr, XrPrelude};
 use gpu_alloc::{self, GpuAllocator};
 
 /// VR Capable OpenXR engine backend
@@ -22,12 +20,18 @@ pub struct OpenXrBackend {
     prelude: SharedCore,
     core: Core,
 }
+/// A container for several commonly-used OpenXR constants.
+pub struct XrPrelude {
+    pub instance: xr::Instance,
+    pub session: xr::Session<xr::Vulkan>,
+    pub system: xr::SystemId,
+}
 
 impl OpenXrBackend {
     /// Create a new engine instance. Returns the OpenXr caddy for use with input handling.
     pub fn new(application_name: &str) -> Result<(Self, Arc<XrPrelude>)> {
         // Load OpenXR runtime
-        let xr_entry = load_openxr()?;
+        let xr_entry = xr::Entry::linked();
 
         let available_extensions = xr_entry.enumerate_extensions()?;
         ensure!(available_extensions.khr_vulkan_enable2, "Klytron requires OpenXR with KHR_VULKAN_ENABLE2");

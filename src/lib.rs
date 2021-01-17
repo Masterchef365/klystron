@@ -17,7 +17,7 @@ use anyhow::Result;
 use genmap::Handle;
 pub use nalgebra::Matrix4;
 pub use vertex::Vertex;
-pub use vr::{xr_prelude::XrPrelude, OpenXrBackend};
+pub use vr::{XrPrelude, OpenXrBackend};
 pub use windowed::{Camera, PerspectiveCamera, WinitBackend};
 
 /// All information necessary to define a frame of video (besides camera, which is passed in a
