@@ -31,7 +31,7 @@ impl OpenXrBackend {
     /// Create a new engine instance. Returns the OpenXr caddy for use with input handling.
     pub fn new(application_name: &str) -> Result<(Self, Arc<XrPrelude>)> {
         // Load OpenXR runtime
-        let xr_entry = xr::Entry::linked();
+        let xr_entry = xr::Entry::load()?;
 
         let available_extensions = xr_entry.enumerate_extensions()?;
         ensure!(available_extensions.khr_vulkan_enable2, "Klytron requires OpenXR with KHR_VULKAN_ENABLE2");
