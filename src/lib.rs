@@ -22,6 +22,7 @@ pub use windowed::{Camera, PerspectiveCamera, WinitBackend};
 
 /// All information necessary to define a frame of video (besides camera, which is passed in a
 /// special camera for windowed mode and implicitly in OpenXR)
+#[derive(Clone)]
 pub struct FramePacket {
     /// The entire scene's worth of objects
     pub objects: Vec<Object>,
@@ -49,6 +50,7 @@ pub struct Material(pub(crate) Handle);
 pub struct Mesh(pub(crate) Handle);
 
 /// Material rasterization method
+#[derive(Copy, Clone, Debug)]
 pub enum DrawType {
     /// Lines in between each pair of indices
     Lines,
