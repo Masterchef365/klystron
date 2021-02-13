@@ -1,3 +1,4 @@
 /target
 Cargo.lock
 start.ps1
+*.code-workspace

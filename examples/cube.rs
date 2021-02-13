@@ -1,9 +1,8 @@
 use anyhow::Result;
 use klystron::{
     runtime_3d::{launch, App},
-    DrawType, Engine, FramePacket, Material, Mesh, Object, Vertex, UNLIT_FRAG, UNLIT_VERT,
+    DrawType, Engine, FramePacket, Material, Mesh, Object, Vertex, UNLIT_FRAG, UNLIT_VERT, Matrix4
 };
-use nalgebra::{Matrix4, Point3};
 
 struct MyApp {
     material: Material,
@@ -51,14 +50,14 @@ fn main() -> Result<()> {
 
 fn rainbow_cube() -> (Vec<Vertex>, Vec<u32>) {
     let vertices = vec![
-        Vertex::from_nalgebra(Point3::new(-1.0, -1.0, -1.0), Point3::new(0.0, 1.0, 1.0)),
-        Vertex::from_nalgebra(Point3::new(1.0, -1.0, -1.0), Point3::new(1.0, 0.0, 1.0)),
-        Vertex::from_nalgebra(Point3::new(1.0, 1.0, -1.0), Point3::new(1.0, 1.0, 0.0)),
-        Vertex::from_nalgebra(Point3::new(-1.0, 1.0, -1.0), Point3::new(0.0, 1.0, 1.0)),
-        Vertex::from_nalgebra(Point3::new(-1.0, -1.0, 1.0), Point3::new(1.0, 0.0, 1.0)),
-        Vertex::from_nalgebra(Point3::new(1.0, -1.0, 1.0), Point3::new(1.0, 1.0, 0.0)),
-        Vertex::from_nalgebra(Point3::new(1.0, 1.0, 1.0), Point3::new(0.0, 1.0, 1.0)),
-        Vertex::from_nalgebra(Point3::new(-1.0, 1.0, 1.0), Point3::new(1.0, 0.0, 1.0)),
+        Vertex::new([-1.0, -1.0, -1.0], [0.0, 1.0, 1.0]),
+        Vertex::new([1.0, -1.0, -1.0], [1.0, 0.0, 1.0]),
+        Vertex::new([1.0, 1.0, -1.0], [1.0, 1.0, 0.0]),
+        Vertex::new([-1.0, 1.0, -1.0], [0.0, 1.0, 1.0]),
+        Vertex::new([-1.0, -1.0, 1.0], [1.0, 0.0, 1.0]),
+        Vertex::new([1.0, -1.0, 1.0], [1.0, 1.0, 0.0]),
+        Vertex::new([1.0, 1.0, 1.0], [0.0, 1.0, 1.0]),
+        Vertex::new([-1.0, 1.0, 1.0], [1.0, 0.0, 1.0]),
     ];
 
     let indices = vec![

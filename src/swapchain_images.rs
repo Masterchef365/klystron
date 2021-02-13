@@ -1,21 +1,16 @@
-use crate::core::VkPrelude;
+use vk_core::SharedCore;
 use crate::frame_sync::Frame;
 use anyhow::Result;
-use drop_bomb::DropBomb;
-use erupt::{
-    utils::allocator::{Allocation, Allocator, MemoryTypeFinder},
-    vk1_0 as vk, DeviceLoader,
-};
-use std::sync::Arc;
+use erupt::{vk1_0 as vk, DeviceLoader};
+use gpu_alloc_erupt::EruptMemoryDevice;
 
 pub struct SwapchainImages {
     pub extent: vk::Extent2D,
     pub depth_image: vk::Image,
-    pub depth_image_mem: Option<Allocation<vk::Image>>,
+    pub depth_image_mem: Option<gpu_alloc::MemoryBlock<vk::DeviceMemory>>,
     pub depth_image_view: vk::ImageView,
     images: Vec<SwapChainImage>,
-    prelude: Arc<VkPrelude>,
-    bomb: DropBomb,
+    prelude: SharedCore,
 }
 
 #[derive(Copy, Clone)]
@@ -51,8 +46,7 @@ impl SwapchainImages {
     }
 
     pub fn new(
-        prelude: Arc<VkPrelude>,
-        allocator: &mut Allocator,
+        prelude: SharedCore,
         extent: vk::Extent2D,
         render_pass: vk::RenderPass,
         swapchain_images: Vec<vk::Image>,
@@ -81,9 +75,22 @@ impl SwapchainImages {
         let depth_image =
             unsafe { prelude.device.create_image(&create_info, None, None) }.result()?;
 
-        let depth_image_mem = allocator
-            .allocate(&prelude.device, depth_image, MemoryTypeFinder::gpu_only())
-            .result()?;
+        let requirements = unsafe { prelude.device.get_image_memory_requirements(depth_image, None) };
+
+        use gpu_alloc::UsageFlags as UF;
+        let request = gpu_alloc::Request {
+            size: requirements.size,
+            align_mask: requirements.alignment,
+            usage: UF::FAST_DEVICE_ACCESS,
+            memory_types: requirements.memory_type_bits,
+        };
+
+        let depth_image_mem = unsafe { prelude.allocator()?
+            .alloc(EruptMemoryDevice::wrap(&prelude.device), request)? };
+
+        unsafe {
+            prelude.device.bind_image_memory(depth_image, *depth_image_mem.memory(), depth_image_mem.offset()).result()?;
+        }
 
         let create_info = vk::ImageViewCreateInfoBuilder::new()
             .image(depth_image)
@@ -123,13 +130,14 @@ impl SwapchainImages {
             depth_image_mem: Some(depth_image_mem),
             depth_image_view,
             prelude,
-            bomb: DropBomb::new("SwapchainImages dropped before freed"),
         })
     }
+}
 
-    pub fn free(&mut self, allocator: &mut Allocator) -> Result<()> {
+impl Drop for SwapchainImages {
+    fn drop(&mut self) {
         unsafe {
-            self.prelude.device.device_wait_idle().result()?;
+            self.prelude.device.device_wait_idle().result().unwrap();
             for image in self.images.drain(..) {
                 self.prelude
                     .device
@@ -141,12 +149,14 @@ impl SwapchainImages {
             self.prelude
                 .device
                 .destroy_image_view(Some(self.depth_image_view), None);
+            self.prelude
+                .device
+                .destroy_image(Some(self.depth_image), None);
         }
 
-        allocator.free(&self.prelude.device, self.depth_image_mem.take().unwrap());
-
-        self.bomb.defuse();
-        Ok(())
+        unsafe {
+            self.prelude.allocator().as_mut().unwrap().dealloc(EruptMemoryDevice::wrap(&self.prelude.device), self.depth_image_mem.take().unwrap());
+        }
     }
 }
 
