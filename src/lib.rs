@@ -14,14 +14,15 @@ mod vertex;
 mod vr;
 mod windowed;
 use anyhow::Result;
+use genmap::Handle;
 pub use nalgebra::Matrix4;
 pub use vertex::Vertex;
-pub use vr::{xr_prelude::XrPrelude, OpenXrBackend};
+pub use vr::{XrPrelude, OpenXrBackend};
 pub use windowed::{Camera, PerspectiveCamera, WinitBackend};
-use genmap::Handle;
 
 /// All information necessary to define a frame of video (besides camera, which is passed in a
 /// special camera for windowed mode and implicitly in OpenXR)
+#[derive(Clone)]
 pub struct FramePacket {
     /// The entire scene's worth of objects
     pub objects: Vec<Object>,
@@ -51,6 +52,7 @@ pub struct Material(pub(crate) Handle);
 pub struct Mesh(pub(crate) Handle);
 
 /// Material rasterization method
+#[derive(Copy, Clone, Debug)]
 pub enum DrawType {
     /// Lines in between each pair of indices
     Lines,
@@ -80,7 +82,12 @@ pub trait Engine {
     fn update_time_value(&self, data: f32) -> Result<()>;
 }
 
-pub(crate) const ENGINE_NAME: &'static str = "Klystron";
+pub(crate) const ENGINE_NAME: &str = "Klystron";
 pub(crate) fn engine_version() -> u32 {
     erupt::vk1_0::make_version(1, 0, 0)
 }
+
+//#[cfg(feature = "builtin_shaders")]
+pub const UNLIT_FRAG: &[u8] = include_bytes!("../shaders/unlit.frag.spv");
+//#[cfg(feature = "builtin_shaders")]
+pub const UNLIT_VERT: &[u8] = include_bytes!("../shaders/unlit.vert.spv");

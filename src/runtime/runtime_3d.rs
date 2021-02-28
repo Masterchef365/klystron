@@ -3,10 +3,11 @@
 //! A simple runtime providing only a first-person camera in VR mode and an Arcball camera in
 //! windowed mode. Abstracts over platform-specific features for quick prototyping.
 
-use crate::{PerspectiveCamera, Engine, FramePacket, OpenXrBackend, WinitBackend};
+use super::mouse_camera::MouseCamera;
+use super::target_time::TargetTime;
+use crate::{Engine, FramePacket, OpenXrBackend, PerspectiveCamera, WinitBackend};
 use anyhow::Result;
 use log::info;
-use super::mouse_camera::MouseCamera;
 use openxr as xr;
 use std::sync::{
     atomic::{AtomicBool, Ordering},
@@ -18,7 +19,6 @@ use winit::{
     event_loop::{ControlFlow, EventLoop},
     window::WindowBuilder,
 };
-use super::target_time::TargetTime;
 
 /// An app that can be run on the runtime
 pub trait App: Sized {
@@ -153,6 +153,3 @@ pub fn vr_backend<A: App>(args: A::Args) -> Result<()> {
         engine.next_frame(&packet)?;
     }
 }
-
-
-

@@ -57,14 +57,17 @@ impl MouseCamera {
     }
 
     fn mouse_pivot(&mut self, delta_x: f32, delta_y: f32) {
-        self.inner.yaw += delta_x * self.swivel_sensitivity;
-        self.inner.pitch -= delta_y * self.swivel_sensitivity;
+        use std::f32::consts::FRAC_PI_2;
+        self.inner.yaw -= delta_x * self.swivel_sensitivity;
+        self.inner.pitch -= delta_y * self.swivel_sensitivity
+            .max(-FRAC_PI_2)
+            .min(FRAC_PI_2);
     }
 
     fn mouse_pan(&mut self, delta_x: f32, delta_y: f32) {
         let delta = Vector4::new(
             (delta_x as f32) * self.inner.distance,
-            (delta_y as f32) * self.inner.distance,
+            (-delta_y as f32) * self.inner.distance,
             0.0,
             0.0,
         ) * self.pan_sensitivity;

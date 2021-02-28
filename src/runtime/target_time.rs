@@ -1,5 +1,5 @@
-use std::time::{Duration, Instant};
 use std::thread::sleep;
+use std::time::{Duration, Instant};
 
 // TODO: This could also be used to measure frame timing...
 

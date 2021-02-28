@@ -1,14 +1,14 @@
-pub mod xr_prelude;
-use crate::core::{Core, VkPrelude};
+use vk_core::SharedCore;
+use crate::core::Core;
 use crate::swapchain_images::SwapchainImages;
 use crate::{DrawType, Engine, FramePacket, Material, Mesh, Vertex};
-use anyhow::{bail, Result};
+use anyhow::{bail, ensure, Context, Result};
 use erupt::{vk1_0 as vk, DeviceLoader, EntryLoader, InstanceLoader};
 use log::info;
 use nalgebra::{Matrix4, Unit, Vector3};
 use std::ffi::CString;
-use std::sync::Arc;
-use xr_prelude::{load_openxr, XrPrelude};
+use std::sync::{Arc, Mutex};
+use gpu_alloc::{self, GpuAllocator};
 
 /// VR Capable OpenXR engine backend
 pub struct OpenXrBackend {
@@ -17,18 +17,28 @@ pub struct OpenXrBackend {
     stage: xr::Space,
     swapchain: Option<xr::Swapchain<xr::Vulkan>>,
     openxr: Arc<XrPrelude>,
-    prelude: Arc<VkPrelude>,
+    prelude: SharedCore,
     core: Core,
+}
+/// A container for several commonly-used OpenXR constants.
+pub struct XrPrelude {
+    pub instance: xr::Instance,
+    pub session: xr::Session<xr::Vulkan>,
+    pub system: xr::SystemId,
 }
 
 impl OpenXrBackend {
     /// Create a new engine instance. Returns the OpenXr caddy for use with input handling.
     pub fn new(application_name: &str) -> Result<(Self, Arc<XrPrelude>)> {
         // Load OpenXR runtime
-        let xr_entry = load_openxr()?;
+        let xr_entry = xr::Entry::load()?;
+
+        let available_extensions = xr_entry.enumerate_extensions()?;
+        ensure!(available_extensions.khr_vulkan_enable2, "Klytron requires OpenXR with KHR_VULKAN_ENABLE2");
 
         let mut enabled_extensions = xr::ExtensionSet::default();
-        enabled_extensions.khr_vulkan_enable = true;
+        enabled_extensions.khr_vulkan_enable2 = true;
+
         let xr_instance = xr_entry.create_instance(
             &xr::ApplicationInfo {
                 application_name,
@@ -73,34 +83,9 @@ impl OpenXrBackend {
             );
         }
 
-        // Vulkan instance extensions required by OpenXR
-        let vk_instance_exts = xr_instance
-            .vulkan_instance_extensions(system)
-            .unwrap()
-            .split(' ')
-            .map(|x| std::ffi::CString::new(x).unwrap())
-            .collect::<Vec<_>>();
-
-        let mut vk_instance_ext_ptrs = vk_instance_exts
-            .iter()
-            .map(|x| x.as_ptr())
-            .collect::<Vec<_>>();
-
+        let mut vk_instance_ext_ptrs = Vec::new();
         let mut vk_instance_layers_ptrs = Vec::new();
-
-        // Vulkan device extensions required by OpenXR
-        let vk_device_exts = xr_instance
-            .vulkan_device_extensions(system)
-            .unwrap()
-            .split(' ')
-            .map(|x| CString::new(x).unwrap())
-            .collect::<Vec<_>>();
-
-        let mut vk_device_ext_ptrs = vk_device_exts
-            .iter()
-            .map(|x| x.as_ptr())
-            .collect::<Vec<_>>();
-
+        let mut vk_device_ext_ptrs = Vec::new();
         let mut vk_device_layers_ptrs = Vec::new();
 
         crate::extensions::extensions_and_layers(
@@ -113,19 +98,37 @@ impl OpenXrBackend {
         // Vulkan Instance
         let application_name = CString::new(application_name)?;
         let engine_name = CString::new(crate::ENGINE_NAME)?;
+        let vk_version = vk::make_version(1, 1, 0);
         let app_info = vk::ApplicationInfoBuilder::new()
             .application_name(&application_name)
             .application_version(vk::make_version(1, 0, 0))
             .engine_name(&engine_name)
             .engine_version(crate::engine_version())
-            .api_version(vk::make_version(1, 1, 0));
+            .api_version(vk_version);
 
         let create_info = vk::InstanceCreateInfoBuilder::new()
             .application_info(&app_info)
             .enabled_layer_names(&vk_instance_layers_ptrs)
-            .enabled_extension_names(&vk_instance_ext_ptrs);
+            .enabled_extension_names(&vk_instance_ext_ptrs)
+            .build();
 
-        let vk_instance = InstanceLoader::new(&vk_entry, &create_info, None)?;
+        let vk_instance = unsafe { xr_instance.create_vulkan_instance(
+            system,
+            std::mem::transmute(vk_entry.get_instance_proc_addr),
+            &create_info as *const _ as _,
+        ) }?.map_err(|_| anyhow::format_err!("OpenXR failed to create Vulkan instance"))?;
+
+        let vk_instance = vk::Instance(vk_instance as _);
+        let symbol = |name| unsafe { (vk_entry.get_instance_proc_addr)(vk_instance, name) };
+        let vk_instance = unsafe {
+            let instance_enabled = erupt::InstanceEnabled::new(
+                vk_version,
+                vk_instance_ext_ptrs.len(),
+                vk_instance_ext_ptrs.as_ptr(),
+                &[], //TODO?
+            )?;
+            InstanceLoader::custom(&vk_entry, vk_instance, instance_enabled, symbol)
+        }?;
 
         // Obtain physical vk_device, queue_family_index, and vk_device from OpenXR
         let vk_physical_device = vk::PhysicalDevice(
@@ -147,7 +150,7 @@ impl OpenXrBackend {
                     }
                 })
                 .next()
-                .expect("Vulkan vk_device has no graphics queue")
+                .context("Vulkan vk_device has no graphics queue")?
         };
 
         let priorities = [1.0];
@@ -167,7 +170,23 @@ impl OpenXrBackend {
 
         create_info.p_next = &mut phys_device_features as *mut _ as _;
 
-        let vk_device = DeviceLoader::new(&vk_instance, vk_physical_device, &create_info, None)?;
+        let vk_device = unsafe { xr_instance.create_vulkan_device(
+            system, 
+            std::mem::transmute(vk_entry.get_instance_proc_addr),
+            vk_physical_device.0 as _, 
+            &create_info as *const _ as _
+        )}?.map_err(vk::Result)?;
+        let vk_device = vk::Device(vk_device as _);
+        let device_enabled = unsafe { erupt::DeviceEnabled::new(
+                vk_device_ext_ptrs.len(),
+                vk_device_ext_ptrs.as_ptr(),
+        )};
+        let vk_device = unsafe { DeviceLoader::custom(
+            &vk_instance, 
+            vk_device,
+            device_enabled, 
+            symbol,
+        )?};
         let queue = unsafe { vk_device.get_device_queue(queue_family_index, 0, None) };
 
         let (session, frame_wait, frame_stream) = unsafe {
@@ -187,16 +206,24 @@ impl OpenXrBackend {
             .create_reference_space(xr::ReferenceSpaceType::STAGE, xr::Posef::IDENTITY)
             .unwrap();
 
-        let prelude = Arc::new(VkPrelude {
+        let device_props = unsafe { gpu_alloc_erupt::device_properties(&vk_instance, vk_physical_device)? };
+        let allocator =
+            Mutex::new(GpuAllocator::new(gpu_alloc::Config::i_am_prototyping(), device_props));
+
+        let prelude = Arc::new(vk_core::Core {
             queue,
-            queue_family_index,
             device: vk_device,
-            physical_device: vk_physical_device,
             instance: vk_instance,
-            entry: vk_entry,
+            allocator,
+            _entry: vk_entry,
         });
 
-        let core = Core::new(prelude.clone(), true)?;
+        let meta = vk_core::CoreMeta {
+            physical_device: vk_physical_device,
+            queue_family_index,
+        };
+
+        let core = Core::new(prelude.clone(), meta, true)?;
 
         let openxr = Arc::new(XrPrelude {
             instance: xr_instance,
@@ -331,9 +358,7 @@ impl OpenXrBackend {
     }
 
     fn recreate_swapchain(&mut self) -> Result<()> {
-        if let Some(mut images) = self.core.swapchain_images.take() {
-            images.free(&mut self.core.allocator)?;
-        }
+        drop(self.core.swapchain_images.take());
         self.swapchain = None;
 
         let views = self
@@ -378,7 +403,6 @@ impl OpenXrBackend {
 
         self.core.swapchain_images = Some(SwapchainImages::new(
             self.prelude.clone(),
-            &mut self.core.allocator,
             extent,
             self.core.render_pass,
             swapchain_images,
@@ -444,7 +468,7 @@ fn projection_from_fov(fov: &xr::Fovf, near: f32, far: f32) -> Matrix4<f32> {
     let tan_down = fov.angle_down.tan();
 
     let tan_width = tan_right - tan_left;
-    let tan_height = tan_down - tan_up;
+    let tan_height = tan_up - tan_down;
 
     let a11 = 2.0 / tan_width;
     let a22 = 2.0 / tan_height;
@@ -455,6 +479,9 @@ fn projection_from_fov(fov: &xr::Fovf, near: f32, far: f32) -> Matrix4<f32> {
 
     let a43 = -(far * near) / (far - near);
     Matrix4::new(
-        a11, 0.0, a31, 0.0, 0.0, a22, a32, 0.0, 0.0, 0.0, a33, a43, 0.0, 0.0, -1.0, 0.0,
+        a11, 0.0, a31, 0.0, //
+        0.0, -a22, a32, 0.0, //
+        0.0, 0.0, a33, a43, //
+        0.0, 0.0, -1.0, 0.0, //
     )
 }
