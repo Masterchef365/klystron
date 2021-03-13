@@ -14,6 +14,11 @@ unsafe impl bytemuck::Zeroable for Vertex {}
 unsafe impl bytemuck::Pod for Vertex {}
 
 impl Vertex {
+    pub fn new(pos: [f32; 3], color: [f32; 3]) -> Self {
+        Self {
+            pos, color
+        }
+    }
     pub fn from_nalgebra(pos: Point3<f32>, color: Point3<f32>) -> Self {
         Self {
             pos: *pos.coords.as_ref(),

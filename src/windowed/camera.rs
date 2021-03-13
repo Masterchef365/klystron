@@ -17,12 +17,13 @@ pub struct PerspectiveCamera {
 impl Camera for PerspectiveCamera {
     /// Extract the camera matrix
     fn matrix(&self, width: u32, height: u32) -> Matrix4<f32> {
-        let perspective = Matrix4::new_perspective(
+        let mut perspective = Matrix4::new_perspective(
             width as f32 / height as f32,
             self.fov,
             self.clipping.0,
             self.clipping.1,
         );
+        perspective[(1, 1)] *= -1.;
         perspective * self.view()
     }
 }
@@ -33,7 +34,7 @@ impl PerspectiveCamera {
         Matrix4::look_at_rh(
             &(self.pivot + self.eye()),
             &self.pivot,
-            &Vector3::new(0.0, -1.0, 0.0),
+            &Vector3::new(0.0, 1.0, 0.0),
         )
     }
 
@@ -55,7 +56,7 @@ impl Default for PerspectiveCamera {
             yaw: 1.0,
             pitch: 1.0,
             fov: 45.0f32.to_radians(),
-            clipping: (0.1, 100.0),
+            clipping: (0.1, 2000.0),
         }
     }
 }

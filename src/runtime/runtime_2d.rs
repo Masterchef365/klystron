@@ -24,7 +24,7 @@ pub trait App2D: Sized {
     /// Handle a winit window event
     fn event(&mut self, event: &WindowEvent, engine: &mut WinitBackend) -> Result<()>;
     /// Rendering logic
-    fn frame(&self) -> FramePacket;
+    fn frame(&mut self, engine: &mut WinitBackend) -> FramePacket;
 }
 
 /// Run a 2D app given these args
@@ -53,7 +53,7 @@ pub fn launch<App: App2D + 'static>(args: App::Args) -> Result<()> {
             engine.update_time_value(time).unwrap();
             time += 0.01;
             target_time.start_frame();
-            let packet = app.frame();
+            let packet = app.frame(&mut engine);
             engine
                 .next_frame(&packet, &Dummy2DCam)
                 .expect("Engine frame failed");
@@ -68,7 +68,11 @@ pub struct Dummy2DCam;
 
 impl Camera for Dummy2DCam {
     fn matrix(&self, width: u32, height: u32) -> Matrix4<f32> {
-        let aspect = width as f32 / height as f32;
-        Matrix4::from_diagonal(&Vector4::new(1., aspect, 0., 1.))
+        let (w, h) = if width < height {
+            (1., width as f32 / height as f32)
+        } else {
+            (height as f32 / width as f32, 1.)
+        };
+        Matrix4::from_diagonal(&Vector4::new(w, h, 0., 1.))
     }
 }
