@@ -698,6 +698,7 @@ impl Core {
 
         unsafe {
             self.prelude.allocator()?.dealloc(EruptMemoryDevice::wrap(&self.prelude.device), image_buffer_alloc.memory);
+            self.prelude.device.destroy_buffer(Some(image_buffer_alloc.buffer), None);
         }
 
         // Create image view
@@ -916,6 +917,14 @@ impl Drop for Core {
             for ubo in self.time_ubos.drain(..) {
                 self.prelude.allocator().unwrap().dealloc(EruptMemoryDevice::wrap(&self.prelude.device), ubo.memory);
                 self.prelude.device.destroy_buffer(Some(ubo.buffer), None);
+            }
+            let keys = self.textures.iter().collect::<Vec<_>>();
+            for key in keys {
+                let texture = self.textures.remove(key).unwrap();
+                self.prelude.allocator().unwrap().dealloc(EruptMemoryDevice::wrap(&self.prelude.device), texture.alloc.memory);
+                self.prelude.device.destroy_image(Some(texture.alloc.image), None);
+                self.prelude.device.destroy_image_view(Some(texture.view), None);
+                self.prelude.device.destroy_sampler(Some(texture.sampler), None);
             }
             self.prelude
                 .device

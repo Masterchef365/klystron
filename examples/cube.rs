@@ -3,7 +3,7 @@ use klystron::{
     runtime_3d::{launch, App},
     DrawType, Engine, FramePacket, Material, Mesh, Object, Texture, Vertex, UNLIT_FRAG, UNLIT_VERT, Sampling
 };
-use nalgebra::{Matrix4, Point3};
+use nalgebra::Matrix4;
 use std::fs::File;
 
 struct MyApp {
