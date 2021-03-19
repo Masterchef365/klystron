@@ -18,11 +18,12 @@ use anyhow::Result;
 use genmap::Handle;
 pub use nalgebra::Matrix4;
 pub use vertex::Vertex;
-pub use vr::{xr_prelude::XrPrelude, OpenXrBackend};
+pub use vr::{XrPrelude, OpenXrBackend};
 pub use windowed::{Camera, PerspectiveCamera, WinitBackend};
 
 /// All information necessary to define a frame of video (besides camera, which is passed in a
 /// special camera for windowed mode and implicitly in OpenXR)
+#[derive(Clone)]
 pub struct FramePacket {
     /// The entire scene's worth of objects
     pub objects: Vec<Object>,
@@ -54,7 +55,7 @@ pub struct Mesh(pub(crate) Handle);
 pub struct Texture(pub(crate) Handle);
 
 /// Material rasterization method
-#[derive(PartialEq, Eq, Clone, Copy)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum DrawType {
     /// Lines in between each pair of indices
     Lines,

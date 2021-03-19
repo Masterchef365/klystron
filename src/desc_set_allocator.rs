@@ -1,5 +1,4 @@
-use crate::core::VkPrelude;
-use std::sync::Arc;
+use vk_core::SharedCore;
 use anyhow::Result;
 use erupt::vk1_0 as vk;
 
@@ -10,14 +9,14 @@ pub struct DescriptorSetAllocator {
     descriptor_set_layouts: Vec<vk::DescriptorSetLayout>,
     pools: Vec<vk::DescriptorPool>,
     current_sets: Vec<vk::DescriptorSet>,
-    prelude: Arc<VkPrelude>,
+    prelude: SharedCore,
 }
 
 impl DescriptorSetAllocator {
     pub fn new(
         mut template: Vec<vk::DescriptorPoolSizeBuilder<'static>>,
         descriptor_set_layout: vk::DescriptorSetLayout,
-        prelude: Arc<VkPrelude>,
+        prelude: SharedCore,
     ) -> Self {
         for dpsb in &mut template {
             dpsb.descriptor_count *= ALLOCATION_SIZE;
