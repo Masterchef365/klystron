@@ -73,6 +73,6 @@ impl Camera for Dummy2DCam {
         } else {
             (height as f32 / width as f32, 1.)
         };
-        Matrix4::from_diagonal(&Vector4::new(w, h, 0., 1.))
+        Matrix4::from_diagonal(&Vector4::new(w, h, 1., 1.))
     }
 }
