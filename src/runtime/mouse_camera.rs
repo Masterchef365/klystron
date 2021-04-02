@@ -1,5 +1,4 @@
 use crate::windowed::PerspectiveCamera;
-use nalgebra::Vector4;
 use winit::dpi::PhysicalPosition;
 use winit::event::{ElementState, MouseButton, MouseScrollDelta, WindowEvent};
 
@@ -65,13 +64,11 @@ impl MouseCamera {
     }
 
     fn mouse_pan(&mut self, delta_x: f32, delta_y: f32) {
-        let delta = Vector4::new(
-            (delta_x as f32) * self.inner.distance,
-            (-delta_y as f32) * self.inner.distance,
-            0.0,
-            0.0,
-        ) * self.pan_sensitivity;
-        let view_inv = self.inner.view().try_inverse().unwrap();
-        self.inner.pivot += (view_inv * delta).xyz();
+        let eye = self.inner.eye();
+        let x_pan = PerspectiveCamera::up().cross(&eye).normalize();
+        let y_pan = x_pan.cross(&eye).normalize();
+        let rate = self.inner.distance * self.pan_sensitivity;
+        self.inner.pivot += x_pan * (delta_x as f32) * rate;
+        self.inner.pivot += y_pan * (delta_y as f32) * rate;
     }
 }
