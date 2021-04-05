@@ -49,10 +49,10 @@ impl App2D for MyApp {
         Ok(())
     }
 
-    fn frame(&mut self, _engine: &mut WinitBackend) -> FramePacket {
-        FramePacket {
+    fn frame(&mut self, _engine: &mut WinitBackend) -> Result<FramePacket> {
+        Ok(FramePacket {
             objects: vec![self.object],
-        }
+        })
     }
 }
 

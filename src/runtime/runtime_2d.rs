@@ -22,9 +22,9 @@ pub trait App2D: Sized {
     /// Create a new instance of this app
     fn new(engine: &mut WinitBackend, args: Self::Args) -> Result<Self>;
     /// Handle a winit window event
-    fn event(&mut self, event: &WindowEvent, engine: &mut WinitBackend) -> Result<()>;
+    fn event(&mut self, _event: &WindowEvent, _engine: &mut WinitBackend) -> Result<()> { Ok(()) }
     /// Rendering logic
-    fn frame(&mut self, engine: &mut WinitBackend) -> FramePacket;
+    fn frame(&mut self, engine: &mut WinitBackend) -> Result<FramePacket>;
 }
 
 /// Run a 2D app given these args
@@ -53,7 +53,7 @@ pub fn launch<App: App2D + 'static>(args: App::Args) -> Result<()> {
             engine.update_time_value(time).unwrap();
             time += 0.01;
             target_time.start_frame();
-            let packet = app.frame(&mut engine);
+            let packet = app.frame(&mut engine).expect("Error on frame");
             engine
                 .next_frame(&packet, &Dummy2DCam)
                 .expect("Engine frame failed");
