@@ -34,7 +34,7 @@ impl PerspectiveCamera {
         Matrix4::look_at_rh(
             &(self.pivot + self.eye()),
             &self.pivot,
-            &Vector3::new(0.0, 1.0, 0.0),
+            &Self::up(),
         )
     }
 
@@ -45,6 +45,11 @@ impl PerspectiveCamera {
             self.pitch.sin(),
             self.yaw.sin() * self.pitch.cos().abs(),
         ) * self.distance
+    }
+
+    /// Up direction for the camera
+    pub fn up() -> Vector3<f32> {
+        Vector3::new(0.0, 1.0, 0.0) 
     }
 }
 
