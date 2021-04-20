@@ -14,11 +14,11 @@ mod vertex;
 mod vr;
 mod windowed;
 use anyhow::Result;
-use genmap::Handle;
 pub use nalgebra::Matrix4;
 pub use vertex::Vertex;
 pub use vr::{XrPrelude, OpenXrBackend};
 pub use windowed::{Camera, PerspectiveCamera, WinitBackend};
+use slotmap::new_key_type;
 
 /// All information necessary to define a frame of video (besides camera, which is passed in a
 /// special camera for windowed mode and implicitly in OpenXR)
@@ -37,17 +37,15 @@ pub struct Object {
     pub mesh: Mesh,
     /// Transformation applied to each vertex of this Object
     pub transform: Matrix4<f32>,
-    // /// An additional time uniform passed to the vertex and fragment shaders
-    // pub anim: f32,
 }
 
-/// Handle for a Material (Draw commands)
-#[derive(Copy, Clone)]
-pub struct Material(pub(crate) Handle);
+new_key_type! {
+    /// Handle for a Material (Draw commands)
+    pub struct Material;
 
-/// Handle for a Mesh (Draw content)
-#[derive(Copy, Clone)]
-pub struct Mesh(pub(crate) Handle);
+    /// Handle for a Mesh (Draw content)
+    pub struct Mesh;
+}
 
 /// Material rasterization method
 #[derive(Copy, Clone, Debug)]

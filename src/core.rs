@@ -4,7 +4,7 @@ use crate::swapchain_images::{SwapChainImage, SwapchainImages};
 use crate::vertex::Vertex;
 use anyhow::Result;
 use erupt::{vk1_0 as vk, vk1_1, DeviceLoader};
-use genmap::GenMap;
+use slotmap::SlotMap;
 use vk_core::SharedCore;
 use gpu_alloc_erupt::EruptMemoryDevice;
 
@@ -30,8 +30,8 @@ pub struct Mesh {
 // Do this when you switch over to gpu-alloc
 
 pub struct Core {
-    pub materials: GenMap<Material>,
-    pub meshes: GenMap<Mesh>,
+    pub materials: SlotMap<crate::Material, Material>,
+    pub meshes: SlotMap<crate::Mesh, Mesh>,
     pub render_pass: vk::RenderPass,
     pub frame_sync: FrameSync,
     pub swapchain_images: Option<SwapchainImages>,
@@ -221,8 +221,8 @@ impl Core {
             command_buffers,
             render_pass,
             swapchain_images: None,
-            materials: GenMap::with_capacity(10),
-            meshes: GenMap::with_capacity(10),
+            materials: SlotMap::with_capacity_and_key(10),
+            meshes: SlotMap::with_capacity_and_key(10),
         })
     }
 
@@ -240,7 +240,7 @@ impl Core {
             self.render_pass,
             self.descriptor_set_layout,
         )?;
-        Ok(crate::Material(self.materials.insert(material)))
+        Ok(self.materials.insert(material))
     }
 
     pub fn remove_material(&mut self, material: crate::Material) -> Result<()> {
@@ -248,7 +248,7 @@ impl Core {
         unsafe {
             self.prelude.device.device_wait_idle().result()?;
         }
-        self.materials.remove(material.0);
+        self.materials.remove(material);
         Ok(())
     }
 
@@ -325,7 +325,7 @@ impl Core {
             n_indices,
         };
 
-        Ok(crate::Mesh(self.meshes.insert(mesh)))
+        Ok(self.meshes.insert(mesh))
     }
 
     pub fn remove_mesh(&mut self, id: crate::Mesh) -> Result<()> {
@@ -333,7 +333,7 @@ impl Core {
         unsafe {
             self.prelude.device.device_wait_idle().result()?;
         }
-        if let Some(mesh) = self.meshes.remove(id.0) {
+        if let Some(mesh) = self.meshes.remove(id) {
             unsafe {
                 self.prelude.allocator()?.dealloc(EruptMemoryDevice::wrap(&self.prelude.device), mesh.indices.memory);
                 self.prelude.allocator()?.dealloc(EruptMemoryDevice::wrap(&self.prelude.device), mesh.vertices.memory);
@@ -407,12 +407,7 @@ impl Core {
                 .offset(vk::Offset2D { x: 0, y: 0 })
                 .extent(image.extent)];
 
-            let handles = self.materials.iter().collect::<Vec<_>>();
-            for material_id in handles {
-                let material = match self.materials.get(material_id) {
-                    Some(m) => m,
-                    None => continue,
-                };
+            for (material_id, material) in self.materials.iter() {
                 self.prelude.device.cmd_bind_pipeline(
                     command_buffer,
                     vk::PipelineBindPoint::GRAPHICS,
@@ -439,9 +434,9 @@ impl Core {
                 for object in packet
                     .objects
                     .iter()
-                    .filter(|o| o.material.0 == material_id)
+                    .filter(|o| o.material == material_id)
                 {
-                    let mesh = match self.meshes.get(object.mesh.0) {
+                    let mesh = match self.meshes.get(object.mesh) {
                         Some(m) => m,
                         None => {
                             log::error!("Object references a mesh that no exists");
@@ -585,9 +580,9 @@ impl Drop for Core {
     fn drop(&mut self) {
         unsafe {
             self.prelude.device.device_wait_idle().unwrap();
-            let handles = self.meshes.iter().collect::<Vec<_>>();
+            let handles = self.meshes.keys().collect::<Vec<_>>();
             for mesh in handles {
-                self.remove_mesh(crate::Mesh(mesh)).unwrap();
+                self.remove_mesh(mesh).unwrap();
             }
             for ubo in self.camera_ubos.drain(..) {
                 self.prelude.allocator().unwrap().dealloc(EruptMemoryDevice::wrap(&self.prelude.device), ubo.memory);
