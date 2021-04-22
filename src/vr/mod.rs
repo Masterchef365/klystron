@@ -121,12 +121,15 @@ impl OpenXrBackend {
         let vk_instance = vk::Instance(vk_instance as _);
         let symbol = |name| unsafe { (vk_entry.get_instance_proc_addr)(vk_instance, name) };
         let vk_instance = unsafe {
+            /*
             let instance_enabled = erupt::InstanceEnabled::new(
                 vk_version,
                 vk_instance_ext_ptrs.len(),
                 vk_instance_ext_ptrs.as_ptr(),
                 &[], //TODO?
             )?;
+            */
+                let instance_enabled = todo!();
             InstanceLoader::custom(&vk_entry, vk_instance, instance_enabled, symbol)
         }?;
 
@@ -177,10 +180,12 @@ impl OpenXrBackend {
             &create_info as *const _ as _
         )}?.map_err(vk::Result)?;
         let vk_device = vk::Device(vk_device as _);
-        let device_enabled = unsafe { erupt::DeviceEnabled::new(
+        let device_enabled = unsafe { 
+            todo!()
+            /*erupt::DeviceEnabled::new(
                 vk_device_ext_ptrs.len(),
                 vk_device_ext_ptrs.as_ptr(),
-        )};
+        )*/};
         let vk_device = unsafe { DeviceLoader::custom(
             &vk_instance, 
             vk_device,
@@ -432,7 +437,7 @@ impl Engine for OpenXrBackend {
     fn remove_mesh(&mut self, mesh: Mesh) -> Result<()> {
         self.core.remove_mesh(mesh)
     }
-    fn update_time_value(&self, data: f32) -> Result<()> {
+    fn update_time_value(&mut self, data: f32) -> Result<()> {
         self.core.update_time_value(data)
     }
 }

@@ -75,7 +75,7 @@ pub trait Engine {
     /// Remove the given mesh
     fn remove_mesh(&mut self, mesh: Mesh) -> Result<()>;
     /// Update the animation value
-    fn update_time_value(&self, data: f32) -> Result<()>;
+    fn update_time_value(&mut self, data: f32) -> Result<()>;
 }
 
 pub(crate) const ENGINE_NAME: &str = "Klystron";

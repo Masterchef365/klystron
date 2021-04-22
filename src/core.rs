@@ -270,7 +270,7 @@ impl Core {
             usage: UF::DOWNLOAD | UF::UPLOAD | UF::HOST_ACCESS,
             memory_types: requirements.memory_type_bits,
         };
-        let memory = unsafe { self.prelude.allocator()?
+        let mut memory = unsafe { self.prelude.allocator()?
             .alloc(EruptMemoryDevice::wrap(&self.prelude.device), request)? };
         unsafe {
             self.prelude.device.bind_buffer_memory(buffer, *memory.memory(), memory.offset()).result()?;
@@ -301,7 +301,7 @@ impl Core {
             usage: UF::DOWNLOAD | UF::UPLOAD | UF::HOST_ACCESS,
             memory_types: requirements.memory_type_bits,
         };
-        let memory = unsafe { self.prelude.allocator()?
+        let mut memory = unsafe { self.prelude.allocator()?
             .alloc(EruptMemoryDevice::wrap(&self.prelude.device), request)? };
         unsafe {
             self.prelude.device.bind_buffer_memory(buffer, *memory.memory(), memory.offset()).result()?;
@@ -490,8 +490,8 @@ impl Core {
     }
 
     /// Upload camera matricies (Two f32 camera matrics in column-major order)
-    pub fn update_camera_data(&self, frame_idx: usize, data: &[f32; 32]) -> Result<()> {
-        let ubo = &self.camera_ubos[frame_idx];
+    pub fn update_camera_data(&mut self, frame_idx: usize, data: &[f32; 32]) -> Result<()> {
+        let ubo = &mut self.camera_ubos[frame_idx];
         unsafe {
             ubo.memory.write_bytes(EruptMemoryDevice::wrap(&self.prelude.device), 0, bytemuck::cast_slice(&data[..]))?;
         }
@@ -499,9 +499,9 @@ impl Core {
     }
 
     /// Update time value
-    pub fn update_time_value(&self, time: f32) -> Result<()> {
+    pub fn update_time_value(&mut self, time: f32) -> Result<()> {
         let frame_idx = self.frame_sync.current_frame();
-        let ubo = &self.time_ubos[frame_idx];
+        let ubo = &mut self.time_ubos[frame_idx];
         unsafe {
             ubo.memory.write_bytes(EruptMemoryDevice::wrap(&self.prelude.device), 0, bytemuck::cast_slice(&[time]))?;
         }
