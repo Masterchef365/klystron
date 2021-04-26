@@ -1,9 +1,9 @@
-use vk_core::SharedCore;
 use crate::vertex::Vertex;
 use crate::DrawType;
 use anyhow::Result;
 use erupt::{utils, vk1_0 as vk};
 use std::ffi::CString;
+use vk_core::SharedCore;
 
 /// Represents a backing pipeline that can render an object
 /// with the from which it was created.

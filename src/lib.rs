@@ -15,10 +15,10 @@ mod vr;
 mod windowed;
 use anyhow::Result;
 pub use nalgebra::Matrix4;
-pub use vertex::Vertex;
-pub use vr::{XrPrelude, OpenXrBackend};
-pub use windowed::{Camera, PerspectiveCamera, WinitBackend};
 use slotmap::new_key_type;
+pub use vertex::Vertex;
+pub use vr::{OpenXrBackend, XrPrelude};
+pub use windowed::{Camera, PerspectiveCamera, WinitBackend};
 
 /// All information necessary to define a frame of video (besides camera, which is passed in a
 /// special camera for windowed mode and implicitly in OpenXR)

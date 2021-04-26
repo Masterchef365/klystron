@@ -4,9 +4,9 @@ use crate::swapchain_images::{SwapChainImage, SwapchainImages};
 use crate::vertex::Vertex;
 use anyhow::Result;
 use erupt::{vk1_0 as vk, vk1_1, DeviceLoader};
+use gpu_alloc_erupt::EruptMemoryDevice;
 use slotmap::SlotMap;
 use vk_core::SharedCore;
-use gpu_alloc_erupt::EruptMemoryDevice;
 
 pub(crate) const FRAMES_IN_FLIGHT: usize = 2;
 pub(crate) const COLOR_FORMAT: vk::Format = vk::Format::B8G8R8A8_SRGB;
@@ -122,22 +122,26 @@ impl Core {
             use gpu_alloc::UsageFlags as UF;
             let buffer =
                 unsafe { prelude.device.create_buffer(&ubo_create_info, None, None) }.result()?;
-            let requirements = unsafe { prelude.device.get_buffer_memory_requirements(buffer, None) };
+            let requirements =
+                unsafe { prelude.device.get_buffer_memory_requirements(buffer, None) };
             let request = gpu_alloc::Request {
                 size: requirements.size,
                 align_mask: requirements.alignment,
                 usage: UF::DOWNLOAD | UF::UPLOAD | UF::HOST_ACCESS,
                 memory_types: requirements.memory_type_bits,
             };
-            let memory = unsafe { prelude.allocator()?
-                .alloc(EruptMemoryDevice::wrap(&prelude.device), request)? };
+            let memory = unsafe {
+                prelude
+                    .allocator()?
+                    .alloc(EruptMemoryDevice::wrap(&prelude.device), request)?
+            };
             unsafe {
-                prelude.device.bind_buffer_memory(buffer, *memory.memory(), memory.offset()).result()?;
+                prelude
+                    .device
+                    .bind_buffer_memory(buffer, *memory.memory(), memory.offset())
+                    .result()?;
             }
-            camera_ubos.push(AllocatedBuffer {
-                buffer,
-                memory,
-            });
+            camera_ubos.push(AllocatedBuffer { buffer, memory });
         }
 
         // Animation
@@ -151,22 +155,26 @@ impl Core {
             use gpu_alloc::UsageFlags as UF;
             let buffer =
                 unsafe { prelude.device.create_buffer(&ubo_create_info, None, None) }.result()?;
-            let requirements = unsafe { prelude.device.get_buffer_memory_requirements(buffer, None) };
+            let requirements =
+                unsafe { prelude.device.get_buffer_memory_requirements(buffer, None) };
             let request = gpu_alloc::Request {
                 size: requirements.size,
                 align_mask: requirements.alignment,
                 usage: UF::DOWNLOAD | UF::UPLOAD | UF::HOST_ACCESS,
                 memory_types: requirements.memory_type_bits,
             };
-            let memory = unsafe { prelude.allocator()?
-                .alloc(EruptMemoryDevice::wrap(&prelude.device), request)? };
+            let memory = unsafe {
+                prelude
+                    .allocator()?
+                    .alloc(EruptMemoryDevice::wrap(&prelude.device), request)?
+            };
             unsafe {
-                prelude.device.bind_buffer_memory(buffer, *memory.memory(), memory.offset()).result()?;
+                prelude
+                    .device
+                    .bind_buffer_memory(buffer, *memory.memory(), memory.offset())
+                    .result()?;
             }
-            time_ubos.push(AllocatedBuffer {
-                buffer,
-                memory,
-            });
+            time_ubos.push(AllocatedBuffer { buffer, memory });
         }
 
         // Bind buffers to descriptors
@@ -263,29 +271,36 @@ impl Core {
             .size(std::mem::size_of_val(vertices) as u64);
         let buffer =
             unsafe { self.prelude.device.create_buffer(&create_info, None, None) }.result()?;
-        let requirements = unsafe { self.prelude.device.get_buffer_memory_requirements(buffer, None) };
+        let requirements = unsafe {
+            self.prelude
+                .device
+                .get_buffer_memory_requirements(buffer, None)
+        };
         let request = gpu_alloc::Request {
             size: requirements.size,
             align_mask: requirements.alignment,
             usage: UF::DOWNLOAD | UF::UPLOAD | UF::HOST_ACCESS,
             memory_types: requirements.memory_type_bits,
         };
-        let mut memory = unsafe { self.prelude.allocator()?
-            .alloc(EruptMemoryDevice::wrap(&self.prelude.device), request)? };
+        let mut memory = unsafe {
+            self.prelude
+                .allocator()?
+                .alloc(EruptMemoryDevice::wrap(&self.prelude.device), request)?
+        };
         unsafe {
-            self.prelude.device.bind_buffer_memory(buffer, *memory.memory(), memory.offset()).result()?;
+            self.prelude
+                .device
+                .bind_buffer_memory(buffer, *memory.memory(), memory.offset())
+                .result()?;
         }
         unsafe {
-        memory.write_bytes(
+            memory.write_bytes(
                 EruptMemoryDevice::wrap(&self.prelude.device),
                 0,
                 &bytemuck::cast_slice(vertices),
             )?;
         }
-        let vertex_buffer = AllocatedBuffer {
-            memory,
-            buffer,
-        };
+        let vertex_buffer = AllocatedBuffer { memory, buffer };
 
         // Indices
         let create_info = vk::BufferCreateInfoBuilder::new()
@@ -294,30 +309,36 @@ impl Core {
             .size(std::mem::size_of_val(indices) as u64);
         let buffer =
             unsafe { self.prelude.device.create_buffer(&create_info, None, None) }.result()?;
-        let requirements = unsafe { self.prelude.device.get_buffer_memory_requirements(buffer, None) };
+        let requirements = unsafe {
+            self.prelude
+                .device
+                .get_buffer_memory_requirements(buffer, None)
+        };
         let request = gpu_alloc::Request {
             size: requirements.size,
             align_mask: requirements.alignment,
             usage: UF::DOWNLOAD | UF::UPLOAD | UF::HOST_ACCESS,
             memory_types: requirements.memory_type_bits,
         };
-        let mut memory = unsafe { self.prelude.allocator()?
-            .alloc(EruptMemoryDevice::wrap(&self.prelude.device), request)? };
+        let mut memory = unsafe {
+            self.prelude
+                .allocator()?
+                .alloc(EruptMemoryDevice::wrap(&self.prelude.device), request)?
+        };
         unsafe {
-            self.prelude.device.bind_buffer_memory(buffer, *memory.memory(), memory.offset()).result()?;
+            self.prelude
+                .device
+                .bind_buffer_memory(buffer, *memory.memory(), memory.offset())
+                .result()?;
         }
         unsafe {
-        memory.write_bytes(
+            memory.write_bytes(
                 EruptMemoryDevice::wrap(&self.prelude.device),
                 0,
                 &bytemuck::cast_slice(indices),
             )?;
         }
-        let index_buffer = AllocatedBuffer {
-            memory,
-            buffer,
-        };
-
+        let index_buffer = AllocatedBuffer { memory, buffer };
 
         let mesh = Mesh {
             indices: index_buffer,
@@ -335,10 +356,20 @@ impl Core {
         }
         if let Some(mesh) = self.meshes.remove(id) {
             unsafe {
-                self.prelude.allocator()?.dealloc(EruptMemoryDevice::wrap(&self.prelude.device), mesh.indices.memory);
-                self.prelude.allocator()?.dealloc(EruptMemoryDevice::wrap(&self.prelude.device), mesh.vertices.memory);
-                self.prelude.device.destroy_buffer(Some(mesh.indices.buffer), None);
-                self.prelude.device.destroy_buffer(Some(mesh.vertices.buffer), None);
+                self.prelude.allocator()?.dealloc(
+                    EruptMemoryDevice::wrap(&self.prelude.device),
+                    mesh.indices.memory,
+                );
+                self.prelude.allocator()?.dealloc(
+                    EruptMemoryDevice::wrap(&self.prelude.device),
+                    mesh.vertices.memory,
+                );
+                self.prelude
+                    .device
+                    .destroy_buffer(Some(mesh.indices.buffer), None);
+                self.prelude
+                    .device
+                    .destroy_buffer(Some(mesh.vertices.buffer), None);
             }
         }
         Ok(())
@@ -431,11 +462,7 @@ impl Core {
                     &[],
                 );
 
-                for object in packet
-                    .objects
-                    .iter()
-                    .filter(|o| o.material == material_id)
-                {
+                for object in packet.objects.iter().filter(|o| o.material == material_id) {
                     let mesh = match self.meshes.get(object.mesh) {
                         Some(m) => m,
                         None => {
@@ -493,7 +520,11 @@ impl Core {
     pub fn update_camera_data(&mut self, frame_idx: usize, data: &[f32; 32]) -> Result<()> {
         let ubo = &mut self.camera_ubos[frame_idx];
         unsafe {
-            ubo.memory.write_bytes(EruptMemoryDevice::wrap(&self.prelude.device), 0, bytemuck::cast_slice(&data[..]))?;
+            ubo.memory.write_bytes(
+                EruptMemoryDevice::wrap(&self.prelude.device),
+                0,
+                bytemuck::cast_slice(&data[..]),
+            )?;
         }
         Ok(())
     }
@@ -503,7 +534,11 @@ impl Core {
         let frame_idx = self.frame_sync.current_frame();
         let ubo = &mut self.time_ubos[frame_idx];
         unsafe {
-            ubo.memory.write_bytes(EruptMemoryDevice::wrap(&self.prelude.device), 0, bytemuck::cast_slice(&[time]))?;
+            ubo.memory.write_bytes(
+                EruptMemoryDevice::wrap(&self.prelude.device),
+                0,
+                bytemuck::cast_slice(&[time]),
+            )?;
         }
         Ok(())
     }
@@ -585,11 +620,17 @@ impl Drop for Core {
                 self.remove_mesh(mesh).unwrap();
             }
             for ubo in self.camera_ubos.drain(..) {
-                self.prelude.allocator().unwrap().dealloc(EruptMemoryDevice::wrap(&self.prelude.device), ubo.memory);
+                self.prelude
+                    .allocator()
+                    .unwrap()
+                    .dealloc(EruptMemoryDevice::wrap(&self.prelude.device), ubo.memory);
                 self.prelude.device.destroy_buffer(Some(ubo.buffer), None);
             }
             for ubo in self.time_ubos.drain(..) {
-                self.prelude.allocator().unwrap().dealloc(EruptMemoryDevice::wrap(&self.prelude.device), ubo.memory);
+                self.prelude
+                    .allocator()
+                    .unwrap()
+                    .dealloc(EruptMemoryDevice::wrap(&self.prelude.device), ubo.memory);
                 self.prelude.device.destroy_buffer(Some(ubo.buffer), None);
             }
             self.prelude

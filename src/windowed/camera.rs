@@ -31,11 +31,7 @@ impl Camera for PerspectiveCamera {
 impl PerspectiveCamera {
     /// View matrix
     pub fn view(&self) -> Matrix4<f32> {
-        Matrix4::look_at_rh(
-            &(self.pivot + self.eye()),
-            &self.pivot,
-            &Self::up(),
-        )
+        Matrix4::look_at_rh(&(self.pivot + self.eye()), &self.pivot, &Self::up())
     }
 
     /// Eye position
@@ -49,7 +45,7 @@ impl PerspectiveCamera {
 
     /// Up direction for the camera
     pub fn up() -> Vector3<f32> {
-        Vector3::new(0.0, 1.0, 0.0) 
+        Vector3::new(0.0, 1.0, 0.0)
     }
 }
 

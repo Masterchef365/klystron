@@ -22,7 +22,9 @@ pub trait App2D: Sized {
     /// Create a new instance of this app
     fn new(engine: &mut WinitBackend, args: Self::Args) -> Result<Self>;
     /// Handle a winit window event
-    fn event(&mut self, _event: &WindowEvent, _engine: &mut WinitBackend) -> Result<()> { Ok(()) }
+    fn event(&mut self, _event: &WindowEvent, _engine: &mut WinitBackend) -> Result<()> {
+        Ok(())
+    }
     /// Rendering logic
     fn frame(&mut self, engine: &mut WinitBackend) -> Result<FramePacket>;
 }
