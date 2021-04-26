@@ -6,7 +6,7 @@ use anyhow::{bail, ensure, Context, Result};
 use erupt::{vk1_0 as vk, DeviceLoader, EntryLoader, InstanceLoader};
 use log::info;
 use nalgebra::{Matrix4, Unit, Vector3};
-use std::ffi::CString;
+use std::ffi::{CString, CStr};
 use std::sync::{Arc, Mutex};
 use gpu_alloc::{self, GpuAllocator};
 
@@ -120,16 +120,20 @@ impl OpenXrBackend {
 
         let vk_instance = vk::Instance(vk_instance as _);
         let symbol = |name| unsafe { (vk_entry.get_instance_proc_addr)(vk_instance, name) };
+
+    let vk_instance_ext_cstrs = unsafe {
+        vk_instance_ext_ptrs
+            .iter()
+            .map(|&p| CStr::from_ptr(p))
+            .collect::<Vec<_>>()
+    };
+
         let vk_instance = unsafe {
-            /*
             let instance_enabled = erupt::InstanceEnabled::new(
                 vk_version,
-                vk_instance_ext_ptrs.len(),
-                vk_instance_ext_ptrs.as_ptr(),
+                &vk_instance_ext_cstrs,
                 &[], //TODO?
             )?;
-            */
-                let instance_enabled = todo!();
             InstanceLoader::custom(&vk_entry, vk_instance, instance_enabled, symbol)
         }?;
 
@@ -180,12 +184,15 @@ impl OpenXrBackend {
             &create_info as *const _ as _
         )}?.map_err(vk::Result)?;
         let vk_device = vk::Device(vk_device as _);
-        let device_enabled = unsafe { 
-            todo!()
-            /*erupt::DeviceEnabled::new(
-                vk_device_ext_ptrs.len(),
-                vk_device_ext_ptrs.as_ptr(),
-        )*/};
+        
+    let vk_device_ext_cstrs = unsafe {
+        vk_device_ext_ptrs
+            .iter()
+            .map(|&p| CStr::from_ptr(p))
+            .collect::<Vec<_>>()
+    };
+    let device_enabled = unsafe { erupt::DeviceEnabled::new(&vk_device_ext_cstrs) };
+
         let vk_device = unsafe { DeviceLoader::custom(
             &vk_instance, 
             vk_device,
