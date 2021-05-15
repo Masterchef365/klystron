@@ -1,14 +1,14 @@
-use vk_core::SharedCore;
 use crate::core::Core;
 use crate::swapchain_images::SwapchainImages;
 use crate::{DrawType, Engine, FramePacket, Material, Mesh, Vertex, Texture, Sampling};
 use anyhow::{bail, ensure, Context, Result};
 use erupt::{vk1_0 as vk, DeviceLoader, EntryLoader, InstanceLoader};
+use gpu_alloc::{self, GpuAllocator};
 use log::info;
 use nalgebra::{Matrix4, Unit, Vector3};
-use std::ffi::CString;
+use std::ffi::{CStr, CString};
 use std::sync::{Arc, Mutex};
-use gpu_alloc::{self, GpuAllocator};
+use vk_core::SharedCore;
 
 /// VR Capable OpenXR engine backend
 pub struct OpenXrBackend {
@@ -34,7 +34,10 @@ impl OpenXrBackend {
         let xr_entry = xr::Entry::load()?;
 
         let available_extensions = xr_entry.enumerate_extensions()?;
-        ensure!(available_extensions.khr_vulkan_enable2, "Klytron requires OpenXR with KHR_VULKAN_ENABLE2");
+        ensure!(
+            available_extensions.khr_vulkan_enable2,
+            "Klytron requires OpenXR with KHR_VULKAN_ENABLE2"
+        );
 
         let mut enabled_extensions = xr::ExtensionSet::default();
         enabled_extensions.khr_vulkan_enable2 = true;
@@ -112,19 +115,29 @@ impl OpenXrBackend {
             .enabled_extension_names(&vk_instance_ext_ptrs)
             .build();
 
-        let vk_instance = unsafe { xr_instance.create_vulkan_instance(
-            system,
-            std::mem::transmute(vk_entry.get_instance_proc_addr),
-            &create_info as *const _ as _,
-        ) }?.map_err(|_| anyhow::format_err!("OpenXR failed to create Vulkan instance"))?;
+        let vk_instance = unsafe {
+            xr_instance.create_vulkan_instance(
+                system,
+                std::mem::transmute(vk_entry.get_instance_proc_addr),
+                &create_info as *const _ as _,
+            )
+        }?
+        .map_err(|_| anyhow::format_err!("OpenXR failed to create Vulkan instance"))?;
 
         let vk_instance = vk::Instance(vk_instance as _);
         let symbol = |name| unsafe { (vk_entry.get_instance_proc_addr)(vk_instance, name) };
+
+        let vk_instance_ext_cstrs = unsafe {
+            vk_instance_ext_ptrs
+                .iter()
+                .map(|&p| CStr::from_ptr(p))
+                .collect::<Vec<_>>()
+        };
+
         let vk_instance = unsafe {
             let instance_enabled = erupt::InstanceEnabled::new(
                 vk_version,
-                vk_instance_ext_ptrs.len(),
-                vk_instance_ext_ptrs.as_ptr(),
+                &vk_instance_ext_cstrs,
                 &[], //TODO?
             )?;
             InstanceLoader::custom(&vk_entry, vk_instance, instance_enabled, symbol)
@@ -173,23 +186,27 @@ impl OpenXrBackend {
 
         create_info.p_next = &mut phys_device_features as *mut _ as _;
 
-        let vk_device = unsafe { xr_instance.create_vulkan_device(
-            system, 
-            std::mem::transmute(vk_entry.get_instance_proc_addr),
-            vk_physical_device.0 as _, 
-            &create_info as *const _ as _
-        )}?.map_err(vk::Result)?;
+        let vk_device = unsafe {
+            xr_instance.create_vulkan_device(
+                system,
+                std::mem::transmute(vk_entry.get_instance_proc_addr),
+                vk_physical_device.0 as _,
+                &create_info as *const _ as _,
+            )
+        }?
+        .map_err(vk::Result)?;
         let vk_device = vk::Device(vk_device as _);
-        let device_enabled = unsafe { erupt::DeviceEnabled::new(
-                vk_device_ext_ptrs.len(),
-                vk_device_ext_ptrs.as_ptr(),
-        )};
-        let vk_device = unsafe { DeviceLoader::custom(
-            &vk_instance, 
-            vk_device,
-            device_enabled, 
-            symbol,
-        )?};
+
+        let vk_device_ext_cstrs = unsafe {
+            vk_device_ext_ptrs
+                .iter()
+                .map(|&p| CStr::from_ptr(p))
+                .collect::<Vec<_>>()
+        };
+        let device_enabled = unsafe { erupt::DeviceEnabled::new(&vk_device_ext_cstrs) };
+
+        let vk_device =
+            unsafe { DeviceLoader::custom(&vk_instance, vk_device, device_enabled, symbol)? };
         let queue = unsafe { vk_device.get_device_queue(queue_family_index, 0, None) };
 
         let (session, frame_wait, frame_stream) = unsafe {
@@ -209,9 +226,12 @@ impl OpenXrBackend {
             .create_reference_space(xr::ReferenceSpaceType::STAGE, xr::Posef::IDENTITY)
             .unwrap();
 
-        let device_props = unsafe { gpu_alloc_erupt::device_properties(&vk_instance, vk_physical_device)? };
-        let allocator =
-            Mutex::new(GpuAllocator::new(gpu_alloc::Config::i_am_prototyping(), device_props));
+        let device_props =
+            unsafe { gpu_alloc_erupt::device_properties(&vk_instance, vk_physical_device)? };
+        let allocator = Mutex::new(GpuAllocator::new(
+            gpu_alloc::Config::i_am_prototyping(),
+            device_props,
+        ));
 
         let prelude = Arc::new(vk_core::Core {
             queue,
@@ -435,7 +455,7 @@ impl Engine for OpenXrBackend {
     fn remove_mesh(&mut self, mesh: Mesh) -> Result<()> {
         self.core.remove_mesh(mesh)
     }
-    fn update_time_value(&self, data: f32) -> Result<()> {
+    fn update_time_value(&mut self, data: f32) -> Result<()> {
         self.core.update_time_value(data)
     }
     fn add_texture(&mut self, data: &[u8], width: u32, sampling: Sampling) -> Result<Texture> {

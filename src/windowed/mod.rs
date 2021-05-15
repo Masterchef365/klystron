@@ -1,6 +1,5 @@
 mod camera;
 use crate::core::Core;
-use vk_core::SharedCore;
 use crate::hardware_query::HardwareSelection;
 use crate::swapchain_images::SwapchainImages;
 use crate::{DrawType, Engine, FramePacket, Material, Mesh, Vertex, Texture, Sampling};
@@ -11,10 +10,11 @@ use erupt::{
     utils::surface,
     vk1_0 as vk, DeviceLoader, EntryLoader, InstanceLoader,
 };
-use std::ffi::CString;
-use winit::window::Window;
-use std::sync::Mutex;
 use gpu_alloc::GpuAllocator;
+use std::ffi::CString;
+use std::sync::Mutex;
+use vk_core::SharedCore;
+use winit::window::Window;
 
 /// Windowed mode Winit engine backend
 pub struct WinitBackend {
@@ -85,10 +85,12 @@ impl WinitBackend {
         let device = DeviceLoader::new(&instance, hardware.physical_device, &create_info, None)?;
         let queue = unsafe { device.get_device_queue(hardware.queue_family, 0, None) };
 
-        let device_props = unsafe { gpu_alloc_erupt::device_properties(&instance, hardware.physical_device)? };
-        let allocator =
-            Mutex::new(GpuAllocator::new(gpu_alloc::Config::i_am_prototyping(), device_props));
-
+        let device_props =
+            unsafe { gpu_alloc_erupt::device_properties(&instance, hardware.physical_device)? };
+        let allocator = Mutex::new(GpuAllocator::new(
+            gpu_alloc::Config::i_am_prototyping(),
+            device_props,
+        ));
 
         let prelude = SharedCore::new(vk_core::Core {
             queue,
@@ -322,7 +324,7 @@ impl Engine for WinitBackend {
     fn remove_mesh(&mut self, mesh: Mesh) -> Result<()> {
         self.core.remove_mesh(mesh)
     }
-    fn update_time_value(&self, data: f32) -> Result<()> {
+    fn update_time_value(&mut self, data: f32) -> Result<()> {
         self.core.update_time_value(data)
     }
     fn add_texture(&mut self, data: &[u8], width: u32, sampling: Sampling) -> Result<Texture> {

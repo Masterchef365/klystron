@@ -8,18 +8,21 @@ edition = "2018"
 builtin_shaders = []
 
 [dependencies]
-erupt = "0.15"
-winit = "0.22"
+erupt = "0.18"
+winit = "0.24"
 openxr = { version = "0.14.0", features = ["loaded"] }
-nalgebra = "0.22"
+nalgebra = "0.25"
 bytemuck = "1.3.1"
 anyhow = "1"
 log = "0.4"
 ctrlc = "3.1.5"
-genmap = "1.0"
-vk_core = { git = "https://github.com/Masterchef365/vk_core.git", branch = "main" }
-gpu-alloc-erupt = "0.1"
-gpu-alloc = "0.2"
+slotmap = "1.0"
+#vk_core = { git = "https://github.com/Masterchef365/vk_core.git", branch = "main" }
+vk_core = { path = "../vk_core" }
+#gpu-alloc-erupt = "0.1"
+#gpu-alloc = "0.2"
+gpu-alloc = { path = "/home/duncan/Downloads/gpu-alloc/gpu-alloc" }
+gpu-alloc-erupt = { path = "/home/duncan/Downloads/gpu-alloc/erupt" }
 
 [dev-dependencies]
 png = "0.16"

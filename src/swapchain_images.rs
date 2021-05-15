@@ -1,8 +1,8 @@
-use vk_core::SharedCore;
 use crate::frame_sync::Frame;
 use anyhow::Result;
 use erupt::{vk1_0 as vk, DeviceLoader};
 use gpu_alloc_erupt::EruptMemoryDevice;
+use vk_core::SharedCore;
 
 pub struct SwapchainImages {
     pub extent: vk::Extent2D,
@@ -75,7 +75,11 @@ impl SwapchainImages {
         let depth_image =
             unsafe { prelude.device.create_image(&create_info, None, None) }.result()?;
 
-        let requirements = unsafe { prelude.device.get_image_memory_requirements(depth_image, None) };
+        let requirements = unsafe {
+            prelude
+                .device
+                .get_image_memory_requirements(depth_image, None)
+        };
 
         use gpu_alloc::UsageFlags as UF;
         let request = gpu_alloc::Request {
@@ -85,11 +89,21 @@ impl SwapchainImages {
             memory_types: requirements.memory_type_bits,
         };
 
-        let depth_image_mem = unsafe { prelude.allocator()?
-            .alloc(EruptMemoryDevice::wrap(&prelude.device), request)? };
+        let depth_image_mem = unsafe {
+            prelude
+                .allocator()?
+                .alloc(EruptMemoryDevice::wrap(&prelude.device), request)?
+        };
 
         unsafe {
-            prelude.device.bind_image_memory(depth_image, *depth_image_mem.memory(), depth_image_mem.offset()).result()?;
+            prelude
+                .device
+                .bind_image_memory(
+                    depth_image,
+                    *depth_image_mem.memory(),
+                    depth_image_mem.offset(),
+                )
+                .result()?;
         }
 
         let create_info = vk::ImageViewCreateInfoBuilder::new()
@@ -155,7 +169,10 @@ impl Drop for SwapchainImages {
         }
 
         unsafe {
-            self.prelude.allocator().as_mut().unwrap().dealloc(EruptMemoryDevice::wrap(&self.prelude.device), self.depth_image_mem.take().unwrap());
+            self.prelude.allocator().as_mut().unwrap().dealloc(
+                EruptMemoryDevice::wrap(&self.prelude.device),
+                self.depth_image_mem.take().unwrap(),
+            );
         }
     }
 }

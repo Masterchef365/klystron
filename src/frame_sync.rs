@@ -1,6 +1,6 @@
-use vk_core::SharedCore;
 use anyhow::Result;
 use erupt::{vk1_0 as vk, DeviceLoader};
+use vk_core::SharedCore;
 
 /// Manages fences and semaphores for every given frame
 pub struct FrameSync {

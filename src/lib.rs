@@ -15,10 +15,10 @@ mod vr;
 mod windowed;
 mod desc_set_allocator;
 use anyhow::Result;
-use genmap::Handle;
 pub use nalgebra::Matrix4;
+use slotmap::new_key_type;
 pub use vertex::Vertex;
-pub use vr::{XrPrelude, OpenXrBackend};
+pub use vr::{OpenXrBackend, XrPrelude};
 pub use windowed::{Camera, PerspectiveCamera, WinitBackend};
 
 /// All information necessary to define a frame of video (besides camera, which is passed in a
@@ -42,17 +42,16 @@ pub struct Object {
     pub texture: Texture,
 }
 
-/// Handle for a Material (Draw commands)
-#[derive(Copy, Clone)]
-pub struct Material(pub(crate) Handle);
+new_key_type! {
+    /// Handle for a Material (Draw commands)
+    pub struct Material;
 
-/// Handle for a Mesh (Draw content)
-#[derive(Copy, Clone)]
-pub struct Mesh(pub(crate) Handle);
+    /// Handle for a Mesh (Draw content)
+    pub struct Mesh;
 
-/// Handle for a Mesh (Draw content)
-#[derive(Copy, Clone)]
-pub struct Texture(pub(crate) Handle);
+    /// Handle for a Texture (Draw content)
+    pub struct Texture;
+}
 
 /// Material rasterization method
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
@@ -101,7 +100,7 @@ pub trait Engine {
     fn remove_texture(&mut self, texture: Texture) -> Result<()>;
 
     /// Update the animation value
-    fn update_time_value(&self, data: f32) -> Result<()>;
+    fn update_time_value(&mut self, data: f32) -> Result<()>;
 }
 
 pub(crate) const ENGINE_NAME: &str = "Klystron";
