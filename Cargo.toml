@@ -17,10 +17,10 @@ anyhow = "1"
 log = "0.4"
 ctrlc = "3.1.5"
 slotmap = "1.0"
-#vk_core = { git = "https://github.com/Masterchef365/vk_core.git", branch = "main" }
-vk_core = { path = "../vk_core" }
 gpu-alloc-erupt = "0.5"
 gpu-alloc = "0.5"
+vk_core = { git = "https://github.com/Masterchef365/vk_core.git", branch = "main" }
+
 #gpu-alloc = { path = "/home/duncan/Downloads/gpu-alloc/gpu-alloc" }
 #gpu-alloc-erupt = { path = "/home/duncan/Downloads/gpu-alloc/erupt" }
-
+#vk_core = { path = "../vk_core" }
