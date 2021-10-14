@@ -73,9 +73,9 @@ impl SwapchainImages {
             .samples(vk::SampleCountFlagBits::_1)
             .sharing_mode(vk::SharingMode::EXCLUSIVE);
         let depth_image =
-            unsafe { prelude.device.create_image(&create_info, None, None) }.result()?;
+            unsafe { prelude.device.create_image(&create_info, None) }.result()?;
 
-        let requirements = unsafe { prelude.device.get_image_memory_requirements(depth_image, None) };
+        let requirements = unsafe { prelude.device.get_image_memory_requirements(depth_image) };
 
         use gpu_alloc::UsageFlags as UF;
         let request = gpu_alloc::Request {
@@ -106,7 +106,7 @@ impl SwapchainImages {
                     .build(),
             );
         let depth_image_view =
-            unsafe { prelude.device.create_image_view(&create_info, None, None) }.result()?;
+            unsafe { prelude.device.create_image_view(&create_info, None) }.result()?;
 
         // Build swapchain image views and buffers
         let images = swapchain_images
@@ -191,7 +191,7 @@ impl SwapChainImage {
                     .build(),
             );
 
-        let image_view = unsafe { device.create_image_view(&create_info, None, None) }.result()?;
+        let image_view = unsafe { device.create_image_view(&create_info, None) }.result()?;
 
         let attachments = [image_view, depth_image_view];
         let create_info = vk::FramebufferCreateInfoBuilder::new()
@@ -202,7 +202,7 @@ impl SwapChainImage {
             .layers(1);
 
         let framebuffer =
-            unsafe { device.create_framebuffer(&create_info, None, None) }.result()?;
+            unsafe { device.create_framebuffer(&create_info, None) }.result()?;
 
         Ok(Self {
             framebuffer,

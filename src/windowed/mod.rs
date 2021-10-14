@@ -61,7 +61,9 @@ impl WinitBackend {
             .enabled_extension_names(&instance_extensions)
             .enabled_layer_names(&instance_layers);
 
-        let mut instance = InstanceLoader::new(&entry, &create_info, None)?;
+        let mut instance = unsafe {
+            InstanceLoader::new(&entry, &create_info, None)?
+        };
 
         // Surface
         let surface = unsafe { surface::create_surface(&mut instance, window, None) }.result()?;
@@ -81,8 +83,10 @@ impl WinitBackend {
             .enabled_extension_names(&device_extensions)
             .enabled_layer_names(&device_layers);
 
-        let device = DeviceLoader::new(&instance, hardware.physical_device, &create_info, None)?;
-        let queue = unsafe { device.get_device_queue(hardware.queue_family, 0, None) };
+        let device = unsafe {
+            DeviceLoader::new(&instance, hardware.physical_device, &create_info, None)?
+        };
+        let queue = unsafe { device.get_device_queue(hardware.queue_family, 0) };
 
         let device_props = unsafe { gpu_alloc_erupt::device_properties(&instance, hardware.physical_device)? };
         let allocator =
@@ -110,7 +114,7 @@ impl WinitBackend {
                 unsafe {
                     prelude
                         .device
-                        .create_semaphore(&create_info, None, None)
+                        .create_semaphore(&create_info, None)
                         .result()
                 }
             })
@@ -142,7 +146,6 @@ impl WinitBackend {
                 swapchain,
                 u64::MAX,
                 Some(image_available),
-                None,
                 None,
             )
         };
@@ -246,7 +249,6 @@ impl WinitBackend {
                 .get_physical_device_surface_capabilities_khr(
                     self.hardware.physical_device,
                     self.surface,
-                    None,
                 )
         }
         .result()?;
@@ -275,7 +277,7 @@ impl WinitBackend {
         let swapchain = unsafe {
             self.prelude
                 .device
-                .create_swapchain_khr(&create_info, None, None)
+                .create_swapchain_khr(&create_info, None)
         }
         .result()?;
         let swapchain_images = unsafe {

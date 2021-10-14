@@ -28,7 +28,7 @@ impl Material {
         let vertex = unsafe {
             prelude
                 .device
-                .create_shader_module(&create_info, None, None)
+                .create_shader_module(&create_info, None)
         }
         .result()?;
 
@@ -37,7 +37,7 @@ impl Material {
         let fragment = unsafe {
             prelude
                 .device
-                .create_shader_module(&create_info, None, None)
+                .create_shader_module(&create_info, None)
         }
         .result()?;
 
@@ -119,7 +119,7 @@ impl Material {
         let pipeline_layout = unsafe {
             prelude
                 .device
-                .create_pipeline_layout(&create_info, None, None)
+                .create_pipeline_layout(&create_info, None)
         }
         .result()?;
 

@@ -68,11 +68,11 @@ impl Frame {
     pub fn new(device: &DeviceLoader) -> Result<Self> {
         unsafe {
             let create_info = vk::SemaphoreCreateInfoBuilder::new();
-            let render_finished = device.create_semaphore(&create_info, None, None).result()?;
+            let render_finished = device.create_semaphore(&create_info, None).result()?;
 
             let create_info =
                 vk::FenceCreateInfoBuilder::new().flags(vk::FenceCreateFlags::SIGNALED);
-            let in_flight_fence = device.create_fence(&create_info, None, None).result()?;
+            let in_flight_fence = device.create_fence(&create_info, None).result()?;
             Ok(Self {
                 in_flight_fence,
                 render_finished,

@@ -52,7 +52,7 @@ impl Core {
             .flags(vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER)
             .queue_family_index(core_meta.queue_family_index);
         let command_pool =
-            unsafe { prelude.device.create_command_pool(&create_info, None, None) }.result()?;
+            unsafe { prelude.device.create_command_pool(&create_info, None) }.result()?;
 
         // Allocate command buffers
         let allocate_info = vk::CommandBufferAllocateInfoBuilder::new()
@@ -83,7 +83,7 @@ impl Core {
         let descriptor_set_layout = unsafe {
             prelude
                 .device
-                .create_descriptor_set_layout(&descriptor_set_layout_ci, None, None)
+                .create_descriptor_set_layout(&descriptor_set_layout_ci, None)
         }
         .result()?;
 
@@ -97,7 +97,7 @@ impl Core {
         let descriptor_pool = unsafe {
             prelude
                 .device
-                .create_descriptor_pool(&create_info, None, None)
+                .create_descriptor_pool(&create_info, None)
         }
         .result()?;
 
@@ -121,8 +121,8 @@ impl Core {
         for _ in 0..FRAMES_IN_FLIGHT {
             use gpu_alloc::UsageFlags as UF;
             let buffer =
-                unsafe { prelude.device.create_buffer(&ubo_create_info, None, None) }.result()?;
-            let requirements = unsafe { prelude.device.get_buffer_memory_requirements(buffer, None) };
+                unsafe { prelude.device.create_buffer(&ubo_create_info, None) }.result()?;
+            let requirements = unsafe { prelude.device.get_buffer_memory_requirements(buffer) };
             let request = gpu_alloc::Request {
                 size: requirements.size,
                 align_mask: requirements.alignment,
@@ -150,8 +150,8 @@ impl Core {
         for _ in 0..FRAMES_IN_FLIGHT {
             use gpu_alloc::UsageFlags as UF;
             let buffer =
-                unsafe { prelude.device.create_buffer(&ubo_create_info, None, None) }.result()?;
-            let requirements = unsafe { prelude.device.get_buffer_memory_requirements(buffer, None) };
+                unsafe { prelude.device.create_buffer(&ubo_create_info, None) }.result()?;
+            let requirements = unsafe { prelude.device.get_buffer_memory_requirements(buffer) };
             let request = gpu_alloc::Request {
                 size: requirements.size,
                 align_mask: requirements.alignment,
@@ -262,8 +262,8 @@ impl Core {
             .sharing_mode(vk::SharingMode::EXCLUSIVE)
             .size(std::mem::size_of_val(vertices) as u64);
         let buffer =
-            unsafe { self.prelude.device.create_buffer(&create_info, None, None) }.result()?;
-        let requirements = unsafe { self.prelude.device.get_buffer_memory_requirements(buffer, None) };
+            unsafe { self.prelude.device.create_buffer(&create_info, None) }.result()?;
+        let requirements = unsafe { self.prelude.device.get_buffer_memory_requirements(buffer) };
         let request = gpu_alloc::Request {
             size: requirements.size,
             align_mask: requirements.alignment,
@@ -293,8 +293,8 @@ impl Core {
             .sharing_mode(vk::SharingMode::EXCLUSIVE)
             .size(std::mem::size_of_val(indices) as u64);
         let buffer =
-            unsafe { self.prelude.device.create_buffer(&create_info, None, None) }.result()?;
-        let requirements = unsafe { self.prelude.device.get_buffer_memory_requirements(buffer, None) };
+            unsafe { self.prelude.device.create_buffer(&create_info, None) }.result()?;
+        let requirements = unsafe { self.prelude.device.get_buffer_memory_requirements(buffer) };
         let request = gpu_alloc::Request {
             size: requirements.size,
             align_mask: requirements.alignment,
@@ -573,7 +573,7 @@ fn create_render_pass(device: &DeviceLoader, vr: bool) -> Result<vk::RenderPass>
 
     create_info.p_next = &mut multiview as *mut _ as _;
 
-    Ok(unsafe { device.create_render_pass(&create_info, None, None) }.result()?)
+    Ok(unsafe { device.create_render_pass(&create_info, None) }.result()?)
 }
 
 impl Drop for Core {

@@ -34,7 +34,6 @@ impl HardwareSelection {
                                     physical_device,
                                     i as u32,
                                     surface,
-                                    None,
                                 )
                                 .unwrap()
                     }) {
@@ -79,7 +78,7 @@ impl HardwareSelection {
                 }
 
                 let physical_device_properties =
-                    instance.get_physical_device_properties(physical_device, None);
+                    instance.get_physical_device_properties(physical_device);
                 Some(Self {
                     physical_device,
                     queue_family,

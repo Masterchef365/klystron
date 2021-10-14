@@ -64,7 +64,7 @@ impl OpenXrBackend {
         let vk_entry = EntryLoader::new()?;
 
         // Check to see if OpenXR and Vulkan are compatible
-        let vk_version = unsafe { vk_entry.enumerate_instance_version(None).result()? };
+        let vk_version = unsafe { vk_entry.enumerate_instance_version().result()? };
 
         let vk_version = xr::Version::new(
             vk::version_major(vk_version) as u16,
@@ -199,7 +199,7 @@ impl OpenXrBackend {
             device_enabled, 
             symbol,
         )?};
-        let queue = unsafe { vk_device.get_device_queue(queue_family_index, 0, None) };
+        let queue = unsafe { vk_device.get_device_queue(queue_family_index, 0) };
 
         let (session, frame_wait, frame_stream) = unsafe {
             xr_instance.create_session::<xr::Vulkan>(
