@@ -37,10 +37,10 @@ impl WinitBackend {
         let engine_name = CString::new(crate::ENGINE_NAME)?;
         let app_info = vk::ApplicationInfoBuilder::new()
             .application_name(&application_name)
-            .application_version(vk::make_version(1, 0, 0))
+            .application_version(vk::make_api_version(0, 1, 0, 0))
             .engine_name(&engine_name)
             .engine_version(crate::engine_version())
-            .api_version(vk::make_version(1, 0, 0));
+            .api_version(vk::make_api_version(0, 1, 0, 0));
 
         // Instance and device layers and extensions
         let mut instance_layers = Vec::new();

@@ -80,7 +80,7 @@ pub trait Engine {
 
 pub(crate) const ENGINE_NAME: &str = "Klystron";
 pub(crate) fn engine_version() -> u32 {
-    erupt::vk1_0::make_version(1, 0, 0)
+    erupt::vk1_0::make_api_version(0, 1, 0, 0)
 }
 
 //#[cfg(feature = "builtin_shaders")]

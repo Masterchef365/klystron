@@ -67,9 +67,9 @@ impl OpenXrBackend {
         let vk_version = unsafe { vk_entry.enumerate_instance_version().result()? };
 
         let vk_version = xr::Version::new(
-            vk::version_major(vk_version) as u16,
-            vk::version_minor(vk_version) as u16,
-            vk::version_patch(vk_version),
+            vk::api_version_major(vk_version) as u16,
+            vk::api_version_minor(vk_version) as u16,
+            vk::api_version_patch(vk_version),
         );
 
         info!("Loaded Vulkan version {}", vk_version);
@@ -98,10 +98,10 @@ impl OpenXrBackend {
         // Vulkan Instance
         let application_name = CString::new(application_name)?;
         let engine_name = CString::new(crate::ENGINE_NAME)?;
-        let vk_version = vk::make_version(1, 1, 0);
+        let vk_version = vk::make_api_version(0, 1, 1, 0);
         let app_info = vk::ApplicationInfoBuilder::new()
             .application_name(&application_name)
-            .application_version(vk::make_version(1, 0, 0))
+            .application_version(vk::make_api_version(0, 1, 0, 0))
             .engine_name(&engine_name)
             .engine_version(crate::engine_version())
             .api_version(vk_version);
